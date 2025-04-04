@@ -29,6 +29,7 @@ services:
       - tls_key
     networks:
       - traefik-public
+      - monitoring
     deploy:
       mode: global
       placement:

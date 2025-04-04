@@ -20,13 +20,10 @@ services:
         protocol: tcp
         published: 443
         target: 443
-    configs:
-      - source: traefik_dynamic
-        target: /etc/traefik/traefik_dynamic.yml
-        mode: 0444
-    secrets:
-      - tls_cert
-      - tls_key
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/traefik/certs:/certs:ro
+      - ./configs/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
     networks:
       - traefik-public
     deploy:
@@ -91,9 +88,5 @@ volumes:
   grafana_data:
 
 secrets:
-  tls_cert:
-    external: true
-  tls_key:
-    external: true
   grafana_admin_password:
     external: true

@@ -7,7 +7,9 @@ services:
         protocol: tcp
         mode: host
     networks:
-      - monitoring
+      monitoring:
+        aliases:
+          - grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_admin_password
     secrets:

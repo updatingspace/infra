@@ -13,7 +13,9 @@ services:
         protocol: tcp
         mode: host
     networks:
-      - monitoring
+      monitoring:
+        aliases:
+          - grafana
 
 networks:
   monitoring:

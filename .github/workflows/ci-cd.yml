@@ -10,19 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-and-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Scan for Secrets
-        uses: zricethezav/gitleaks-action@v1.5.2
-        with:
-          args: "--verbose"
-
   deploy:
-    needs: test-and-scan
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     steps:

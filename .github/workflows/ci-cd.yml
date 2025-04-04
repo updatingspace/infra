@@ -24,11 +24,8 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            REPO_NAME="${{ github.event.repository.name }}"
-
-            mkdir -p /home/deploy/${REPO_NAME}
-            cd /home/deploy/${REPO_NAME}
-            
+            REPO_NAME="${{ github.event.repository.name }}" 
+            cd "$REPO_NAME"
             if [ ! -d "$REPO_NAME" ]; then
               git clone git@github.com:${{ github.repository_owner }}/${REPO_NAME}.git
             else

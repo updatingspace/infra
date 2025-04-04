@@ -24,12 +24,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            REPO_NAME="${{ github.event.repository.name }}" 
-            cd "$REPO_NAME"
             if [ ! -d "$REPO_NAME" ]; then
-              git clone git@github.com:${{ github.repository_owner }}/${REPO_NAME}.git
+              git clone git@github.com:${{ github.repository_owner }}/infra.git
             else
-              cd "$REPO_NAME" && git pull origin master
+              cd infra && git pull origin master
             fi
             
             docker stack deploy -c stack.yml infra

@@ -24,7 +24,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            if [ ! -d "$REPO_NAME" ]; then
+            if [ ! -d infra ]; then
               git clone git@github.com:${{ github.repository_owner }}/infra.git && cd infra
             else
               cd infra && git pull origin master

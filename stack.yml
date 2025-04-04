@@ -26,6 +26,7 @@ services:
       - ./configs/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
     networks:
       - traefik-public
+      - monitoring
     deploy:
       mode: global
       placement:
@@ -59,9 +60,15 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.updspace.com`)"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
   grafana:
     image: grafana/grafana:latest
+    configs:
+      - source: grafana_config
+        target: /etc/grafana/grafana.yml
+        mode: 0444
     ports:
       - target: 3000
         published: 3000
@@ -77,6 +84,12 @@ services:
       - grafana_admin_password
     volumes:
       - grafana_data:/var/lib/grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.updspace.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
 networks:
   traefik-public:
@@ -91,6 +104,8 @@ configs:
     file: ./configs/traefik_dynamic.yml
   prometheus_config:
     file: ./configs/prometheus.yml
+  grafana_config:
+    file: ./configs/grafana.ini
 
 volumes:
   grafana_data:

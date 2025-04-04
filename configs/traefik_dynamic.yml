@@ -2,15 +2,3 @@ tls:
   certificates:
     - certFile: "/certs/cloudflare-origin.crt"
       keyFile: "/certs/cloudflare-origin.key"
-
-
-
-
-http:
-  routers:
-    grafana:
-      rule: "Host(`grafana.updspace.com`)"
-      entryPoints:
-        - websecure
-      service: grafana-service
-      tls: {}

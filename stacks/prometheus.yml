@@ -1,0 +1,24 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+        mode: 0444
+    ports:
+      - target: 9090
+        published: 9090
+        protocol: tcp
+        mode: host
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    external: true
+
+configs:
+  prometheus_config:
+    file: ../../configs/prometheus.yml

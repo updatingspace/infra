@@ -55,6 +55,10 @@ services:
       monitoring:
         aliases:
           - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.updspace.com`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
 
   grafana:
     image: grafana/grafana:latest
@@ -73,6 +77,10 @@ services:
       - grafana_admin_password
     volumes:
       - grafana_data:/var/lib/grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.updspace.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
 
 networks:
   traefik-public:

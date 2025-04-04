@@ -75,9 +75,11 @@ services:
 
 networks:
   traefik-public:
-    external: true
+    driver: overlay
+    attachable: true
   monitoring:
-    external: true
+    driver: overlay
+    attachable: true
 
 configs:
   traefik_dynamic:

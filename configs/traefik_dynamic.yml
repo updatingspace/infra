@@ -1,3 +1,8 @@
+tls:
+  certificates:
+    - certFile: "/certs/cloudflare-origin.crt"
+      keyFile: "/certs/cloudflare-origin.key"
+
 http:
   routers:
     prometheus:
@@ -5,25 +10,21 @@ http:
       entryPoints:
         - websecure
       service: prometheus-service
-      tls:
-        certificates:
-          - certFile: "/certs/cloudflare-origin.crt"
-            keyFile: "/certs/cloudflare-origin.key"
+      tls: {}
+
     grafana:
       rule: "Host(`grafana.updspace.com`)"
       entryPoints:
         - websecure
       service: grafana-service
-      tls:
-        certificates:
-          - certFile: "/certs/cloudflare-origin.crt"
-            keyFile: "/certs/cloudflare-origin.key"
+      tls: {}
 
   services:
     prometheus-service:
       loadBalancer:
         servers:
           - url: "http://prometheus:9090"
+
     grafana-service:
       loadBalancer:
         servers:

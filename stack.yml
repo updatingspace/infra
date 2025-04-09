@@ -93,8 +93,7 @@ services:
 
 networks:
   traefik-public:
-    driver: overlay
-    attachable: true
+    external: true
   monitoring:
     driver: overlay
     attachable: true

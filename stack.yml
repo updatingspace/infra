@@ -1,6 +1,8 @@
 services:
   traefik:
     image: traefik:v3.3
+    secrets:
+      - traefik_auth
     command:
       - "--api.dashboard=true"
       - "--providers.docker=true"
@@ -27,17 +29,22 @@ services:
     networks:
       - traefik-public
       - monitoring
-    deploy:
-      mode: global
-      placement:
-        constraints:
-          - node.role == manager
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.updspace.com`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls=true"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=my-auth@file"
+    healthcheck:
+      test: ["CMD","traefik","healthcheck"]
+      interval: 30s
+      timeout: 10s
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == manager
 
   prometheus:
     image: prom/prometheus:latest

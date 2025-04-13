@@ -2,3 +2,9 @@ tls:
   certificates:
     - certFile: "/certs/cloudflare-origin.crt"
       keyFile: "/certs/cloudflare-origin.key"
+
+http:
+  middlewares:
+    my-auth:
+      basicAuth:
+        usersFile: "/run/secrets/traefik_auth"

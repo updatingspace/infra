@@ -119,5 +119,5 @@ volumes:
 secrets:
   grafana_admin_password:
     external: true
-   traefik_auth:
+  traefik_auth:
     external: true

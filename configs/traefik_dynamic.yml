@@ -2,14 +2,8 @@ tls:
   certificates:
     - certFile: "/certs/updspace.com.cloudflare-origin.crt"
       keyFile: "/certs/updspace.com.cloudflare-origin.key"
-    - certFile: "/certs/spbetu.ru.crt"
-      keyFile: "/certs/spbetu.ru.key"
   domains:
     - main: "updspace.com"
       sans:
         - "updspace.com"
         - "*.updspace.com"
-    - main: "spbetu.ru"
-      sans:
-        - "spbetu.ru"
-        - "*.spbetu.ru"

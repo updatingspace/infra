@@ -2,3 +2,7 @@ tls:
   certificates:
     - certFile: "/certs/cloudflare-origin.crt"
       keyFile: "/certs/cloudflare-origin.key"
+  domains:
+    - main: "updspace.com"
+      sans:
+        - "*.updspace.com"

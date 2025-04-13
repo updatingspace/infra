@@ -13,6 +13,7 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--providers.file.filename=/etc/traefik/traefik_dynamic.yml"
+      - "--log.level=DEBUG"
     ports:
       - mode: host
         protocol: tcp

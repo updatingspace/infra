@@ -2,6 +2,3 @@ tls:
   certificates:
     - certFile: "/certs/cloudflare-origin.crt"
       keyFile: "/certs/cloudflare-origin.key"
-
-log:
-  level: DEBUG

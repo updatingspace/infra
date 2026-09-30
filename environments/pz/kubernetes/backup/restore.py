@@ -25,7 +25,7 @@ from typing import Any, BinaryIO
 import remote
 
 
-MAX_MANIFEST_BYTES = 64 * 1024 * 1024
+MAX_MANIFEST_BYTES = 512 * 1024 * 1024
 MAX_ENTRIES = 2_000_000
 FORBIDDEN = tuple(Path(path) for path in (
     "/srv/pz-storage", "/srv/pz-backup-spool", "/opt/pz-stack", "/var/lib/pz-volumes",
@@ -239,7 +239,12 @@ def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes:
             seen.add(name)
             if name == "manifest.json":
                 require(member.isfile() and member.size == len(manifest_bytes), "archive_manifest_type_or_size_mismatch")
-                require(archive.extractfile(member).read() == manifest_bytes, "archive_manifest_mismatch")
+                content, offset = archive.extractfile(member), 0
+                while block := content.read(remote.CHUNK):
+                    require(block == manifest_bytes[offset:offset + len(block)], "archive_manifest_mismatch")
+                    offset += len(block)
+                require(offset == len(manifest_bytes), "archive_manifest_mismatch")
+                archive.members.clear()
                 continue
             safe_name(name)
             require(name in expected, "archive_unexpected_member")
@@ -289,6 +294,10 @@ def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes:
                             "archive_hardlink_target_invalid")
                     path.unlink()
                     os.link(target, path, follow_symlinks=False)
+            # Stream mode still caches TarInfo on Python versions before 3.13.
+            # Links are resolved against our verified manifest, so retaining
+            # hundreds of thousands of member objects serves no purpose.
+            archive.members.clear()
     require(seen == set(expected) | {"manifest.json"}, "archive_inventory_mismatch")
     # Drain the encrypted/compressed pipeline so a late age authentication or
     # zstd checksum failure cannot be mistaken for a successful restore.
@@ -300,7 +309,14 @@ def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes:
     for name in sorted(expected, key=lambda value: (value.count("/"), value), reverse=True):
         _metadata(destination / name, expected[name])
     _verify_extracted(destination, expected)
-    remote._atomic_json(destination / "manifest.json", manifest)
+    # Keep the exact authenticated bytes and avoid a second large JSON encode.
+    temporary = destination / ".manifest.json.partial"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "wb") as output:
+        output.write(manifest_bytes)
+        output.flush()
+        os.fsync(output.fileno())
+    os.rename(temporary, destination / "manifest.json")
     for name, item in expected.items():
         if item["type"] == "dir":
             remote._fsync_dir(destination / name)

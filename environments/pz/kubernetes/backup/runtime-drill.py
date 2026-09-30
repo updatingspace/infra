@@ -98,8 +98,8 @@ class Docker:
         self.base = ["docker", "--context", context]
 
     @staticmethod
-    def _run(args: list[str], *, timeout: int = 120, check: bool = True) -> subprocess.CompletedProcess:
-        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout)
+    def _run(args: list[str], *, timeout: int = 120, check: bool = True, input_stream=None) -> subprocess.CompletedProcess:
+        result = subprocess.run(args, stdin=input_stream, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout)
         require(len(result.stdout) <= 8 * 1024 * 1024, "docker_output_limit_exceeded")
         require(not check or result.returncode == 0, "docker_command_failed")
         return result
@@ -268,6 +268,24 @@ def archived_image(root: Path) -> tuple[Path, str]:
     return archive_path, config_digest
 
 
+def import_verified_game_image(engine: Docker, archive: Path, config_digest: str) -> None:
+    # Classic Docker stores require manifest.json rather than OCI index.json.
+    # Convert only the selected game image, streaming checked uncompressed
+    # layers into Docker without a second archive on the workstation disk.
+    producer = subprocess.Popen([sys.executable, str(Path(__file__).with_name("oci-import.py")),
+                                 "--archive", str(archive), "--config-digest", config_digest],
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        engine.run(["image", "load"], timeout=900, input_stream=producer.stdout)
+        producer.stdout.close()
+        require(producer.wait(timeout=30) == 0, "verified_oci_conversion_failed")
+    finally:
+        if producer.poll() is None:
+            producer.kill()
+        producer.wait()
+        producer.stdout.close()
+
+
 def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
                          baseline: dict[str, Any] | None = None) -> dict[str, Any]:
     """Expose recovered Workshop bytes to -nosteam without changing the .ini."""
@@ -354,7 +372,8 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
         if len({candidate["folder"] for candidate in selected}) > 1:
             require(baseline is not None, "configured_mod_provenance_missing_or_ambiguous")
             # The verified deployed loader walks WorkshopItems in configured
-            # order and ChooseGameInfo prefers the first folder index. Existing
+            # order, setModIdToDir uses putIfAbsent, and ChooseGameInfo prefers
+            # the first folder index. Existing
             # local mods follow Workshop folders. Same-item duplicates remain
             # ambiguous because filesystem directory order is not reproduced.
             priority = min(items.index(candidate["workshop_id"]) if candidate["workshop_id"] in items else len(items)
@@ -508,9 +527,7 @@ def run_drill(restored_dir: str | Path, *, startup_timeout: int = 1800,
                 and information.get("MemTotal", 0) >= 10 * GIB, "docker_host_resources_or_platform_invalid")
         free = os.statvfs(root)
         require(free.f_bavail * free.f_frsize >= 4 * GIB, "insufficient_drill_temporary_disk_budget")
-        # Docker load may reject OCI archives on older engines. Keep that as an
-        # explicit failure; never pull a mutable replacement image from a registry.
-        engine.run(["image", "load", "--input", str(archive_path)], timeout=900)
+        import_verified_game_image(engine, archive_path, image_id)
         images = json.loads(engine.run(["image", "inspect", image_id]).stdout)
         require(len(images) == 1 and images[0].get("Id") == image_id, "loaded_image_config_digest_mismatch")
         checks["image_matches_archive"] = True

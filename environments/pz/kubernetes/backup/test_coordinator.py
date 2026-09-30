@@ -421,21 +421,26 @@ class LifecycleTests(unittest.TestCase):
         self.assertFalse(proof['cgroup_empty'])
 
     def test_stage_stopped_preserves_data_hashes_and_explicit_deadline(self):
-        data, partial = self.root / 'data', self.root / 'snapshot.partial'
+        data, partial = self.root / 'zomboid', self.root / 'snapshot.partial'
         data.mkdir()
         (data / 'world').write_bytes(b'world state')
         os.link(data / 'world', data / 'world-link')
+        os.setxattr(data / 'world', 'user.binary', b'\0\xff')
+        (data / 'relative').symlink_to('world')
+        (data / 'zomboid/backups').mkdir(parents=True)
+        (data / 'zomboid/backups/old.zip').write_bytes(b'excluded')
+        (data / 'zomboid/Saves').mkdir()
+        (data / 'zomboid/Server').mkdir()
         (partial / 'recovery').mkdir(parents=True)
         (partial / 'recovery/index.json').write_text('{}')
         coordinator = self.coordinator()
         coordinator.cfg.update(max_entries=100, max_snapshot_bytes=100000,
-                               server_name='survival42', infra_revision='b' * 40)
+                               server_name='survival42', infra_revision='b' * 40,
+                               excluded_paths=['zomboid/backups'])
         proof = {'exit_code': 0, 'runtime_child_exit': 0, 'cgroup_empty': True}
         calls = []
         def command(args, timeout=60):
             calls.append((args, timeout))
-            if args[0] == 'rsync':
-                subprocess.check_call(['cp', '-a', str(data), str(partial / 'data')])
             return b''
         with patch.object(c, 'DATA', data), patch.object(c, 'free_space'), patch.object(c, 'command', side_effect=command), patch.object(c.time, 'monotonic', return_value=100):
             coordinator.stage_stopped(partial, proof, deadline=250)
@@ -446,7 +451,70 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(records['data/world-link']['hardlink'], 'data/world')
         self.assertEqual(manifest['exit_evidence'], proof)
         self.assertEqual(calls[0][1], 150)
-        self.assertEqual(calls[1][1], 150)
+        self.assertEqual(coordinator.journal['staging_format'], 'tar-v1')
+        self.assertEqual(coordinator.journal['staged_tar']['sha256'], c.file_hash(partial / 'staging.tar'))
+        self.assertEqual((partial / 'staging.tar').stat().st_mode & 0o777, 0o600)
+        self.assertFalse((partial / 'data').exists())
+        self.assertFalse((partial / 'staging.tar.partial').exists())
+        with (partial / 'staging.tar').open('rb') as stream:
+            c.verify_tar(stream, manifest['files'], (partial / 'manifest.json').read_bytes())
+        self.assertNotIn('data/zomboid/backups', records)
+        self.assertEqual(records['data/relative']['target'], 'world')
+
+    def test_manifest_size_limit_refuses_before_tar_creation(self):
+        data, partial = self.root / 'zomboid', self.root / 'partial'
+        data.mkdir()
+        (data / 'world').write_bytes(b'world')
+        (partial / 'recovery').mkdir(parents=True)
+        coordinator = self.coordinator()
+        coordinator.cfg.update(max_entries=100, max_snapshot_bytes=100000,
+                               server_name='survival42', infra_revision='b' * 40)
+        with patch.object(c, 'DATA', data), patch.object(c, 'free_space'), \
+                patch.object(c, 'MANIFEST_MAX_BYTES', 1), patch.object(c, 'create_staging_tar') as create:
+            with self.assertRaisesRegex(c.Refused, 'manifest_size_limit_exceeded'):
+                coordinator.stage_stopped(partial, {'already_stopped': True})
+            create.assert_not_called()
+        self.assertEqual(coordinator.journal['phase'], 'writers_stopped')
+        self.assertFalse((partial / 'staging.tar').exists())
+
+    def test_corrupted_plaintext_tar_is_refused_before_encryption_subprocesses(self):
+        stage = self.root / 'partial'
+        stage.mkdir()
+        plain = stage / 'staging.tar'
+        plain.write_bytes(b'expected original plaintext')
+        record = {'path': 'staging.tar', 'sha256': c.file_hash(plain), 'size': plain.stat().st_size}
+        plain.write_bytes(b'corrupt! original plaintext')
+        with patch.object(c.subprocess, 'Popen') as popen:
+            with self.assertRaisesRegex(c.Refused, 'staging_tar_changed'):
+                c.encrypted_archive(stage, stage / 'payload.enc', {}, 'unused', staged_tar=record)
+            popen.assert_not_called()
+        self.assertFalse((stage / 'payload.partial').exists())
+
+    def test_tar_read_deadline_is_checked_before_and_after_every_underlying_read(self):
+        source = Mock()
+        source.read.return_value = b'bytes'
+        stream = c.HashTee(source, deadline=100)
+        with patch.object(c.time, 'monotonic', return_value=101):
+            with self.assertRaisesRegex(c.Refused, 'staging_deadline_exceeded'):
+                stream.read(1024)
+            source.read.assert_not_called()
+        with patch.object(c.time, 'monotonic', side_effect=[99, 101]):
+            with self.assertRaisesRegex(c.Refused, 'staging_deadline_exceeded'):
+                stream.read(1024)
+        self.assertEqual(stream.size, 0)
+
+    def test_tar_creation_failure_reaps_child_and_preserves_unverified_partial(self):
+        stage = self.root / 'partial'
+        stage.mkdir()
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired(['tar'], 1), 0]
+        process.poll.return_value = None
+        with patch.object(c.subprocess, 'Popen', return_value=process), patch.object(c.time, 'monotonic', return_value=99):
+            with self.assertRaisesRegex(c.Refused, 'staging_deadline_exceeded'):
+                c.create_staging_tar(stage, {'excluded': []}, 100)
+        process.terminate.assert_called_once()
+        self.assertTrue((stage / 'staging.tar.partial').exists())
+        self.assertFalse((stage / 'staging.tar').exists())
 
     def test_stage_stopped_elapsed_operator_deadline_cannot_reset_window(self):
         coordinator = self.coordinator()

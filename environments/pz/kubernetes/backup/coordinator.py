@@ -32,6 +32,7 @@ STATE = Path('/var/lib/pz-backup')
 LOCK = Path('/var/lib/pz-volumes/migration.lock')
 K3S = '/usr/local/bin/k3s'
 FORMAT = 'pz-backup-v1'
+MANIFEST_MAX_BYTES = 512 * 1024 * 1024
 SUBDIRS = {'pz-server', 'zomboid', 'steam', 'panel', 'panel-logs'}
 IDENTIFIER = re.compile(r'\d{8}T\d{6}Z-[0-9a-f]{32}\Z')
 TERMINAL = {'ready', 'preparation_failed', 'capture_failed'}
@@ -451,29 +452,40 @@ class ExitEvidence:
 
 
 class HashTee:
-    def __init__(self, source, destination):
-        self.source, self.destination = source, destination
+    def __init__(self, source, destination=None, deadline=None):
+        self.source, self.destination, self.deadline = source, destination, deadline
         self.digest, self.size = hashlib.sha256(), 0
 
     def read(self, size=-1):
+        remaining(self.deadline)
         data = self.source.read(size)
+        remaining(self.deadline)
         if data:
-            self.destination.write(data)
+            if self.destination is not None:
+                self.destination.write(data)
             self.digest.update(data)
             self.size += len(data)
         return data
 
 
-def verify_tar(stream, records, manifest_bytes):
+def verify_tar(stream, records, manifest_bytes, deadline=None):
     expected = {r['path']: r for r in records}
     seen = set()
     with tarfile.open(fileobj=stream, mode='r|') as archive:
         for member in archive:
+            remaining(deadline)
             name = member.name.rstrip('/')
             require(name not in seen, 'archive_duplicate_member')
             seen.add(name)
             if name == 'manifest.json':
-                require(member.isfile() and archive.extractfile(member).read() == manifest_bytes, 'archive_manifest_mismatch')
+                require(member.isfile() and member.size == len(manifest_bytes), 'archive_manifest_mismatch')
+                content = archive.extractfile(member)
+                offset = 0
+                for chunk in iter(lambda: content.read(1024 * 1024), b''):
+                    remaining(deadline)
+                    require(chunk == manifest_bytes[offset:offset + len(chunk)], 'archive_manifest_mismatch')
+                    offset += len(chunk)
+                require(offset == len(manifest_bytes), 'archive_manifest_mismatch')
                 archive.members.clear()
                 continue
             require(name in expected, 'archive_unexpected_member')
@@ -491,6 +503,7 @@ def verify_tar(stream, records, manifest_bytes):
                     content = archive.extractfile(member)
                     digest = hashlib.sha256()
                     for chunk in iter(lambda: content.read(1024 * 1024), b''):
+                        remaining(deadline)
                         digest.update(chunk)
                     require(digest.hexdigest() == item['sha256'], 'archive_sha256_mismatch')
             elif item['type'] == 'dir':
@@ -512,40 +525,122 @@ def verify_tar(stream, records, manifest_bytes):
     require(seen == set(expected) | {'manifest.json'}, 'archive_inventory_mismatch')
     # Consume padding/trailing records too, so encryption/hash sees every byte.
     while stream.read(1024 * 1024):
-        pass
+        remaining(deadline)
+    remaining(deadline)
 
 
-def encrypted_archive(stage, target, manifest, recipient):
-    """Verify each plaintext tar member while forwarding identical bytes to age."""
+def stop_children(processes):
+    """Reap only subprocesses created by this archive operation, even on SIGINT."""
+    for process in processes:
+        if process.poll() is None:
+            process.terminate()
+    for process in processes:
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def create_staging_tar(stage, manifest, deadline):
+    """Write one plaintext file, then verify every byte/member from disk."""
+    temporary, target = stage / 'staging.tar.partial', stage / 'staging.tar'
+    require(not target.exists() and not target.is_symlink(), 'staging_tar_exists')
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'wb') as output:
+        # Only member and hardlink names are rewritten. Relative symlink targets
+        # must keep their original text. Source DATA is fixed and named zomboid.
+        require(DATA.name == 'zomboid', 'unexpected_data_root_name')
+        args = ['tar', '--format=pax', '--sort=name', '--acls', '--xattrs', '--xattrs-include=*',
+                '--pax-option=delete=atime,delete=ctime', '--numeric-owner', '--one-file-system',
+                r'--transform=flags=rh;s,^zomboid\(/\|$\),data\1,', '--anchored',
+                *['--exclude=zomboid/' + path for path in manifest['excluded']],
+                '-cf', '-', '-C', str(DATA.parent), DATA.name,
+                '-C', str(stage), 'recovery', 'manifest.json']
+        process = subprocess.Popen(args, stdout=output, stderr=subprocess.DEVNULL)
+        try:
+            try:
+                code = process.wait(timeout=remaining(deadline))
+            except subprocess.TimeoutExpired:
+                raise Refused('staging_deadline_exceeded') from None
+            require(code == 0, 'staging_tar_failed')
+            output.flush()
+            os.fsync(output.fileno())
+            remaining(deadline)
+        except BaseException:
+            stop_children([process])
+            raise
+    fd = os.open(temporary, os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(fd, 'rb') as source:
+        stream = HashTee(source, deadline=deadline)
+        verify_tar(stream, manifest['files'], (stage / 'manifest.json').read_bytes(), deadline)
+        result = {'path': 'staging.tar', 'sha256': stream.digest.hexdigest(), 'size': stream.size}
+    require(temporary.stat().st_size == result['size'], 'staging_tar_size_changed')
+    os.rename(temporary, target)
+    fsync_directory(stage)
+    remaining(deadline)
+    return result
+
+
+def encrypted_archive(stage, target, manifest, recipient, staged_tar=None):
+    """Verify each plaintext member while forwarding the identical bytes to age.
+
+    Legacy directory staging remains readable for interrupted older snapshots.
+    New staging uses the previously verified TAR; every retry checks its durable
+    hash before starting and checks the bytes again while feeding encryption.
+    """
+    source = None
+    processes = []
+    if staged_tar is not None:
+        require(isinstance(staged_tar, dict) and staged_tar.get('path') == 'staging.tar'
+                and type(staged_tar.get('size')) is int and staged_tar['size'] > 0
+                and isinstance(staged_tar.get('sha256'), str)
+                and re.fullmatch(r'[0-9a-f]{64}', staged_tar['sha256']), 'staging_tar_record_invalid')
+        plain = stage / 'staging.tar'
+        require(not plain.is_symlink() and plain.is_file()
+                and plain.stat().st_size == staged_tar['size']
+                and file_hash(plain) == staged_tar['sha256'], 'staging_tar_changed')
     tmp = target.with_suffix('.partial')
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'wb') as output:
-        tar = subprocess.Popen(['tar', '--format=pax', '--sort=name', '--acls', '--xattrs',
-                                '--xattrs-include=*', '--pax-option=delete=atime,delete=ctime', '--numeric-owner',
-                                '-C', str(stage), '-cf', '-', 'data', 'recovery', 'manifest.json'],
-                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        zstd = subprocess.Popen(['zstd', '-T1', '-3', '--stdout'], stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        age = subprocess.Popen(['age', '-r', recipient], stdin=zstd.stdout, stdout=output, stderr=subprocess.DEVNULL)
-        zstd.stdout.close()
-        stream = HashTee(tar.stdout, zstd.stdin)
         try:
+            if staged_tar is not None:
+                source = os.fdopen(os.open(plain, os.O_RDONLY | os.O_NOFOLLOW), 'rb')
+            else:
+                tar = subprocess.Popen(['tar', '--format=pax', '--sort=name', '--acls', '--xattrs',
+                                        '--xattrs-include=*', '--pax-option=delete=atime,delete=ctime', '--numeric-owner',
+                                        '-C', str(stage), '-cf', '-', 'data', 'recovery', 'manifest.json'],
+                                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                processes.append(tar)
+                source = tar.stdout
+            zstd = subprocess.Popen(['zstd', '-T1', '-3', '--stdout'], stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            processes.append(zstd)
+            age = subprocess.Popen(['age', '-r', recipient], stdin=zstd.stdout, stdout=output, stderr=subprocess.DEVNULL)
+            processes.append(age)
+            zstd.stdout.close()
+            stream = HashTee(source, zstd.stdin)
             verify_tar(stream, manifest['files'], (stage / 'manifest.json').read_bytes())
+            if staged_tar is not None:
+                require(stream.size == staged_tar['size'] and stream.digest.hexdigest() == staged_tar['sha256'],
+                        'staging_tar_changed_during_encryption')
             zstd.stdin.close()
-            require(tar.wait(timeout=60) == 0 and zstd.wait(timeout=60) == 0 and age.wait(timeout=60) == 0,
-                    'archive_pipeline_failed')
+            require(all(process.wait(timeout=60) == 0 for process in processes), 'archive_pipeline_failed')
             output.flush()
             os.fsync(output.fileno())
         except BaseException:
-            tar.terminate()
-            zstd.terminate()
-            age.terminate()
-            tar.wait(timeout=10)
-            zstd.wait(timeout=10)
-            age.wait(timeout=10)
+            stop_children(processes)
             raise
         finally:
-            tar.stdout.close()
+            if source:
+                source.close()
+            for process in processes:
+                for handle in (process.stdin, process.stdout):
+                    if handle and not handle.closed:
+                        try:
+                            handle.close()
+                        except OSError:
+                            pass
     os.rename(tmp, target)
     fsync_directory(target.parent)
     return {'sha256': file_hash(target), 'size': target.stat().st_size,
@@ -770,16 +865,6 @@ class Coordinator:
         total, required = estimate(records + recovery)
         require(total <= self.cfg['max_snapshot_bytes'], 'snapshot_budget_exceeded')
         free_space(SPOOL, required, len(records) + 100, self.cfg)
-        self.phase('staging')
-        # rsync preserves ACLs/xattrs/hardlinks and applies only the
-        # explicit rooted exclusions recorded in the encrypted manifest.
-        command(['rsync', '-aHAX', '--numeric-ids', '--one-file-system',
-                 *['--exclude=/' + p + '/***' for p in self.cfg.get('excluded_paths', [])],
-                 '--', str(DATA) + '/', str(partial / 'data') + '/'], timeout=remaining(deadline))
-        copied = inventory(partial / 'data', max_entries=self.cfg['max_entries'], deadline=deadline)
-        require(copied == records, 'staging_manifest_mismatch')
-        del copied
-        require(self.data_inventory(deadline=deadline) == records, 'source_changed_during_staging')
         captured_at = utc()
         all_files = []
         for prefix, entries in [('data', records), ('recovery', recovery)]:
@@ -794,8 +879,22 @@ class Coordinator:
                     'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
                     'original': self.journal['original'], 'exit_evidence': proof}
         atomic_json(partial / 'manifest.json', manifest, deadline)
+        require((partial / 'manifest.json').stat().st_size <= MANIFEST_MAX_BYTES, 'manifest_size_limit_exceeded')
+        self.phase('staging')
+        staged_tar = create_staging_tar(partial, manifest, deadline)
+        # Tar member hashes already prove every copied byte matches the initial
+        # inventory. Recheck source metadata without a third content read.
+        # The on-disk manifest and TAR are complete; reuse the baseline records
+        # rather than retaining a third full 585k-entry inventory in memory.
+        for row in records:
+            remaining(deadline)
+            row.pop('sha256', None)
+            row['path'] = '.' if row['path'] == 'data' else row['path'].removeprefix('data/')
+            if 'hardlink' in row:
+                row['hardlink'] = row['hardlink'].removeprefix('data/')
+        require(self.data_inventory(hashes=False, deadline=deadline) == records, 'source_changed_during_staging')
         command(['sync', '-f', str(partial)], timeout=min(300, remaining(deadline)))
-        self.phase('staging_verified', captured_at=captured_at,
+        self.phase('staging_verified', captured_at=captured_at, staging_format='tar-v1', staged_tar=staged_tar,
                    manifest_sha256=file_hash(partial / 'manifest.json', deadline))
 
     def archive(self, partial):
@@ -810,7 +909,13 @@ class Coordinator:
         self.phase('archiving')
         # Existing partial ciphertext is retained after failures, never silently
         # discarded. Recovery requires an operator to move it aside before retry.
-        payload = encrypted_archive(partial, partial / 'payload.enc', manifest, self.cfg['age_recipient'])
+        if self.journal.get('staging_format') == 'tar-v1':
+            require('staged_tar' in self.journal, 'staging_tar_record_missing')
+            payload = encrypted_archive(partial, partial / 'payload.enc', manifest, self.cfg['age_recipient'],
+                                        staged_tar=self.journal['staged_tar'])
+        else:
+            require('staging_format' not in self.journal, 'unknown_staging_format')
+            payload = encrypted_archive(partial, partial / 'payload.enc', manifest, self.cfg['age_recipient'])
         encrypted = encrypt_manifest(manifest_path, partial / 'manifest.enc', self.cfg['age_recipient'])
         ready = {'format': FORMAT, 'snapshot_id': self.journal['snapshot_id'], 'captured_at': manifest['captured_at'],
                  'payload': {'path': 'payload.enc', 'compression': 'zstd', **payload}, 'manifest': {'path': 'manifest.enc', **encrypted}}
@@ -830,6 +935,9 @@ class Coordinator:
             if (partial / name).exists():
                 require(not (partial / name).is_symlink(), 'staging_directory_replaced')
                 shutil.rmtree(partial / name)
+        plain_tar = partial / 'staging.tar'
+        require(not plain_tar.is_symlink(), 'staging_tar_symlink')
+        plain_tar.unlink(missing_ok=True)
         (partial / 'manifest.json').unlink(missing_ok=True)
         for name in ('payload.enc', 'manifest.enc', 'ready.json'):
             os.chown(partial / name, 0, self.cfg['uploader_gid'])

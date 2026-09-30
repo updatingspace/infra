@@ -21,7 +21,8 @@ import subprocess
 import sys
 import tempfile
 
-SCRIPTS = ('coordinator.py', 'remote.py', 'restore.py', 'gather-recovery.py', 'upload-queue.py', 'metrics.py', 'install.py',
+SCRIPTS = ('coordinator.py', 'remote.py', 'restore.py', 'runtime-drill.py', 'oci-import.py',
+           'gather-recovery.py', 'upload-queue.py', 'metrics.py', 'install.py',
            'cleanup.py', 'verify-remote.py', 'disk-migrate.py')
 AUXILIARY = ('requirements.txt',)
 UNITS = ('pz-backup.service', 'pz-backup.timer', 'pz-backup-recover.service',

@@ -127,6 +127,7 @@ class RuntimeDrillTests(unittest.TestCase):
     def run_fake(self):
         with mock.patch.object(drill, "validated_root", return_value=(self.root, self.manifest, self.archive_report)), \
              mock.patch.object(drill, "archived_image", return_value=(self.root / "recovery/runtime-images.oci.tar", self.image)), \
+             mock.patch.object(drill, "import_verified_game_image", side_effect=lambda engine, archive, digest: engine.run(["image", "load", "--input", str(archive)])), \
              mock.patch.object(drill, "prepare_offline_mods", return_value={"configured_mods": ["ExampleMod"]}), \
              mock.patch.object(drill, "WorldReadWatch", ReadWatch), mock.patch.object(drill.time, "sleep"), \
              mock.patch.object(drill.os, "statvfs", return_value=type("Space", (), {"f_bavail": 10 * drill.GIB, "f_frsize": 1})()):

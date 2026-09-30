@@ -12,6 +12,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 import remote
 import restore
@@ -83,6 +84,30 @@ class RestoreTests(unittest.TestCase):
         self.assertTrue(report["archive_verified"])
         self.assertTrue(report["runtime_drill_required"])
         self.assertFalse((self.destination / "restore-attestation.json").exists())
+
+    def test_manifest_bound_matches_coordinator_reader_capacity(self):
+        import coordinator
+        self.assertEqual(restore.MAX_MANIFEST_BYTES, 512 * 1024 * 1024)
+        self.assertEqual(coordinator.read_json.__defaults__[0], restore.MAX_MANIFEST_BYTES)
+
+    def test_oversized_decrypted_manifest_is_rejected_and_age_reaped(self):
+        stream = io.BytesIO(b"x" * 65)
+        process = mock.Mock(stdout=stream)
+        process.poll.return_value = None
+        process.wait.return_value = 0
+        with mock.patch.object(restore, "MAX_MANIFEST_BYTES", 64), \
+             mock.patch.object(restore.subprocess, "Popen", return_value=process), \
+             self.assertRaisesRegex(restore.RestoreError, "manifest_exceeds_limit"):
+            restore._decrypt_manifest(self.root / "manifest.enc", self.root / "age.key")
+        process.kill.assert_called_once()
+        process.wait.assert_called_once()
+        self.assertTrue(stream.closed)
+
+    def test_restored_manifest_keeps_exact_authenticated_bytes(self):
+        manifest = self.manifest()
+        stream, encoded = self.archive(manifest)
+        restore.extract_verified(stream, manifest, encoded, self.destination)
+        self.assertEqual((self.destination / "manifest.json").read_bytes(), encoded)
 
     def test_restore_preserves_hardlink_inode_and_internal_symlink(self):
         linked = {**self.records[1], "path": "data/world2.db", "hardlink": "data/world.db"}

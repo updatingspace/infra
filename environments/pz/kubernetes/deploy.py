@@ -13,13 +13,56 @@ import time
 ROOT = Path(__file__).resolve().parent
 STAGES = ("platform", "workloads", "observability")
 REMOTE_ROOT = "/opt/pz-infrastructure"
+MAINTENANCE_LOCK = "/var/lib/pz-volumes/migration.lock"
 APPLY_TIMEOUT = 20 * 60
 UPDATER_PAUSE_TIMEOUT = 15 * 60
 TELEMETRY_MODULES = ("preload.mjs", "provider.mjs", "server-transform.mjs", "client-overlay.mjs")
 
+DISK_MIGRATION_GUARD = r'''
+import json
+import os
+from pathlib import Path
+import stat
+
+def require_disk_migration_terminal():
+    path = Path("/var/lib/pz-backup/disk-migration/journal.json")
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return
+    except OSError:
+        raise RuntimeError("Data disk migration journal is unreadable; deployment is blocked") from None
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or info.st_size > 8 * 1024 ** 2:
+            raise ValueError()
+        with os.fdopen(descriptor, "rb", closefd=False) as source:
+            document = json.load(source)
+        if not isinstance(document, dict) or document.get("format") != "pz-disk-migration-v1" or document.get("phase") != "complete":
+            raise ValueError()
+    except (OSError, ValueError, UnicodeError):
+        raise RuntimeError("Data disk migration requires operator recovery; deployment is blocked") from None
+    finally:
+        os.close(descriptor)
+'''
+
+# Recheck after taking the shared lock in the actual process that mutates the
+# host. A separate preflight alone would race a cutover that then crashed.
+GUARDED_EXEC = DISK_MIGRATION_GUARD + '''
+import sys
+require_disk_migration_terminal()
+os.execvp(sys.argv[1], sys.argv[1:])
+'''
+
+
+def guarded_remote_command(arguments):
+    return shlex.join(["sudo", "-n", "flock", "--nonblock", MAINTENANCE_LOCK,
+                       "python3", "-c", GUARDED_EXEC, *arguments])
+
+
 # Shared by the pause observer and the final apply gate. Only fixed summaries
 # cross SSH; API responses and the panel journal never leave the VM.
-UPDATER_GUARD = r'''
+UPDATER_GUARD = DISK_MIGRATION_GUARD + r'''
 import json
 import os
 from pathlib import Path
@@ -94,6 +137,7 @@ def require_updater_idle():
 UPDATER_REMOTE = UPDATER_GUARD + r'''
 import sys
 try:
+    require_disk_migration_terminal()
     if sys.argv[1] == "pause":
         cron = updater_kubectl(["get", "cronjob", "panel-auto-update", "--ignore-not-found", "-o", "json"])
         if cron is not None and cron.get("spec", {}).get("suspend") is not True:
@@ -102,13 +146,15 @@ try:
     elif sys.argv[1] != "status":
         raise RuntimeError("Invalid updater preflight operation")
     print(json.dumps(updater_snapshot()))
+except RuntimeError as error:
+    print(json.dumps({"status": "blocked", "error": str(error)}))
 except (UpdaterUnavailable, KeyError, TypeError):
     print(json.dumps({"status": "unavailable"}))
 '''
 
 # Sent over stdin, never installed as a second deployment framework. Only these
 # small status records return over SSH; Terraform output stays in the VM log.
-APPLY_REMOTE = UPDATER_GUARD + r'''
+APPLY_REMOTE = UPDATER_GUARD + '\nGUARDED_EXEC = ' + repr(GUARDED_EXEC) + '\n' + r'''
 import fcntl
 import hashlib
 import json
@@ -157,6 +203,10 @@ if mode == "launch":
     with (job / "control.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if properties().get("LoadState") == "not-found":
+            try:
+                require_disk_migration_terminal()
+            except RuntimeError as error:
+                fail(str(error))
             marker = job / "launch-attempt"
             if marker.exists():
                 fail("A launch was already attempted but its unit is missing; inspect on the VM, do not relaunch")
@@ -207,6 +257,8 @@ if mode == "launch":
                 "--property=StandardError=append:" + str(log),
                 "--setenv=TF_IN_AUTOMATION=1",
                 "--setenv=TF_CLI_CONFIG_FILE=/opt/pz-infrastructure/terraform.rc",
+                "flock", "--nonblock", "/var/lib/pz-volumes/migration.lock",
+                "python3", "-c", GUARDED_EXEC,
                 terraform, "-chdir=" + str(directory), "apply", "-input=false", "-no-color", str(plan),
             ], capture_output=True, timeout=15)
             if result.returncode:
@@ -243,9 +295,12 @@ def updater_request(mode, deadline):
     timeout = min(60, deadline - time.monotonic())
     if timeout <= 0:
         raise TimeoutError("Panel updater pause observation deadline reached")
-    result = ssh("sudo -n python3 - " + shlex.quote(mode), input=UPDATER_REMOTE,
+    result = ssh("sudo -n flock --nonblock " + MAINTENANCE_LOCK + " python3 - " + shlex.quote(mode), input=UPDATER_REMOTE,
                  text=True, capture_output=True, timeout=timeout)
-    return json.loads(result.stdout)
+    payload = json.loads(result.stdout)
+    if "error" in payload:
+        raise RuntimeError(payload["error"])
+    return payload
 
 
 def pause_updater_for_plan():
@@ -350,20 +405,21 @@ def main():
                 if not path.is_file() or path.is_symlink():
                     raise RuntimeError("Expected regular panel telemetry module")
                 archive.add(path, arcname=f"panel-telemetry/{path.name}", recursive=False)
-        ssh(f"sudo -n install -d -m 700 {REMOTE_ROOT}")
-        ssh(f"sudo -n tar -xzf - --no-same-owner -C {REMOTE_ROOT}", input=buffer.getvalue())
+        ssh(guarded_remote_command(["install", "-d", "-m", "700", REMOTE_ROOT]))
+        ssh(guarded_remote_command(["tar", "-xzf", "-", "--no-same-owner", "-C", REMOTE_ROOT]), input=buffer.getvalue())
     elif args.action == "status":
         ssh("sudo -n k3s kubectl --kubeconfig /etc/rancher/k3s/operator.yaml get nodes,pods,pvc,resourcequota -A")
     else:
         if not args.stage:
             parser.error("plan/apply require a stage")
         directory = f"{REMOTE_ROOT}/{args.stage}"
-        common = f"sudo -n env TF_IN_AUTOMATION=1 TF_CLI_CONFIG_FILE={REMOTE_ROOT}/terraform.rc terraform -chdir={shlex.quote(directory)}"
+        common = ["env", "TF_IN_AUTOMATION=1", f"TF_CLI_CONFIG_FILE={REMOTE_ROOT}/terraform.rc",
+                  "terraform", f"-chdir={directory}"]
         if args.action == "plan":
             if args.stage == "workloads":
                 pause_updater_for_plan()
-            ssh(common + " init -input=false -lockfile=readonly -no-color")
-            ssh(common + " plan -input=false -out=reviewed.tfplan -no-color")
+            ssh(guarded_remote_command(common + ["init", "-input=false", "-lockfile=readonly", "-no-color"]))
+            ssh(guarded_remote_command(common + ["plan", "-input=false", "-out=reviewed.tfplan", "-no-color"]))
             ssh(f"sudo -n chmod 600 {directory}/reviewed.tfplan")
         else:
             apply(args.stage)

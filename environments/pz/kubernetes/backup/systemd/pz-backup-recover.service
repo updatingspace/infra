@@ -1,0 +1,24 @@
+[Unit]
+Description=Inspect or resume a verified Project Zomboid staging snapshot
+After=k3s.service
+Requires=k3s.service
+RequiresMountsFor=/srv/pz-storage/zomboid /srv/pz-backup-spool
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/pz-backup/coordinator.py recover
+User=root
+Group=root
+UMask=0077
+StateDirectory=pz-backup
+StateDirectoryMode=0700
+TimeoutStartSec=infinity
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=100%
+MemoryMax=2G
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pz-backup-spool /var/lib/pz-backup /var/lib/pz-volumes /srv/pz-storage/zomboid
+# Manual recovery only. Uncertain stop phases refuse without starting the game.

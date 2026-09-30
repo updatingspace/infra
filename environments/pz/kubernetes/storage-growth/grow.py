@@ -26,6 +26,7 @@ PZ_UUID = "0bd0ee81-1d96-447e-868a-405226663cf6"
 IMAGE = Path("/var/lib/pz-volumes/zomboid.ext4")
 MOUNT = "/srv/pz-storage/zomboid"
 JOURNAL = IMAGE.with_name("growth-zomboid-50.json")
+DISK_MIGRATION_JOURNAL = Path("/var/lib/pz-backup/disk-migration/journal.json")
 
 
 def require(ok, reason):
@@ -63,6 +64,7 @@ def regular_image(path):
 
 def observe():
     require(os.geteuid() == 0 and socket.gethostname() == HOST, "wrong_host_or_not_root")
+    require(not os.path.lexists(DISK_MIGRATION_JOURNAL), "data_disk_migration_disables_legacy_growth")
     root = mount(["--mountpoint", "/"])
     backing_mount = mount(["--target", str(IMAGE)])
     pz = mount(["--mountpoint", MOUNT])
@@ -142,6 +144,7 @@ def grow(observe_fn=observe, run_fn=command, allocate_fn=os.posix_fallocate, rec
     lock_fd = os.open(IMAGE.with_name("migration.lock"), os.O_RDWR | os.O_NOFOLLOW)
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        require(not os.path.lexists(DISK_MIGRATION_JOURNAL), "data_disk_migration_disables_legacy_growth")
         value = validate(observe_fn())
         if complete(value):
             return value

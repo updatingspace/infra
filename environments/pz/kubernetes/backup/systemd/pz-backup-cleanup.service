@@ -1,0 +1,26 @@
+[Unit]
+OnSuccess=pz-backup-retain.service
+Description=Clean owned PZ spool ciphertext after independent remote readback
+After=pz-backup-upload.service
+RequiresMountsFor=/srv/pz-backup-spool
+ConditionPathExists=/etc/pz-backup/upload-enabled
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/pz-backup/cleanup.py
+TimeoutStartSec=infinity
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pz-backup-spool /var/lib/pz-backup /var/lib/pz-backup-remote /var/lib/pz-volumes
+ReadOnlyPaths=/var/lib/pz-backup-upload /etc/pz-backup
+InaccessiblePaths=/etc/rancher /srv/pz-storage /root
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX

@@ -29,6 +29,10 @@ resource "kubernetes_network_policy_v1" "collector" {
         protocol = "TCP"
         port     = "10250"
       }
+      ports {
+        protocol = "TCP"
+        port     = "9109"
+      }
     }
     # Standard NetworkPolicy cannot filter destination DNS names. Restrict
     # external delivery to HTTPS, excluding local/private/metadata addresses.

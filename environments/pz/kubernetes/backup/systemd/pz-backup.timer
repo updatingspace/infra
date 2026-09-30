@@ -1,0 +1,12 @@
+[Unit]
+Description=Project Zomboid backup schedule (install disabled; explicit schedule required)
+
+[Timer]
+# Deliberately no OnCalendar default: supply a reviewed timer drop-in after the
+# first successful remote backup and isolated restore drill.
+Unit=pz-backup.service
+Persistent=true
+RandomizedDelaySec=0
+
+[Install]
+WantedBy=timers.target

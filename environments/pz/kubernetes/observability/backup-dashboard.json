@@ -1,0 +1,751 @@
+{
+  "name": "pz-backup",
+  "title": "04 · PZ — резервирование и восстановление",
+  "description": "Ежедневно 06:00 МСК. Возраст — от captured_at последнего проверенного commit; неизвестные remote counts отсутствуют. Ошибки и состояние переживают reboot. После изменения мира, mods или runtime повторить full restore drill.",
+  "widgets": [
+    {
+      "position": {
+        "w": "36",
+        "h": "3"
+      },
+      "text": {
+        "text": "Ежедневно 06:00 МСК. Возраст — от captured_at последнего проверенного commit; неизвестные remote counts отсутствуют. Ошибки и состояние переживают reboot. После изменения мира, mods или runtime повторить full restore drill."
+      }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-0",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_age_seconds\"} / 3600, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Возраст последней committed копии, часы",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-1",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_stop_seconds|pz_backup_copy_seconds|pz_backup_archive_seconds|pz_backup_upload_seconds|pz_backup_downtime_seconds\"}, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Длительности фаз, секунды",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-2",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_payload_bytes\"} / 1073741824, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Размер ciphertext payload, GiB",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-3",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_verified_snapshots\"}, \"{{role}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Проверенные копии после полного retain scan",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-4",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_incomplete_multipart\"}, \"{{role}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Незавершённые multipart после загрузки",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-5",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_job_failed\"}, \"{{job}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Ошибки процессов",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-6",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_free_bytes\"} / 1073741824, \"{{filesystem}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Свободное место, GiB",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-7",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_free_inodes\"}, \"{{filesystem}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Свободные inode",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-8",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_mounted\"}, \"{{filesystem}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Файловые системы смонтированы",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "27",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-9",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_incomplete|pz_backup_retention_incomplete|pz_backup_migration_incomplete\"}, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Незавершённые журналы",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "27",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-10",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_failure_kind\"}, \"{{role}} / {{kind}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "SHA и remote ошибки",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "27",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-11",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_restore_age_seconds\"} / 86400, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Возраст полного restore drill, дни",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "35",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-12",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_remote_observation_age_seconds\"} / 3600, \"{{role}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Возраст remote-наблюдения, часы",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "35",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-13",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_state_file_invalid\"}, \"{{source}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Повреждённые файлы состояния",
+        "display_legend": true
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "35",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-backup-14",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_restore_failed\"}, \"{{name}}\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0"
+            }
+          }
+        },
+        "title": "Последний restore drill завершился ошибкой",
+        "display_legend": true
+      }
+    }
+  ]
+}

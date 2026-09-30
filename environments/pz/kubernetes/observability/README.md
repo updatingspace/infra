@@ -56,7 +56,7 @@ CA из service account. Если конкретный kubelet имеет дру
 нужны: summary уже содержит имена node/namespace/pod/container.
 
 NetworkPolicy допускает игровые метрики 9090 и health панели 3001 в namespace
-zomboid, kubelet 10250 только на private IP узла и внешний TCP 443 с исключением
+zomboid, kubelet 10250 и backup exporter 9109 только на private IP узла и внешний TCP 443 с исключением
 частных/локальных/metadata диапазонов. Стандартный NetworkPolicy не умеет разрешать
 только DNS-имя Monium; это ограничение текущей HTTPS egress policy. DNS разрешает
 platform. Входящего публичного порта collector нет. ClusterIP 8888 доступен для
@@ -120,3 +120,79 @@ ID и расположение 15 графиков; три контейнерн�
 Документация закреплённого receiver:
 [README v0.161.0](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.161.0/receiver/kubeletstatsreceiver/README.md),
 [метрики и единицы](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.161.0/receiver/kubeletstatsreceiver/metadata.yaml).
+
+## Резервирование
+
+`prometheus/backup` раз в 60 секунд читает `http://${K8S_NODE_IP}:9109/metrics`.
+Отдельная метка `service=pz-backup` сохраняет прежние host/game/panel ряды.
+Host exporter `backup/metrics.py` не получает S3 credentials: он читает небольшие
+локальные aggregate-файлы состояния и статусы пяти systemd units. Метки фиксированы:
+роль, фаза ошибки, процесс, data/spool/root. Имена игроков, object keys, секреты и
+текст исключений в метрики не попадают. Публичный порт для него не открывается.
+
+Возраст копии считается от `captured_at` последнего успешно проверенного remote
+commit, поэтому неудачная следующая загрузка не омолаживает backup. Отсутствие
+commit видно отдельно и даёт большой возраст; битый JSON имеет собственную метрику.
+При потере mount exporter не выдаёт свободное место корневого диска за spool.
+Он сверяет host `/proc/1/mountinfo` и device ID; приватные bind mounts,
+созданные `ReadOnlyPaths` unit, не считаются доказательством host mount.
+Длительности stop/copy/archive/downtime берутся из пар durable timestamps,
+upload — из последнего receipt. Незавершённые журналы и failed oneshot остаются
+видны после возвращения приложений и перезагрузки сервера.
+
+Uploader записывает `/var/lib/pz-backup-upload/remote-status.json`, retainer —
+`/var/lib/pz-backup-retain/remote-status.json`. Оба файла имеют режим `0600` и формат
+`pz-backup-remote-status-v1`, `observed_at`, `verification_failed` и только
+фиксированный `verification_failure_class` при ошибке. `verified_snapshots`
+появляется после полного SHA-verified retention scan; `incomplete_multipart` —
+после полного списка MPU с обработкой всех страниц. Неизвестные значения
+отсутствуют, а не превращаются в ноль. Отдельно экспортируется возраст наблюдения.
+Пять копий накапливаются естественно за пять успешных запусков; отсутствие пяти
+копий сразу после установки само по себе не означает сбой.
+
+Полный restore подтверждает только attestation с четырьмя успешными проверками
+в `/var/lib/pz-backup-retain/restore-attestation.json`. После реального drill
+оператор также атомарно сохраняет `/var/lib/pz-backup/restore-status.json` (`0600`)
+с полями `format: pz-backup-restore-status-v1`, `observed_at` (UTC ISO timestamp),
+`passed` (boolean). Последний файл отражает и неудачный drill, не заменяя предыдущую
+успешную attestation и не сохраняя логов игры.
+
+`backup-dashboard.json` — отдельный шаблон 15 графиков. `backup-alerts.json` —
+желаемый контракт 9 новых правил для проекта `mond4r1ecj79b4qh7g11`; эти JSON
+файлы **не применяют** правила. Основные пороги при ежедневном запуске 06:00 МСК:
+возраст WARN 26 часов / ALARM 30 часов, exporter недоступен 15 минут, ошибки
+процессов или SHA 5 минут, свободное место 4/2 GiB, inode 20 000/10 000.
+MPU после завершения upload отслеживаются с окном 15 минут; зависшая фаза —
+1/2 часа. Возраст restore drill 30/37 дней — операционный срок повторной проверки,
+не обещание RTO. После изменений mods/runtime/формата drill повторяют сразу.
+Правила используют существующую Telegram escalation `pz-game-sms` с уведомлением
+ALARM и повтором 30 минут. Старые игровые правила и адресат сохраняются.
+
+Применение после завершения capture и восстановления исходных replicas:
+
+1. Установить проверенные backup scripts и перезапустить только
+   `pz-backup-metrics.service`; проверить private endpoint и фиксированные метки.
+2. Выполнить `python3 deploy.py sync` и `python3 deploy.py plan observability`
+   из `kubernetes/`. Общий maintenance lock исключает гонку с backup/migration.
+   Ожидаются только collector ConfigMap, checksum Deployment и egress 9109
+   к private node `/32`; изучить сохранённый план перед применением.
+3. Выполнить `python3 deploy.py apply observability`. Меняется только collector;
+   существующие queue/offsets сохраняются, game и panel не перезапускаются.
+   Проверить rollout и доставку новых `service=pz-backup` рядов в Monium.
+4. В custom project создать отдельный dashboard, сохранить выданный `id` в
+   `backup-dashboard.json`, применить файл через `scripts/dashboard.py apply`
+   и проверить `check`. У публичного gRPC CreateDashboardRequest есть только
+   `folder_id`, поэтому создать dashboard в другом проекте вместо нужного нельзя.
+5. Создать правила из контракта через Monium UI, выполнить preview каждого
+   запроса, сохранить и заново прочитать настройки. Дождаться живых рядов;
+   подключать уведомления после первого committed backup. Записать фактические
+   ID, время readback и результат в отдельный файл применения; не менять
+   `desired-not-applied` на основании одного локального плана.
+
+Семантика окон и NO_DATA описана в
+[официальной документации Monium](https://yandex.cloud/en/docs/monium/concepts/alerting/alert),
+создание правил — в
+[инструкции UI](https://yandex.cloud/en/docs/monium/operations/alert/create-alert).
+CI проверяет Terraform mock-план и запускает `otelcol-contrib validate` из
+закреплённого образа с `--network none`, пустым hostfs и фиктивной service account;
+production credentials и runtime collector в тест не передаются.

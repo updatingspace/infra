@@ -1,0 +1,269 @@
+{
+  "project_id": "mond4r1ecj79b4qh7g11",
+  "status": "desired-not-applied",
+  "daily_capture_timezone": "Europe/Moscow",
+  "daily_capture_time": "06:00",
+  "alert_contracts": {
+    "pz-backup-stale": {
+      "title": "PZ · резервная копия устарела",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_age_seconds\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 93600,
+      "alarm": 108000,
+      "window": "10m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-stale/view"
+      }
+    },
+    "pz-backup-exporter": {
+      "title": "PZ · метрики резервирования недоступны",
+      "query": "1 - series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"up\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 0.5,
+      "alarm": 0.9,
+      "window": "15m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-exporter/view"
+      }
+    },
+    "pz-backup-failed": {
+      "title": "PZ · ошибка резервирования или восстановления",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_job_failed|pz_backup_state_file_invalid|pz_backup_verification_failed|pz_backup_capture_failed|pz_backup_restore_failed\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 0.5,
+      "alarm": 0.9,
+      "window": "5m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-failed/view"
+      }
+    },
+    "pz-backup-mount": {
+      "title": "PZ · data или spool не смонтирован",
+      "query": "1 - series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_mounted\",filesystem=\"data|spool\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 0.5,
+      "alarm": 0.9,
+      "window": "5m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-mount/view"
+      }
+    },
+    "pz-backup-free-space": {
+      "title": "PZ · мало свободного места для копии",
+      "query": "series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_free_bytes\"})",
+      "comparison": "LESS",
+      "aggregation": "ALL",
+      "warning": 4294967296,
+      "alarm": 2147483648,
+      "window": "5m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-free-space/view"
+      }
+    },
+    "pz-backup-free-inodes": {
+      "title": "PZ · заканчиваются inode",
+      "query": "series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_free_inodes\"})",
+      "comparison": "LESS",
+      "aggregation": "ALL",
+      "warning": 20000,
+      "alarm": 10000,
+      "window": "5m",
+      "delay": "30s",
+      "no_points": "ALARM",
+      "no_series": "ALARM",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-free-inodes/view"
+      }
+    },
+    "pz-backup-multipart": {
+      "title": "PZ · осталась незавершённая загрузка",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_incomplete_multipart\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 0.5,
+      "alarm": 0.9,
+      "window": "15m",
+      "delay": "30s",
+      "no_points": "NO_DATA",
+      "no_series": "NO_DATA",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-multipart/view"
+      }
+    },
+    "pz-backup-stalled": {
+      "title": "PZ · резервирование не продвигается",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_incomplete\"}) * series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_stage_age_seconds\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 3600,
+      "alarm": 7200,
+      "window": "10m",
+      "delay": "30s",
+      "no_points": "NO_DATA",
+      "no_series": "NO_DATA",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-stalled/view"
+      }
+    },
+    "pz-backup-restore-stale": {
+      "title": "PZ · давно не проверялось восстановление",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_restore_age_seconds\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 2592000,
+      "alarm": 3196800,
+      "window": "10m",
+      "delay": "30s",
+      "no_points": "NO_DATA",
+      "no_series": "NO_DATA",
+      "level": "CRITICAL",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ],
+          "initial_delay": "0s",
+          "repeat": "30m",
+          "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-backup-restore-stale/view"
+      }
+    }
+  }
+}

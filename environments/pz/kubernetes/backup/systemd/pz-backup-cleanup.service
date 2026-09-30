@@ -17,6 +17,8 @@ IOSchedulingClass=idle
 CPUQuota=50%
 MemoryMax=512M
 NoNewPrivileges=true
+# Retain the capability needed to drop root to the uploader for remote readback.
+AmbientCapabilities=CAP_SETUID
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true

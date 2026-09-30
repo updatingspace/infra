@@ -46,6 +46,9 @@ tar поток сжимается zstd и шифруется age; VM доста�
 GET/readback от непривилегированного helper. Проверяются корневая конфигурация
 bucket/endpoint/prefix, receipt, локальные SHA и commit. Прерванное удаление
 продолжается по журналу; `.partial`, активные данные и ручные backups не затрагиваются.
+Root unit явно сохраняет `CAP_SETUID` при `NoNewPrivileges=true`, чтобы передать
+удалённую проверку uploader account через `runuser`. Сам verifier работает под
+непривилегированным UID без effective capabilities; остальные ограничения unit сохранены.
 
 `remote.py retain` имеет отдельные credentials и сериализуется с uploader.
 Очистка выключена до успешного полного restore drill. Сохраняются пять новейших

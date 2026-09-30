@@ -3,7 +3,7 @@
 
 Use a freshly verified restore directory: the game will write only to its
 restored data. This helper uses the archived image and game build with -nosteam.
-Workshop mods can be exposed through new links within the restored copy only.
+Workshop mods are exposed through scoped bind mounts from the restored copy only.
 Every configured mod needs verified provenance and fresh loader evidence.
 No retention attestation is ever generated.
 """
@@ -18,7 +18,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import posixpath
 import re
 import signal
 import stat
@@ -42,7 +41,8 @@ WORLD_FILES = ("map_t.bin", "map_meta.bin")
 CONTAINER_ID = re.compile(r"[0-9a-f]{64}\Z")
 
 # Execute the recovered build with the image's own lifecycle/RCON implementation.
-# Only the startup argv differs: -nosteam is explicit, and recorded in the report.
+# The startup argv declares offline mode and the canonical path of the same
+# restored cache/save tree; both differences are recorded in the report.
 WRAPPER = b'''import json, os, re, runpy, signal, subprocess, time
 from pathlib import Path
 runtime = runpy.run_path('/usr/local/bin/pz-game', run_name='pz_drill_runtime')
@@ -59,7 +59,7 @@ def stop(signum, frame):
 signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGINT, stop)
 with open('/zomboid/server-console-docker.log', 'ab', buffering=0) as output:
-    child = subprocess.Popen(['/pz-server/start-server.sh', '-servername', name, '-nosteam',
+    child = subprocess.Popen(['/pz-server/start-server.sh', '-servername', name, '-nosteam', '-cachedir=/zomboid',
                               '-adminpassword', os.environ['PZ_ADMIN_PASSWORD']],
                              stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
                              start_new_session=True)
@@ -292,6 +292,7 @@ def import_verified_game_image(engine: Docker, archive: Path, config_digest: str
 def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
                          baseline: dict[str, Any] | None = None) -> dict[str, Any]:
     """Expose recovered Workshop bytes to -nosteam without changing the .ini."""
+    require(bool(re.fullmatch(r"[0-9a-f]{32}", identifier)), "invalid_drill_identity")
     settings = {}
     path = root / "data/zomboid/Server" / (manifest["server_name"] + ".ini")
     for line in path.read_text().splitlines():
@@ -337,7 +338,7 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
     origins = {}
     # The deployed loader's default is workshop,steam,mods. A pinned local
     # Workshop install therefore precedes the Steam copy. Both sources are
-    # hidden by -nosteam and need verified links into the local mods directory.
+    # hidden by -nosteam and need verified mounts into the local mods directory.
     staged = root / "data/zomboid/Workshop"
     if staged.exists():
         require(staged.is_dir() and not staged.is_symlink(), "unsafe_restored_staged_workshop_directory")
@@ -414,26 +415,72 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
                     and baseline.get("duplicate_provider_resolution", {}).get(mod) == selected[0]["folder"],
                     "duplicate_mod_provider_selection_not_proven")
         mapping[mod] = selected
-    links = []
+    mounts = []
     selected_folders = {candidate["folder"] for candidates in mapping.values() for candidate in candidates}
     if any(target is not None for _, _, target in folders):
-        local_mods.mkdir(mode=0o755, exist_ok=True)
+        if not local_mods.exists():
+            local_mods.mkdir(mode=0o755)
+            local_mods.chmod(0o755)  # The caller's private umask must not hide mods from UID 1000.
+            if os.geteuid() == 0:
+                os.chown(local_mods, 1000, 1000)
         for index, (item, folder, target) in enumerate(folders):
             if target is None or folder.relative_to(root).as_posix() not in selected_folders:
                 continue
             name = "pz-drill-" + identifier + "-" + (item or "staged") + "-" + str(index)
-            link = local_mods / name
-            require(not link.exists() and not link.is_symlink(), "offline_mod_link_already_exists")
-            link_target = posixpath.relpath(target, "/zomboid/mods")
-            link.symlink_to(link_target, target_is_directory=True)
-            links.append({"path": link.relative_to(root).as_posix(), "target": link_target,
-                          "source": folder.relative_to(root).as_posix(), "workshop_id": item,
-                          "source_kind": origins[folder.relative_to(root).as_posix()]})
-    return {"kind": "restored_workshop_links_for_nosteam", "configured_mods": mods,
-            "workshop_items": items, "provenance": mapping, "created_links": links,
+            directory = local_mods / name
+            require(not directory.exists() and not directory.is_symlink(), "offline_mod_destination_already_exists")
+            directory.mkdir(mode=0o755)
+            directory.chmod(0o755)
+            if os.geteuid() == 0:
+                os.chown(directory, 1000, 1000)
+            # PZ's script loader mixes canonical and lexical paths. A symlink
+            # can discover mod.info yet produce doubled paths for scripts/Lua.
+            # A nested bind has real directory semantics at the local mod path.
+            mounts.append({"path": directory.relative_to(root).as_posix(), "target": "/zomboid/mods/" + name,
+                           "source": folder.relative_to(root).as_posix(), "workshop_id": item,
+                           "source_kind": origins[folder.relative_to(root).as_posix()]})
+    return {"kind": "restored_workshop_mounts_for_nosteam", "configured_mods": mods,
+            "workshop_items": items, "provenance": mapping, "created_mounts": mounts, "created_links": [],
+            "cache_directory": "/zomboid", "startup_arguments": ["-nosteam", "-cachedir=/zomboid"],
             "effective_mods": [mod for mod in mods if mod not in baseline_missing],
             "baseline_missing_mods": sorted(baseline_missing), "production_baseline_verified": baseline is not None,
             "production_config_changed": False, "new_mod_bytes_downloaded": False}
+
+
+def offline_mounts(root: Path, identifier: str, adaptation: dict[str, Any] | None) -> list[tuple[str, str]]:
+    """Return only selected, verified provider mounts inside this disposable tree."""
+    if adaptation is None:
+        return []
+    require(not adaptation.get("created_links"), "offline_symlink_adaptation_rejected")
+    selected = {candidate["folder"] for candidates in adaptation.get("provenance", {}).values()
+                for candidate in candidates if candidate.get("source_kind") in ("staged_workshop", "installed_workshop")}
+    mounts = adaptation.get("created_mounts", [])
+    require(isinstance(mounts, list), "offline_mod_mounts_invalid")
+    actual, sources, targets = [], set(), set()
+    for mount in mounts:
+        source_name, path_name, target = mount.get("source"), mount.get("path"), mount.get("target")
+        require(isinstance(source_name, str) and source_name in selected and source_name not in sources,
+                "offline_mod_mount_source_not_selected")
+        restore.safe_name(source_name)
+        require("," not in source_name and "\x00" not in source_name, "offline_mod_mount_source_invalid")
+        require(isinstance(path_name, str) and bool(re.fullmatch(
+            r"data/zomboid/mods/pz-drill-" + re.escape(identifier) + r"-(?:staged|[0-9]+)-[0-9]+", path_name)),
+            "offline_mod_mount_destination_invalid")
+        require(target == "/zomboid/mods/" + Path(path_name).name and target not in targets,
+                "offline_mod_mount_destination_invalid")
+        source, destination = root / source_name, root / path_name
+        for path in (source, destination):
+            parts = path.relative_to(root).parts
+            for length in range(len(parts) + 1):
+                component = root.joinpath(*parts[:length])
+                require(component.is_dir() and not component.is_symlink(), "offline_mod_mount_path_not_directory")
+        require(not any(destination.iterdir()), "offline_mod_mount_destination_not_empty")
+        require(destination.stat().st_mode & 0o555 == 0o555, "offline_mod_mount_destination_not_traversable")
+        sources.add(source_name)
+        targets.add(target)
+        actual.append((str(source), target))
+    require(sources == selected, "offline_mod_mount_provider_missing")
+    return actual
 
 
 def verify_fresh_mod_log(root: Path, adaptation: dict[str, Any]) -> dict[str, Any]:
@@ -461,7 +508,8 @@ def verify_fresh_mod_log(root: Path, adaptation: dict[str, Any]) -> dict[str, An
             "known_missing_mods": sorted(expected_missing)}
 
 
-def create_arguments(root: Path, identifier: str, image_id: str, env_path: Path, wrapper_name: str) -> list[str]:
+def create_arguments(root: Path, identifier: str, image_id: str, env_path: Path, wrapper_name: str,
+                     adaptation: dict[str, Any] | None = None) -> list[str]:
     require(bool(re.fullmatch(r"[0-9a-f]{32}", identifier)), "invalid_drill_identity")
     require(bool(re.fullmatch(r"sha256:[0-9a-f]{64}", image_id)), "immutable_image_id_required")
     arguments = ["create", "--name", "pz-restore-drill-" + identifier, "--label", LABEL + "=" + identifier,
@@ -470,8 +518,10 @@ def create_arguments(root: Path, identifier: str, image_id: str, env_path: Path,
                  "--cpus", "2", "--pids-limit", "512", "--restart", "no", "--stop-timeout", "300",
                  "--log-driver", "json-file", "--log-opt", "max-size=10m", "--log-opt", "max-file=1",
                  "--env-file", str(env_path), "--entrypoint", "python3"]
-    for relative, target in MOUNTS.items():
-        arguments += ["--mount", "type=bind,src=" + str(root / "data" / relative) + ",dst=" + target + ",bind-propagation=rprivate"]
+    mounts = [(str(root / "data" / relative), target) for relative, target in MOUNTS.items()]
+    mounts += offline_mounts(root, identifier, adaptation)
+    for source, target in mounts:
+        arguments += ["--mount", "type=bind,src=" + source + ",dst=" + target + ",bind-propagation=rprivate"]
     return [*arguments, image_id, "/pz-server/" + wrapper_name]
 
 
@@ -481,7 +531,8 @@ def owned_container(document: dict[str, Any], container_id: str, identifier: str
             "drill_container_ownership_mismatch")
 
 
-def verify_isolation(document: dict[str, Any], root: Path, image_id: str) -> None:
+def verify_isolation(document: dict[str, Any], root: Path, image_id: str,
+                     adaptation: dict[str, Any] | None = None) -> None:
     host = document.get("HostConfig", {})
     require(document.get("Image") == image_id and document.get("Config", {}).get("User") == "1000:1000",
             "drill_image_or_user_mismatch")
@@ -495,8 +546,13 @@ def verify_isolation(document: dict[str, Any], root: Path, image_id: str) -> Non
     require(host.get("Memory") == 10 * GIB and host.get("MemorySwap") == 10 * GIB and host.get("NanoCpus") == 2_000_000_000,
             "drill_resource_limits_invalid")
     actual = document.get("Mounts", [])
-    require(len(actual) == 3 and all(mount.get("Type") == "bind" for mount in actual), "unexpected_drill_mount")
+    identifier = document.get("Config", {}).get("Labels", {}).get(LABEL, "")
+    require(bool(re.fullmatch(r"[0-9a-f]{32}", identifier)), "invalid_drill_identity")
     expected = {(str(root / "data" / relative), target) for relative, target in MOUNTS.items()}
+    expected.update(offline_mounts(root, identifier, adaptation))
+    require(len(actual) == len(expected) and all(mount.get("Type") == "bind"
+            and mount.get("Propagation") == "rprivate" and mount.get("RW") is True for mount in actual),
+            "unexpected_drill_mount")
     require({(mount.get("Source"), mount.get("Destination")) for mount in actual} == expected, "production_or_unexpected_drill_mount")
 
 
@@ -580,7 +636,7 @@ def run_drill(restored_dir: str | Path, *, startup_timeout: int = 1800,
             stream.write(WRAPPER)
             stream.flush()
             os.fsync(stream.fileno())
-        created = engine.run(create_arguments(root, identifier, image_id, env_path, wrapper_name)).stdout.decode().strip()
+        created = engine.run(create_arguments(root, identifier, image_id, env_path, wrapper_name, report["offline_adaptation"])).stdout.decode().strip()
         require(bool(CONTAINER_ID.fullmatch(created)), "docker_create_returned_invalid_id")
         container_id = created
         report["container_id"] = container_id
@@ -589,7 +645,7 @@ def run_drill(restored_dir: str | Path, *, startup_timeout: int = 1800,
         env_path = None
         document = engine.inspect(container_id)
         owned_container(document, container_id, identifier)
-        verify_isolation(document, root, image_id)
+        verify_isolation(document, root, image_id, report["offline_adaptation"])
         checks["isolated_runtime"] = True
         watcher = WorldReadWatch(world_paths)
         console_path = root / "data/zomboid/server-console-docker.log"

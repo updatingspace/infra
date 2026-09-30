@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tarfile
@@ -69,8 +70,10 @@ class FakeDocker:
                                "Privileged": False, "PidMode": "", "IpcMode": "private", "CapDrop": ["ALL"],
                                "CapAdd": None, "SecurityOpt": ["no-new-privileges"], "Memory": 10 * drill.GIB,
                                "MemorySwap": 10 * drill.GIB, "NanoCpus": 2_000_000_000},
-                "Mounts": [{"Type": "bind", "Source": str(self.root / "data" / relative), "Destination": target}
-                           for relative, target in drill.MOUNTS.items()],
+                "Mounts": [{"Type": "bind", "Source": fields["src"], "Destination": fields["dst"],
+                            "RW": True, "Propagation": fields["bind-propagation"]}
+                           for value in (args[i + 1] for i, arg in enumerate(args) if arg == "--mount")
+                           for fields in [dict(part.split("=", 1) for part in value.split(","))]],
                 "State": {"Running": False, "ExitCode": 0, "OOMKilled": False},
             }
             if self.bad_mount:
@@ -311,7 +314,7 @@ class RuntimeDrillTests(unittest.TestCase):
             stream.write('WARN : Mod          f:0 st:5,032,438,801> required mod "Dependency" not found\n')
         self.assertFalse(drill.verify_fresh_mod_log(self.root, adaptation)["verified"])
 
-    def test_offline_mod_links_use_only_manifest_verified_configured_workshop_bytes(self):
+    def test_offline_mod_mounts_use_only_manifest_verified_configured_workshop_bytes(self):
         self.set_config(mods="One;Two", workshop="123456")
         parent = self.root / "data/pz-server/steamapps/workshop/content/108600/123456/mods"
         expected = {}
@@ -325,14 +328,21 @@ class RuntimeDrillTests(unittest.TestCase):
         with mock.patch.object(drill.restore, "validate_manifest", return_value=expected):
             result = drill.prepare_offline_mods(self.root, self.manifest, "a" * 32)
         self.assertEqual(set(result["provenance"]), {"One", "Two"})
-        self.assertEqual(len(result["created_links"]), 2)
+        self.assertEqual(len(result["created_mounts"]), 2)
         self.assertEqual(config.read_bytes(), before)
-        for link in result["created_links"]:
-            self.assertEqual((self.root / link["path"]).resolve(), self.root / link["source"])
+        for link in result["created_mounts"]:
+            destination = self.root / link["path"]
+            self.assertTrue(destination.is_dir())
+            self.assertFalse(destination.is_symlink())
+            self.assertFalse(list(destination.iterdir()))
+            self.assertEqual(destination.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(destination.stat().st_uid, 1000 if os.geteuid() == 0 else os.geteuid())
+        self.assertFalse(result["created_links"])
+        self.assertEqual(len(drill.offline_mounts(self.root, "a" * 32, result)), 2)
         with mock.patch.object(drill.restore, "validate_manifest", return_value=expected), self.assertRaises(drill.DrillError):
             drill.prepare_offline_mods(self.root, self.manifest, "a" * 32)
 
-    def test_unverified_mod_metadata_never_creates_links(self):
+    def test_unverified_mod_metadata_never_creates_mountpoints(self):
         self.set_config(mods="One", workshop="123456")
         path = self.root / "data/pz-server/steamapps/workshop/content/108600/123456/mods/First/42/mod.info"
         path.parent.mkdir(parents=True)
@@ -377,7 +387,7 @@ class RuntimeDrillTests(unittest.TestCase):
             adaptation = drill.prepare_offline_mods(self.root, self.manifest, "a" * 32, baseline)
         self.assertEqual(adaptation["effective_mods"], ["One"])
         self.assertEqual(adaptation["baseline_missing_mods"], ["Missing"])
-        self.assertEqual([link["source"] for link in adaptation["created_links"]], [sources[0]])
+        self.assertEqual([link["source"] for link in adaptation["created_mounts"]], [sources[0]])
         log = self.root / "runtime-drill-game.log"
         log.write_text('WARN : Mod f:0 st:1> required mod "Missing" not found\nLOG : Mod f:0 st:2> loading One\n')
         self.assertTrue(drill.verify_fresh_mod_log(self.root, adaptation)["verified"])
@@ -418,10 +428,117 @@ class RuntimeDrillTests(unittest.TestCase):
             drill.prepare_offline_mods(self.root, self.manifest, "a" * 32, wrong)
         with mock.patch.object(drill.restore, "validate_manifest", return_value=expected):
             result = drill.prepare_offline_mods(self.root, self.manifest, "a" * 32, baseline)
-        self.assertEqual([link["source"] for link in result["created_links"]], [selected])
-        self.assertEqual(result["created_links"][0]["source_kind"], "staged_workshop")
-        self.assertEqual((self.root / result["created_links"][0]["path"]).resolve(), folders[0])
+        self.assertEqual([link["source"] for link in result["created_mounts"]], [selected])
+        self.assertEqual(result["created_mounts"][0]["source_kind"], "staged_workshop")
+        destination = self.root / result["created_mounts"][0]["path"]
+        self.assertFalse(destination.is_symlink())
+        self.assertFalse(list(destination.iterdir()))
         self.assertEqual(result["provenance"]["storm-core-b42"][0]["folder"], selected)
+
+    def mounted_provider_fixture(self):
+        self.set_config(mods="One", workshop="123456")
+        info = self.root / "data/pz-server/steamapps/workshop/content/108600/123456/mods/Provider/42/mod.info"
+        info.parent.mkdir(parents=True)
+        info.write_text("id=One\n")
+        expected = {info.relative_to(self.root).as_posix(): {"type": "file", **remote._local_digest(info)}}
+        with mock.patch.object(drill.restore, "validate_manifest", return_value=expected):
+            adaptation = drill.prepare_offline_mods(self.root, self.manifest, "a" * 32)
+        env = self.root / "test.env"
+        remote._atomic_json(env, {})
+        args = drill.create_arguments(self.root, "a" * 32, self.image, env, "helper.py", adaptation)
+        self.engine.run(args)
+        return adaptation, args
+
+    def test_nested_mounts_are_exact_rw_private_verified_sources(self):
+        adaptation, args = self.mounted_provider_fixture()
+        self.assertEqual(args.count("--mount"), 4)
+        drill.verify_isolation(self.engine.document, self.root, self.image, adaptation)
+        mount = adaptation["created_mounts"][0]
+        self.assertEqual(self.engine.document["Mounts"][-1], {
+            "Type": "bind", "Source": str(self.root / mount["source"]),
+            "Destination": mount["target"], "RW": True, "Propagation": "rprivate"})
+        self.assertEqual(adaptation["cache_directory"], "/zomboid")
+        self.assertEqual(adaptation["startup_arguments"], ["-nosteam", "-cachedir=/zomboid"])
+        for change in ("source", "destination", "duplicate", "extra", "missing", "shared", "read_only", "volume"):
+            wrong = copy.deepcopy(self.engine.document)
+            entry = wrong["Mounts"][-1]
+            if change == "source": entry["Source"] = "/srv/pz-storage/zomboid/pz-server"
+            elif change == "destination": entry["Destination"] = "/zomboid/Server"
+            elif change == "duplicate": wrong["Mounts"].append(copy.deepcopy(entry))
+            elif change == "extra": wrong["Mounts"].append(dict(entry, Destination="/other"))
+            elif change == "missing": wrong["Mounts"].pop()
+            elif change == "shared": entry["Propagation"] = "rshared"
+            elif change == "read_only": entry["RW"] = False
+            elif change == "volume": entry["Type"] = "volume"
+            with self.subTest(change=change), self.assertRaises(drill.DrillError):
+                drill.verify_isolation(wrong, self.root, self.image, adaptation)
+
+    def test_preparation_mount_paths_cannot_escape_or_replace_saved_data(self):
+        adaptation, _ = self.mounted_provider_fixture()
+        for change in ("unselected", "source_symlink", "destination_symlink", "destination_content", "duplicate", "missing"):
+            altered = copy.deepcopy(adaptation)
+            entry = altered["created_mounts"][0]
+            destination = self.root / entry["path"]
+            source = self.root / entry["source"]
+            saved = None
+            if change == "unselected": entry["source"] = "data/zomboid/Saves"
+            elif change == "source_symlink":
+                saved = source.with_name(source.name + "-saved")
+                source.rename(saved);source.symlink_to(saved)
+            elif change == "destination_symlink":
+                destination.rmdir();destination.symlink_to(source)
+            elif change == "destination_content": (destination / "saved-file").write_text("must not hide this")
+            elif change == "duplicate": altered["created_mounts"].append(copy.deepcopy(entry))
+            elif change == "missing": altered["created_mounts"].clear()
+            with self.subTest(change=change), self.assertRaises(drill.DrillError):
+                drill.offline_mounts(self.root, "a" * 32, altered)
+            if change == "source_symlink": source.unlink();saved.rename(source)
+            elif change == "destination_symlink": destination.unlink();destination.mkdir(mode=0o755)
+            elif change == "destination_content": (destination / "saved-file").unlink()
+
+    @unittest.skipUnless(shutil.which("java"), "Java source launcher required for real URI/canonical regression")
+    def test_java_script_loader_paths_require_no_provider_or_cache_ancestor_symlink(self):
+        # Reproduce the exact game loader's File.getCanonicalFile -> lowercase
+        # root URI versus lexical searchFolders path, using the real Java APIs.
+        # The directory case is the VFS path semantics supplied by nested binds;
+        # no Docker daemon, mount privilege or proprietary class is required.
+        adaptation, _ = self.mounted_provider_fixture()
+        directory = self.root / adaptation["created_mounts"][0]["path"]
+        script = directory / "42/media/scripts/example.txt"
+        script.parent.mkdir(parents=True)
+        script.write_text("verified mod script bytes")
+        old_provider = directory.with_name("old-provider-link")
+        old_provider.symlink_to(directory, target_is_directory=True)
+        old_cache = self.root / "Zomboid"
+        old_cache.symlink_to(self.root / "data/zomboid", target_is_directory=True)
+        java = self.root / "CanonicalRegression.java"
+        java.write_text("""import java.io.File;
+import java.net.URI;
+import java.util.Locale;
+class CanonicalRegression {
+  static String relative(File root, File file) throws Exception {
+    URI base = new File(root.getCanonicalPath().toLowerCase(Locale.ENGLISH)).toURI();
+    URI lexical = new File(file.getAbsolutePath().toLowerCase(Locale.ENGLISH)).toURI();
+    URI result = base.relativize(lexical);
+    return result.equals(lexical) ? file.getAbsolutePath() : result.getPath();
+  }
+  public static void main(String[] args) throws Exception {
+    for (String path : args) {
+      File root = new File(path, "42");
+      System.out.println(relative(root, new File(root, "media/scripts/example.txt")));
+    }
+  }
+}
+""")
+        lexical_cache = old_cache / "mods" / directory.name
+        result = subprocess.run([shutil.which("java"), str(java), str(old_provider), str(lexical_cache), str(directory)],
+                                check=True, capture_output=True, text=True, timeout=30)
+        provider_result, cache_result, canonical_result = result.stdout.splitlines()
+        self.assertTrue(Path(provider_result).is_absolute())
+        self.assertTrue(Path(cache_result).is_absolute())
+        self.assertEqual(canonical_result, "media/scripts/example.txt")
+        constants = [node.value for node in ast.walk(ast.parse(drill.WRAPPER)) if isinstance(node, ast.Constant)]
+        self.assertIn("-cachedir=/zomboid", constants)
 
     def test_archived_image_returns_verified_oci_config_digest(self):
         blobs = {}

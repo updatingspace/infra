@@ -55,7 +55,7 @@ bucket/prefix/endpoint/format и быть не старше 24 часов.
 
 ```sh
 systemd-run --unit=pz-disk-migration --service-type=exec --no-block \
-  --property=UMask=0077 --property=TimeoutStartSec=0 \
+  --property=UMask=0077 --property=TimeoutStartSec=infinity \
   /usr/bin/python3 /opt/pz-backup/disk-migrate.py --expected-host REVIEWED_HOST migrate \
   --config /etc/pz-backup/config.json \
   --remote-config /etc/pz-backup/cleanup-remote.json \
@@ -74,8 +74,11 @@ namespace без `PrivateMounts`/`ProtectSystem`/`PrivateTmp`.
 их остановленными для разбора. Затем remount источника read-only, полный
 `rsync -aHAX --numeric-ids --one-file-system --sparse` без исключений и сверка
 SHA256, списка файлов, UID/GID, modes, hardlinks, symlinks и xattrs/ACL.
-Игра уже остановленная до переноса не запускается после него. Копирование и
-хэш-проверка ограничены 1800 секундами. При отказе до изменения fstab/boot guard
+Игра уже остановленная до переноса не запускается после него. Полное чтение
+источника, копирование и хэш-проверка по умолчанию ограничены 1800 секундами.
+Для отдельно согласованного более длинного окна `--migration-timeout-seconds`
+принимает 1–3600 секунд. Этот бюджет не включает остановку и последующую загрузку
+игры и не меняет лимит обычного backup. При отказе до изменения fstab/boot guard
 проверенный исходный mount возвращается в RW и исходные приложения запускаются;
 неопределённый исход после переключения требует ручного разбора.
 
@@ -90,9 +93,33 @@ replicas/updater. PV paths и legacy symlinks остаются прежними.
 При занятой старой ФС штатный umount откажет: проверить read-only consumers
 логов/посторонние bind mounts, устранить причину в том же окне и продолжить
 вручную по journal. Helper не угадывает восстановление после частичного cutover
-и отвергает повторный `migrate` при существующем journal. Проверить UUID всех
+и отвергает обычный повторный `migrate` при существующем journal. Проверить UUID всех
 mounts, phase и fstab перед любым продолжением. Не удалять journal лишь для
 обхода этой проверки и не возвращать приложения на непроверенный mount.
+
+Для подтверждённого `aborted_before_cutover` предусмотрено явное продолжение.
+Сначала проверить завершение прежнего service/cgroup, отсутствие оставшихся
+rsync, исходный RW mount, неизменные fstab/boot guard и здоровье приложений.
+Частичный SSD остаётся непроверенным кешем. После согласования нового окна
+использовать новое имя systemd unit и добавить к `migrate`:
+
+```sh
+--resume-after-abort \
+--resume-journal-sha256 REVIEWED_ABORTED_JOURNAL_SHA256 \
+--resume-boot-guard-sha256 REVIEWED_ORIGINAL_GUARD_SHA256_OR_absent \
+--resume-unit pz-disk-migration.service \
+--migration-timeout-seconds 3600
+```
+
+Если исходного boot guard не было, передать буквально `absent`. Helper проверяет
+exact journal SHA, source/target identity, освобождение target и прежнего unit,
+сохраняет исходный journal без изменения байтов и создаёт новый журнал попытки.
+После нового чистого stop и remount RO заново вычисляются SHA всего источника.
+Устаревшие файлы удаляются только на проверенном staging SSD при rsync;
+`lost+found` защищён. Сравнение mtime учитывает наносекунды.
+Совпадение size/mtime позволяет повторно использовать
+кеш при передаче, но успешный cutover по-прежнему требует полного сравнения
+SHA, состава и metadata. Содержимое исходного диска не удаляется.
 
 Незавершённый disk journal блокирует backup и deploy, включая проверку внутри
 общего lock непосредственно перед sync/plan/apply. Read-only status остаётся

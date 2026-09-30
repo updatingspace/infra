@@ -1,10 +1,12 @@
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
@@ -250,6 +252,147 @@ class MountNamespaceTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['target'], str(disk.DATA))
         self.assertEqual(rows[0]['namespace'], 'mnt:[123]')
+
+
+class ResumeTests(unittest.TestCase):
+    def arguments(self, **changes):
+        values = dict(migration_timeout_seconds=1800, resume_after_abort=True,
+                      resume_journal_sha256='a'*64, resume_boot_guard_sha256='absent',
+                      resume_unit='pz-disk-migration.service', disk_id=IDENTITY, target_uuid=UUID)
+        return SimpleNamespace(**(values | changes))
+
+    def test_migration_budget_and_explicit_resume_evidence(self):
+        for value in (1800, 3600):
+            self.assertEqual(disk.migration_options(self.arguments(migration_timeout_seconds=value)), value)
+        for value in (0, 3601, True, '3600'):
+            with self.subTest(value=value), self.assertRaisesRegex(disk.backup.Refused, 'migration_timeout'):
+                disk.migration_options(self.arguments(migration_timeout_seconds=value))
+        for changed in ({'resume_after_abort': False}, {'resume_unit': None},
+                        {'resume_journal_sha256': None}, {'resume_boot_guard_sha256': None},
+                        {'resume_unit': 'unrelated.service'}, {'resume_journal_sha256': 'not-a-hash'}):
+            with self.subTest(changed=changed), self.assertRaises(disk.backup.Refused):
+                disk.migration_options(self.arguments(**changed))
+        self.assertEqual(disk.migration_options(self.arguments(resume_after_abort=False,
+            resume_unit=None, resume_journal_sha256=None, resume_boot_guard_sha256=None)), 1800)
+
+    def test_regular_backup_budget_still_refuses_over_1800(self):
+        cfg = {'data_root': str(disk.backup.DATA), 'spool': str(disk.backup.SPOOL),
+               'data_uuid': UUID, 'spool_uuid': '22222222-2222-3333-4444-555555555555',
+               'age_recipient': 'age1'+'a'*58, 'infra_revision': 'a'*40, 'server_name': 'test',
+               'min_free_bytes': 1, 'min_free_inodes': 1, 'max_snapshot_bytes': 1,
+               'max_entries': 1, 'uploader_gid': 1, 'stop_timeout_seconds': 300,
+               'staging_timeout_seconds': 3600}
+        with patch.object(disk.backup, 'trusted'), patch.object(disk.backup, 'read_json', return_value=cfg):
+            with self.assertRaisesRegex(disk.backup.Refused, 'staging_timeout_must_fit'):
+                disk.backup.configuration(Path('/config'))
+
+    def test_exact_abort_evidence_and_boot_identity_required(self):
+        previous = {'format': 'pz-disk-migration-v1', 'phase': 'aborted_before_cutover',
+                    'operator_inspection_required': True, 'old_uuid': 'old', 'new_uuid': UUID,
+                    'disk_id': IDENTITY, 'source_loop': '/dev/loop2',
+                    'restore_snapshot_id': 'snapshot', 'restore_commit_sha256': 'commit'}
+        attestation = {'snapshot_id': 'snapshot', 'commit_sha256': 'commit'}
+        cases = [({}, {}, 'fstab', None), ({'phase': 'copying'}, {}, 'fstab', None),
+                 ({'phase': 'cutover_verified'}, {}, 'fstab', None),
+                 ({'operator_inspection_required': False}, {}, 'fstab', None),
+                 ({'new_uuid': 'other'}, {}, 'fstab', None),
+                 ({'disk_id': 'other'}, {}, 'fstab', None),
+                 ({'source_loop': '/dev/loop9'}, {}, 'fstab', None),
+                 ({'restore_commit_sha256': 'other'}, {}, 'fstab', None),
+                 ({'boot_guard_before_sha256': 'a'*64}, {}, 'fstab', None),
+                 ({}, {'resume_journal_sha256': '0'*64}, 'fstab', None),
+                 ({}, {}, 'changed-fstab', None), ({}, {}, 'fstab', b'changed-guard')]
+        for index, (mutation, arguments, fstab, guard) in enumerate(cases):
+            with self.subTest(index=index), tempfile.TemporaryDirectory() as tmp:
+                state = Path(tmp); raw = json.dumps(previous | mutation).encode()
+                (state/'journal.json').write_bytes(raw); (state/'fstab.before').write_text('fstab')
+                (state/'current.fstab').write_text(fstab)
+                args = self.arguments(resume_journal_sha256=hashlib.sha256(raw).hexdigest())
+                for key, value in arguments.items(): setattr(args, key, value)
+                with patch.object(disk, 'STATE', state), patch.object(disk, 'FSTAB', state/'current.fstab'), \
+                        patch.object(disk.backup, 'trusted'), patch.object(disk, 'source_identity', return_value={
+                            'source': '/dev/loop2', 'options': 'rw', 'fs-options': 'rw'}), \
+                        patch.object(disk, 'resume_unit_stopped') as stopped, \
+                        patch.object(disk, 'wait_mount_release') as release:
+                    if index == 0:
+                        self.assertEqual(disk.resume_evidence(args, {'data_uuid': 'old'}, attestation, 'fstab', guard), raw)
+                        stopped.assert_called_once_with(args.resume_unit)
+                        release.assert_called_once_with(path=disk.NEW)
+                    else:
+                        with self.assertRaises(disk.backup.Refused):
+                            disk.resume_evidence(args, {'data_uuid': 'old'}, attestation, 'fstab', guard)
+                        release.assert_not_called()
+                self.assertEqual((state/'journal.json').read_bytes(), raw)
+
+    def test_abort_journal_preserved_byte_for_byte_without_rewriting_original(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(disk, 'STATE', Path(tmp)), \
+                patch.object(disk.backup, 'trusted'):
+            raw = b'{ "phase": "aborted_before_cutover" }\n'
+            current = Path(tmp)/'journal.json'; current.write_bytes(raw)
+            digest = hashlib.sha256(raw).hexdigest()
+            archived = disk.preserve_abort(raw, digest)
+            self.assertEqual(current.read_bytes(), raw)
+            self.assertEqual(archived.read_bytes(), raw)
+            self.assertEqual(archived.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(disk.preserve_abort(raw, digest), archived)
+            archived.write_bytes(b'changed')
+            with self.assertRaisesRegex(disk.backup.Refused, 'archived_abort_evidence_changed'):
+                disk.preserve_abort(raw, digest)
+
+    def test_previous_unit_cgroup_and_lingering_rsync_are_checked(self):
+        base = {'LoadState': 'loaded', 'ActiveState': 'failed', 'MainPID': '0', 'ControlPID': '0',
+                'ControlGroup': '/old-unit'}
+        for change, populated, rsync in [({}, '0', False), ({'ActiveState': 'active'}, '0', False),
+                ({'MainPID': '42'}, '0', False), ({'LoadState': 'not-found'}, '0', False),
+                ({}, '1', False), ({}, '0', True)]:
+            with self.subTest(change=change, populated=populated, rsync=rsync), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); proc = root/'proc'; proc.mkdir(); group = root/'old-unit'; group.mkdir()
+                (group/'cgroup.events').write_text('populated '+populated+'\n')
+                if rsync:
+                    (proc/'123').mkdir(); (proc/'123/exe').symlink_to('/usr/bin/rsync')
+                output = '\n'.join(k+'='+v for k,v in (base | change).items()).encode()
+                with patch.object(disk, 'command', return_value=output):
+                    if not change and populated == '0' and not rsync:
+                        disk.resume_unit_stopped('pz-disk-migration.service', proc, root)
+                    else:
+                        with self.assertRaises(disk.backup.Refused):
+                            disk.resume_unit_stopped('pz-disk-migration.service', proc, root)
+
+    def test_cache_budget_reserves_all_potential_writes_without_stale_credit(self):
+        records = [{'path': 'same', 'type': 'file', 'size': 100, 'mtime_ns': 1},
+                   {'path': 'changed', 'type': 'file', 'size': 200, 'mtime_ns': 2},
+                   {'path': 'missing', 'type': 'file', 'size': 300, 'mtime_ns': 3}]
+        target = [records[0], records[1] | {'mtime_ns': 1},
+                  {'path': 'stale', 'type': 'file', 'size': 999999, 'mtime_ns': 1}]
+        self.assertEqual(disk.resume_copy_budget(records, target), 500+3*8192)
+
+    @unittest.skipUnless(shutil.which('rsync'), 'rsync required for real partial-cache reconciliation fixture')
+    def test_real_resume_reconciles_partial_and_stale_files_then_verifies_exact_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source, target = Path(tmp)/'source', Path(tmp)/'target'
+            source.mkdir(); target.mkdir(); (target/'lost+found').mkdir()
+            (source/'world').write_bytes(b'fresh world')
+            (source/'cached').write_bytes(b'cached bytes')
+            shutil.copy2(source/'cached', target/'cached')
+            (target/'world').write_bytes(b'partial')
+            (target/'stale').write_bytes(b'old source generation')
+            (target/'.world.old-rsync-temp').write_bytes(b'partial temp')
+            records = disk.backup.inventory(source)
+            with patch.object(disk, 'DATA', source), patch.object(disk, 'NEW', target), \
+                    patch.object(disk, 'source_identity', return_value=READ_ONLY_SOURCE), \
+                    patch.object(disk, 'mount_record'):
+                disk.command(disk.rsync_arguments(True))
+                self.assertTrue((target/'lost+found').is_dir())
+                self.assertFalse((target/'stale').exists())
+                self.assertFalse((target/'.world.old-rsync-temp').exists())
+                disk.compare_copy(records, UUID, UUID)
+                before = (target/'cached').stat()
+                (target/'cached').write_bytes(b'CORRUPTbytes')
+                os.utime(target/'cached', ns=(before.st_atime_ns, before.st_mtime_ns))
+                disk.command(disk.rsync_arguments(True))
+                with self.assertRaisesRegex(disk.backup.Refused, 'disk_copy_hash_or_metadata_mismatch'):
+                    disk.compare_copy(records, UUID, UUID)
+            self.assertEqual((source/'cached').read_bytes(), b'cached bytes')
 
 
 if __name__ == '__main__':

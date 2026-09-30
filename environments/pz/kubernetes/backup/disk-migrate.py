@@ -244,9 +244,9 @@ def source_mount_references(device, proc=Path('/proc')):
     return rows
 
 
-def detachable_references(rows, host_namespace):
+def detachable_references(rows, host_namespace, path=DATA):
     host = [row for row in rows if row['namespace'] == host_namespace]
-    if len(host) != 1 or host[0]['target'] != str(DATA) or host[0]['root'] != '/':
+    if len(host) != 1 or host[0]['target'] != str(path) or host[0]['root'] != '/':
         return False  # Kubelet has not released a bind, or an unknown bind exists.
     shared = [item.split(':', 1)[1] for item in host[0]['propagation'] if item.startswith('shared:')]
     for row in rows:
@@ -254,36 +254,140 @@ def detachable_references(rows, host_namespace):
             continue
         # Ordinary hardened system services have slave copies that follow the
         # host's shared mount. Private container bind mounts must all be gone.
-        if (len(shared) != 1 or row['root'] != '/' or row['target'] != str(DATA)
+        if (len(shared) != 1 or row['root'] != '/' or row['target'] != str(path)
                 or 'master:' + shared[0] not in row['propagation']):
             return False
     return True
 
 
-def wait_mount_release(timeout=120):
+def wait_mount_release(timeout=120, path=DATA):
     host_namespace = os.readlink('/proc/1/ns/mnt')
     require(os.readlink('/proc/self/ns/mnt') == host_namespace, 'migration_requires_host_mount_namespace')
-    device = DATA.stat().st_dev
-    backup.wait_for(lambda: detachable_references(source_mount_references(device), host_namespace), timeout,
+    device = path.stat().st_dev
+    backup.wait_for(lambda: detachable_references(source_mount_references(device), host_namespace, path), timeout,
                     'old_filesystem_bind_mounts_not_released')
-    result = subprocess.run(['fuser', '-m', str(DATA)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    result = subprocess.run(['fuser', '-m', str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, timeout=30)
     require(result.returncode in {0, 1} and not result.stdout.strip(), 'old_filesystem_process_handles_remain')
 
 
-def prepare_target(disk_id, size_gib, target_uuid):
+def prepare_target(disk_id, size_gib, target_uuid, *, resume=False):
     device, row = block_identity(disk_id, size_gib)
     mounted = mount_record(NEW, target_uuid)
     require(Path(mounted['source']).resolve() == device.resolve() and row.get('fstype') == 'ext4',
             'target_mount_disk_mismatch')
     require({'rw', 'nodev', 'nosuid'}.issubset(set(mounted['options'].split(','))), 'target_mount_options_invalid')
     names = {p.name for p in NEW.iterdir()}
-    require(names <= {'lost+found'}, 'new_target_has_existing_data')
+    require(resume or names <= {'lost+found'}, 'new_target_has_existing_data')
     if 'lost+found' in names:
         directory = NEW / 'lost+found'
         require(directory.is_dir() and not directory.is_symlink() and not any(directory.iterdir()),
                 'new_target_lost_found_not_empty')
     return device
+
+
+def migration_options(args):
+    budget = args.migration_timeout_seconds
+    require(type(budget) is int and 1 <= budget <= 3600, 'migration_timeout_out_of_bounds')
+    supplied = (args.resume_journal_sha256, args.resume_boot_guard_sha256, args.resume_unit)
+    require(all(supplied) if args.resume_after_abort else not any(supplied), 'explicit_resume_evidence_required')
+    if args.resume_after_abort:
+        require(re.fullmatch('[0-9a-f]{64}', args.resume_journal_sha256), 'resume_journal_digest_invalid')
+        require(args.resume_boot_guard_sha256 == 'absent'
+                or re.fullmatch('[0-9a-f]{64}', args.resume_boot_guard_sha256), 'resume_boot_guard_digest_invalid')
+        require(re.fullmatch(r'pz-disk-migration(?:-[A-Za-z0-9_-]+)?\.service', args.resume_unit), 'resume_unit_invalid')
+    return budget
+
+
+def resume_unit_stopped(unit, proc=Path('/proc'), cgroups=Path('/sys/fs/cgroup')):
+    fields = dict(line.split('=', 1) for line in command([
+        'systemctl', 'show', unit, '--property=LoadState,ActiveState,MainPID,ControlPID,ControlGroup'
+    ]).decode().splitlines())
+    require(fields.get('LoadState') == 'loaded' and fields.get('ActiveState') in {'inactive', 'failed'}
+            and fields.get('MainPID') == fields.get('ControlPID') == '0', 'previous_migration_unit_not_stopped')
+    group = fields.get('ControlGroup', '')
+    if group:
+        require(group.startswith('/') and '..' not in Path(group).parts, 'previous_migration_cgroup_invalid')
+        path = cgroups / group.lstrip('/')
+        if path.exists():
+            events = dict(line.split() for line in (path/'cgroup.events').read_text().splitlines())
+            require(events.get('populated') == '0', 'previous_migration_cgroup_not_empty')
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            executable = os.readlink(entry/'exe').removesuffix(' (deleted)')
+        except FileNotFoundError:
+            continue
+        require(Path(executable).name != 'rsync', 'lingering_rsync_requires_inspection')
+
+
+def resume_evidence(args, cfg, attestation, original_fstab, original_boot_guard):
+    path = STATE/'journal.json'
+    backup.trusted(path)
+    raw = path.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == args.resume_journal_sha256, 'resume_journal_changed')
+    previous = backup.read_json(path, 1024*1024)
+    require(previous.get('format') == 'pz-disk-migration-v1'
+            and previous.get('phase') == 'aborted_before_cutover'
+            and previous.get('operator_inspection_required') is True, 'resume_requires_confirmed_abort')
+    source = source_identity(cfg['data_uuid'])
+    require('rw' in source.get('options', '').split(',') and 'rw' in source.get('fs-options', '').split(','),
+            'resume_source_not_restored_writable')
+    require(previous.get('old_uuid') == cfg['data_uuid'] and previous.get('new_uuid') == args.target_uuid
+            and previous.get('disk_id') == args.disk_id
+            and previous.get('source_loop') == source['source']
+            and previous.get('restore_snapshot_id') == attestation['snapshot_id']
+            and previous.get('restore_commit_sha256') == attestation['commit_sha256'], 'resume_identity_mismatch')
+    backup.trusted(STATE/'fstab.before')
+    require((STATE/'fstab.before').read_text() == original_fstab == FSTAB.read_text(), 'resume_fstab_changed')
+    digest = hashlib.sha256(original_boot_guard).hexdigest() if original_boot_guard is not None else 'absent'
+    require(digest == args.resume_boot_guard_sha256, 'resume_boot_guard_changed')
+    require(previous.get('boot_guard_before_sha256', digest) == digest, 'resume_original_boot_guard_changed')
+    resume_unit_stopped(args.resume_unit)
+    wait_mount_release(path=NEW)
+    return raw
+
+
+def preserve_abort(raw, digest):
+    path = STATE/('journal.aborted-' + digest + '.json')
+    if path.exists():
+        backup.trusted(path)
+        require(path.read_bytes() == raw, 'archived_abort_evidence_changed')
+    else:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        backup.fsync_directory(STATE)
+    require(path.read_bytes() == raw, 'archived_abort_readback_failed')
+    return path
+
+
+def resume_copy_budget(records, target):
+    """Only a conservative rsync write budget; cache bytes remain untrusted."""
+    existing = {item['path']: item for item in target}
+    writes = 0
+    for item in records:
+        if item['type'] != 'file':
+            continue
+        cached = existing.get(item['path'], {})
+        if not (cached.get('type') == 'file' and cached.get('size') == item['size']
+                and cached.get('mtime_ns') == item['mtime_ns']):
+            writes += item['size']
+    # No credit for stale files that will be deleted or old versions replaced.
+    return writes + len(records)*8192
+
+
+def rsync_arguments(resume):
+    # The receiver root is fixed and checked by UUID. Preserve ext4's own
+    # directory; no primary-data exclusions, inplace writes or source deletion.
+    extra = ['--delete-delay', '--filter=P /lost+found/***'] if resume else []
+    # Full verification includes mtime_ns, including cached directories whose
+    # timestamps differ only within the same second.
+    return ['rsync', '-aHAX', '--numeric-ids', '--one-file-system', '--sparse', '--modify-window=-1',
+            *extra, str(DATA) + '/', str(NEW) + '/']
 
 
 def install_boot_guard(target_uuid, expected_host):
@@ -318,10 +422,11 @@ def compare_copy(records, source_uuid, target_uuid, deadline=None):
 
 
 def migrate(args):
+    budget = migration_options(args)
     cfg = backup.configuration(Path(args.config))
     attestation = verify_attestation(Path(args.remote_config), Path(args.attestation))
     require(cfg['data_uuid'].lower() != args.target_uuid.lower(), 'migration_target_already_active')
-    device = prepare_target(args.disk_id, args.size_gib, args.target_uuid)
+    device = prepare_target(args.disk_id, args.size_gib, args.target_uuid, resume=args.resume_after_abort)
     source = source_identity(cfg['data_uuid'])
     require(OLD.is_dir() and not OLD.is_symlink() and not OLD.is_mount() and not any(OLD.iterdir()),
             'old_mount_directory_must_be_empty')
@@ -334,15 +439,18 @@ def migrate(args):
     STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
     backup.trusted(STATE, directory=True)
     journal_path = STATE / 'journal.json'
-    require(not journal_path.exists(), 'previous_disk_migration_requires_operator_review')
+    require(args.resume_after_abort or not journal_path.exists(), 'previous_disk_migration_requires_operator_review')
     # The global migration lock lives outside both old/new filesystems.
     with backup.locked(backup.LOCK):
         require(os.readlink('/proc/self/ns/mnt') == os.readlink('/proc/1/ns/mnt'),
                 'migration_requires_host_mount_namespace')
         source_identity(cfg['data_uuid'])
-        prepare_target(args.disk_id, args.size_gib, args.target_uuid)
+        prepare_target(args.disk_id, args.size_gib, args.target_uuid, resume=args.resume_after_abort)
+        aborted = resume_evidence(args, cfg, attestation, original_fstab, original_boot_guard) if args.resume_after_abort else None
         preliminary = backup.inventory(DATA, hashes=False)
         total, _ = backup.estimate(preliminary)
+        if aborted is not None:
+            total = resume_copy_budget(preliminary, backup.inventory(NEW, hashes=False))
         backup.free_space(NEW, total, len(preliminary), cfg)
         controller = backup.Coordinator(cfg)
         controller.api.no_unknown_writers()
@@ -352,8 +460,17 @@ def migrate(args):
                               'new_uuid': args.target_uuid, 'disk_id': args.disk_id,
                               'source_loop': source['source'], 'restore_snapshot_id': attestation['snapshot_id'],
                               'restore_commit_sha256': attestation['commit_sha256'], 'started_at': backup.utc()}
+        controller.journal['migration_timeout_seconds'] = budget
+        controller.journal['boot_guard_before_sha256'] = (hashlib.sha256(original_boot_guard).hexdigest()
+                                                        if original_boot_guard is not None else 'absent')
+        if aborted is not None:
+            # Preserve exact old bytes before the first write to the active journal.
+            require(journal_path.read_bytes() == aborted, 'resume_journal_changed')
+            archived = preserve_abort(aborted, args.resume_journal_sha256)
+            controller.journal.update(resumed_from=str(archived), resumed_from_sha256=args.resume_journal_sha256)
         controller.phase('preflight')
-        atomic_text(STATE / 'fstab.before', original_fstab)
+        if aborted is None:
+            atomic_text(STATE / 'fstab.before', original_fstab)
         controller.suspend_updater()
         evidence = None
         try:
@@ -384,11 +501,17 @@ def migrate(args):
             wait_mount_release()
             command(['mount', '-o', 'remount,ro', str(DATA)])
             read_only_source(cfg['data_uuid'])
-            deadline = time.monotonic() + cfg.get('staging_timeout_seconds', 1800)
+            deadline = time.monotonic() + budget
             records = backup.inventory(DATA, deadline=deadline)
+            if aborted is not None:
+                resume_unit_stopped(args.resume_unit)
+                wait_mount_release(path=NEW)
+                mount_record(NEW, args.target_uuid)
+                target_records = backup.inventory(NEW, hashes=False, deadline=deadline)
+                backup.free_space(NEW, resume_copy_budget(records, target_records), len(records), cfg)
+                del target_records
             controller.phase('copying')
-            command(['rsync', '-aHAX', '--numeric-ids', '--one-file-system', '--sparse',
-                     str(DATA) + '/', str(NEW) + '/'], timeout=backup.remaining(deadline))
+            command(rsync_arguments(aborted is not None), timeout=backup.remaining(deadline))
             command(['sync', '-f', str(NEW)], timeout=min(300, backup.remaining(deadline)))
             writers_stopped(controller.api)
             compare_copy(records, cfg['data_uuid'], args.target_uuid, deadline)
@@ -397,6 +520,8 @@ def migrate(args):
             writers_stopped(controller.api)
             wait_mount_release()
             require(FSTAB.read_text() == original_fstab, 'fstab_changed_during_copy')
+            require((boot_guard.read_bytes() if boot_guard.exists() else None) == original_boot_guard,
+                    'boot_guard_changed_during_copy')
             install_boot_guard(args.target_uuid, args.expected_host)
             atomic_text(FSTAB, updated_fstab, stat.S_IMODE(FSTAB.stat().st_mode))
             command(['systemctl', 'daemon-reload'])
@@ -466,6 +591,13 @@ def main():
     change.add_argument('--disk-id', required=True)
     change.add_argument('--size-gib', type=int, required=True)
     change.add_argument('--target-uuid', required=True)
+    change.add_argument('--migration-timeout-seconds', type=int, default=1800,
+                        help='Frozen-source copy/verification budget, 1..3600; independent of backup staging')
+    change.add_argument('--resume-after-abort', action='store_true',
+                        help='Explicitly reuse an untrusted partial target after reviewed aborted_before_cutover')
+    change.add_argument('--resume-journal-sha256')
+    change.add_argument('--resume-boot-guard-sha256', help='Reviewed original digest, or literal absent')
+    change.add_argument('--resume-unit', help='Previous inactive pz-disk-migration*.service; run resume in a new unit')
     check = commands.add_parser('check-active')
     check.add_argument('--target-uuid', required=True)
     args = parser.parse_args()

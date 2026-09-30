@@ -1,5 +1,24 @@
 # Bounded storage on the existing VM
 
+This root records the **initial loop migration**. Its specification, state and
+outputs remain historical after a separate data-disk cutover; a no-op Terraform
+plan does not prove that the active game mount still uses the original image or
+capacity. Do not change `local.filesystems`, replace the adapter, or reapply its
+provisioner to describe the new disk. The legacy worker rejects any existing
+disk-migration journal and a different game fstab source before changing mounts.
+
+For the current layout, verify the completed disk-migration journal, backup
+configuration and actual UUID/device with `verify-live.py`. It accepts a
+dedicated data disk only when trusted complete migration evidence matches the
+new device. If the old image is mounted, both its loop and ext4 superblock must
+be read-only. The old mount is not persistent in fstab: after reboot the exact,
+protected original image may be unmounted with no attached loops; this reports
+`old_copy_state=unmounted-preserved`. A foreign mount or any remaining attached
+loop in that state fails verification. Edge and observability keep their loop
+checks. Cloud disks and attachments belong to `backup-cloud/` and
+`cloud/` respectively. See [the cutover procedure](../backup/DISK-MIGRATION.md).
+The commands and capacities below describe the original migration only.
+
 This root migrates existing data to three independent, bounded ext4 filesystems:
 
 | Environment | Maximum image size | Mount |

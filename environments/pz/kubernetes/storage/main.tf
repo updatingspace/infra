@@ -56,6 +56,7 @@ resource "terraform_data" "storage" {
 }
 
 output "bounded_filesystems" {
+  description = "Historical layout created by the initial loop migration, not an inventory of current mounts. Dedicated data-disk cutover is recorded separately."
   value = { for name, fs in local.filesystems : name => {
     image    = "${local.specification.image_root}/${name}.ext4"
     mount    = "${local.specification.mount_root}/${name}"
@@ -64,5 +65,6 @@ output "bounded_filesystems" {
 }
 
 output "storage_properties" {
-  value = "Separate bounded ext4 filesystems on one physical SSD; 26.75 GiB total logical capacity. Sparse files do not reserve host disk space. Host exhaustion can affect every filesystem. This provides neither replication nor high availability."
+  description = "Historical properties of the initial loop migration. Do not use this output to infer the active data device after a dedicated-disk cutover."
+  value       = "Separate bounded ext4 filesystems on one physical SSD; 26.75 GiB total logical capacity. Sparse files do not reserve host disk space. Host exhaustion can affect every filesystem. This provides neither replication nor high availability."
 }

@@ -27,6 +27,8 @@ jobs:
         run: python -m unittest discover -s environments/pz/kubernetes/storage -p 'test_storage.py'
       - name: Legacy loop growth safety checks
         run: python -m unittest discover -s environments/pz/kubernetes/storage-growth -p 'test_grow.py'
+      - name: Read-only live acceptance fixtures
+        run: python -m unittest discover -s environments/pz/kubernetes -p 'test_verify_live*.py'
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.14.7

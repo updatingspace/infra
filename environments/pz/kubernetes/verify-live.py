@@ -74,6 +74,55 @@ SECRETS = {"zomboid": {"pz-runtime", "pz-panel"}, "edge": {"caddy-runtime"}, "ob
 TERMINAL_PHASES = {"Succeeded", "Failed"}
 LEGACY_UNITS = ("docker.service", "docker.socket", "containerd.service")
 DOCKER_CONTAINERS = Path("/var/lib/docker/containers")
+DISK_MIGRATION_JOURNAL = Path("/var/lib/pz-backup/disk-migration/journal.json")
+BACKUP_CONFIG = Path("/etc/pz-backup/config.json")
+DATA_MOUNT = Path("/srv/pz-storage/zomboid")
+OLD_DATA_MOUNT = Path("/srv/pz-storage/zomboid-old")
+UUID_PATTERN = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.IGNORECASE)
+
+
+def trusted_private_json(path):
+    """Bounded root-owned operator evidence; never follow a substituted file."""
+    for parent in path.parents:
+        info = parent.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError("Untrusted evidence directory")
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > MIB):
+            raise ValueError("Untrusted evidence file")
+        content = handle.read(MIB + 1)
+    if len(content) > MIB:
+        raise ValueError("Oversized evidence")
+    value = json.loads(content)
+    if not isinstance(value, dict):
+        raise ValueError("Evidence is not an object")
+    return value
+
+
+def data_disk_migration():
+    if not os.path.lexists(DISK_MIGRATION_JOURNAL):
+        return None
+    journal = trusted_private_json(DISK_MIGRATION_JOURNAL)
+    config = trusted_private_json(BACKUP_CONFIG)
+    if (journal.get("format") != "pz-disk-migration-v1" or journal.get("phase") != "complete"
+            or not all(isinstance(journal.get(key), str) and UUID_PATTERN.fullmatch(journal[key])
+                       for key in ("old_uuid", "new_uuid"))
+            or journal["old_uuid"].lower() == journal["new_uuid"].lower()
+            or not isinstance(journal.get("disk_id"), str)
+            or not re.fullmatch(r"[a-z0-9]{20}", journal["disk_id"])
+            or journal.get("old_copy_path") != str(OLD_DATA_MOUNT)
+            or config.get("data_root") != str(DATA_MOUNT)
+            or not isinstance(config.get("data_uuid"), str)
+            or config["data_uuid"].lower() != journal["new_uuid"].lower()):
+        raise ValueError("Incomplete or inconsistent disk migration")
+    completed = datetime.datetime.fromisoformat(journal["completed_at"].replace("Z", "+00:00"))
+    if (completed.tzinfo is None or completed.utcoffset() != datetime.timedelta(0)
+            or completed > datetime.datetime.now(datetime.timezone.utc)):
+        raise ValueError("Invalid migration completion time")
+    return journal, config
 
 
 def quantity(value):
@@ -98,7 +147,7 @@ class CommandFailure(Exception):
         self.label, self.code = label, code
 
 
-def capture(argv, label, timeout=45):
+def capture(argv, label, timeout=45, empty_status=None):
     try:
         result = subprocess.run(argv, text=True, capture_output=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
@@ -106,6 +155,10 @@ def capture(argv, label, timeout=45):
     except OSError:
         raise CommandFailure(label, "unavailable") from None
     if result.returncode:
+        # findmnt --mountpoint returns 1 with no output when that exact path is
+        # not mounted. Any diagnostic or partial response remains an error.
+        if result.returncode == empty_status and not result.stdout.strip() and not result.stderr.strip():
+            return ""
         raise CommandFailure(label, result.returncode)
     return result.stdout.strip()
 
@@ -268,28 +321,101 @@ class Verification:
             self.check(name + ": PV bound to exact claim UID", pv.get("claimRef", {}).get("uid") == claim["metadata"].get("uid"))
             self.check(name + ": exact PV capacity", quantity(pv.get("capacity", {}).get("storage", "0")) == quantity(requested))
 
+    def dedicated_data_disk(self, record, image, migration):
+        journal, _ = migration
+        image_info = image.lstat()
+        self.check("zomboid: preserved image remains root-owned and protected",
+                   image_info.st_uid == 0 and image_info.st_nlink == 1 and not image_info.st_mode & 0o022)
+        device = (Path("/dev/disk/by-id") / ("virtio-" + journal["disk_id"])).resolve(strict=True)
+        if not self.check("zomboid: dedicated block device matches migration identity",
+                          stat.S_ISBLK(device.stat().st_mode)
+                          and Path(record["source"]).resolve(strict=True) == device
+                          and str(record.get("uuid", "")).lower() == journal["new_uuid"].lower()):
+            raise ValueError("Dedicated device identity mismatch")
+        rows = json.loads(capture(["lsblk", "--json", "--bytes", "--output", "PATH,TYPE,SERIAL,SIZE,FSTYPE",
+                                   str(device)], "lsblk data identity"))["blockdevices"]
+        if not self.check("zomboid: whole ext4 disk has expected serial",
+                          len(rows) == 1 and rows[0].get("path") == str(device)
+                          and rows[0].get("type") == "disk" and not rows[0].get("children")
+                          and rows[0].get("serial") == journal["disk_id"] and rows[0].get("fstype") == "ext4"
+                          and int(rows[0].get("size", 0)) > 0):
+            raise ValueError("Dedicated disk metadata mismatch")
+        disk_uuid = capture(["blkid", "-p", "-s", "UUID", "-o", "value", str(device)], "blkid data identity")
+        self.check("zomboid: device superblock UUID matches completed migration",
+                   disk_uuid.lower() == journal["new_uuid"].lower())
+        fs_options = set(record.get("fs-options", "").split(","))
+        self.check("zomboid: dedicated ext4 superblock writable", "rw" in fs_options and "ro" not in fs_options)
+
+        loops = json.loads(capture(["losetup", "--json", "--output", "NAME,BACK-FILE,OFFSET,SIZELIMIT,RO"],
+                                   "losetup old data"))["loopdevices"]
+        if not isinstance(loops, list) or any(not isinstance(loop, dict)
+                                             or not isinstance(loop.get("back-file"), str)
+                                             or not loop["back-file"] for loop in loops):
+            raise ValueError("Cannot identify all attached loop images")
+        matches = [loop for loop in loops if isinstance(loop.get("back-file"), str)
+                   and Path(loop["back-file"]).resolve() == image.resolve()]
+        image_uuid = capture(["blkid", "-p", "-s", "UUID", "-o", "value", str(image)], "blkid old data")
+        self.check("zomboid: preserved image UUID matches original migration source",
+                   image_uuid.lower() == journal["old_uuid"].lower())
+        result = {"layout": "dedicated-disk", "image_role": "preserved-old-copy", "disk_id": journal["disk_id"],
+                  "disk_size_bytes": int(rows[0]["size"]), "old_uuid": journal["old_uuid"]}
+        old_response = capture(["findmnt", "--json", "--mountpoint", str(OLD_DATA_MOUNT), "-o",
+                                "SOURCE,FSTYPE,UUID,TARGET,OPTIONS,FS-OPTIONS"], "findmnt old data", empty_status=1)
+        if not old_response:
+            # The old mount is intentionally not in fstab. After reboot the
+            # protected original image may remain offline, with no loop users.
+            self.check("zomboid: unmounted preserved image has no attached loops", not matches)
+            return {**result, "old_copy_state": "unmounted-preserved", "old_mount": None}
+        old_records = json.loads(old_response)["filesystems"]
+        if len(old_records) != 1:
+            raise ValueError("Preserved old mount is ambiguous")
+        old = old_records[0]
+        if not self.check("zomboid: preserved old ext4 loop is read-only",
+                          old.get("target") == str(OLD_DATA_MOUNT) and old.get("fstype") == "ext4"
+                          and str(old.get("uuid", "")).lower() == journal["old_uuid"].lower()
+                          and re.fullmatch(r"/dev/loop[0-9]+", old.get("source", ""))
+                          and {"ro", "nodev", "nosuid"} <= set(old.get("options", "").split(","))
+                          and "rw" not in old.get("options", "").split(",")
+                          and "ro" in old.get("fs-options", "").split(",")
+                          and "rw" not in old.get("fs-options", "").split(",")):
+            raise ValueError("Preserved old filesystem identity mismatch")
+        self.check("zomboid: original backing image has one exact read-only loop",
+                   len(matches) == 1 and matches[0].get("name") == old["source"]
+                   and matches[0].get("back-file") == str(image)
+                   and matches[0].get("offset") == 0 and matches[0].get("sizelimit") == 0
+                   and matches[0].get("ro") is True)
+        return {**result, "old_copy_state": "mounted-read-only", "old_mount": str(OLD_DATA_MOUNT)}
+
     def filesystems(self):
         self.report["filesystems"] = []
+        migration = data_disk_migration()
         for namespace, spec in FILESYSTEMS.items():
             image, mount = Path("/var/lib/pz-volumes") / (namespace + ".ext4"), Path("/srv/pz-storage") / namespace
             image_stat = image.lstat()
-            self.check(namespace + ": regular backing image with exact logical size", stat.S_ISREG(image_stat.st_mode) and image_stat.st_size == spec["size_mib"] * MIB)
-            records = json.loads(capture(["findmnt", "--json", "--mountpoint", str(mount), "-o", "SOURCE,FSTYPE,UUID,TARGET,OPTIONS"], "findmnt"))["filesystems"]
+            if not self.check(namespace + ": regular backing image with exact logical size", stat.S_ISREG(image_stat.st_mode) and image_stat.st_size == spec["size_mib"] * MIB):
+                continue
+            records = json.loads(capture(["findmnt", "--json", "--mountpoint", str(mount), "-o", "SOURCE,FSTYPE,UUID,TARGET,OPTIONS,FS-OPTIONS"], "findmnt"))["filesystems"]
             if not self.check(namespace + ": exactly one mounted filesystem", len(records) == 1):
                 continue
             record = records[0]
             self.check(namespace + ": ext4 mounted at exact path", record.get("fstype") == "ext4" and record.get("target") == str(mount) and bool(record.get("uuid")))
-            backing = capture(["losetup", "--noheadings", "--raw", "--output", "BACK-FILE", record["source"]], "losetup")
-            self.check(namespace + ": mounted loop uses exact backing image", Path(backing).resolve() == image.resolve())
-            image_uuid = capture(["blkid", "-p", "-s", "UUID", "-o", "value", str(image)], "blkid")
-            self.check(namespace + ": mount UUID matches image", record.get("uuid") == image_uuid)
+            if namespace == "zomboid" and migration is not None:
+                layout = self.dedicated_data_disk(record, image, migration)
+            else:
+                backing = capture(["losetup", "--noheadings", "--raw", "--output", "BACK-FILE", record["source"]], "losetup")
+                self.check(namespace + ": mounted loop uses exact backing image", Path(backing).resolve() == image.resolve())
+                image_uuid = capture(["blkid", "-p", "-s", "UUID", "-o", "value", str(image)], "blkid")
+                self.check(namespace + ": mount UUID matches image", record.get("uuid") == image_uuid)
+                layout = {"layout": "legacy-loop"}
             options = set(record.get("options", "").split(","))
             self.check(namespace + ": filesystem writable with nodev/nosuid", {"rw", "nodev", "nosuid"} <= options)
             usage = os.statvfs(mount)
             available = usage.f_bavail * usage.f_frsize
             total = usage.f_blocks * usage.f_frsize
-            self.report["filesystems"].append({"namespace": namespace, "image": str(image), "mount": str(mount), "source": record.get("source"), "uuid": record.get("uuid"), "logical_size_bytes": image_stat.st_size, "backing_allocated_bytes": image_stat.st_blocks * 512, "filesystem_size_bytes": total, "available_bytes": available})
+            self.report["filesystems"].append({"namespace": namespace, "image": str(image), "mount": str(mount), "source": record.get("source"), "uuid": record.get("uuid"), "logical_size_bytes": image_stat.st_size, "backing_allocated_bytes": image_stat.st_blocks * 512, "filesystem_size_bytes": total, "available_bytes": available, **layout})
             self.check(namespace + ": filesystem has free space", available > 0 and total > 0)
+            if layout["layout"] == "dedicated-disk":
+                self.check(namespace + ": filesystem fits dedicated disk", total <= layout["disk_size_bytes"])
             for name in spec["directories"]:
                 legacy, target = Path("/opt/pz-stack/data") / name, mount / name
                 self.check(name + ": legacy path links to mounted data", legacy.is_symlink() and legacy.resolve() == target and target.is_dir())
@@ -297,6 +423,7 @@ class Verification:
         free = root.f_bavail * root.f_frsize
         self.report["root_filesystem"] = {"size_bytes": root.f_blocks * root.f_frsize, "available_bytes": free, "required_free_bytes": self.options.minimum_root_free_mib * MIB}
         self.check("physical root filesystem has required reserve", free >= self.options.minimum_root_free_mib * MIB)
+        self.check("disk migration evidence remained unchanged during verification", data_disk_migration() == migration)
 
     def legacy(self):
         if getattr(self.options, "legacy_retired", False):

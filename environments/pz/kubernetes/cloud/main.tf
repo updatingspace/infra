@@ -56,6 +56,16 @@ resource "yandex_compute_instance" "server" {
     auto_delete = true
   }
 
+  dynamic "secondary_disk" {
+    for_each = var.backup_disks
+    content {
+      disk_id     = secondary_disk.value
+      device_name = secondary_disk.value
+      mode        = "READ_WRITE"
+      auto_delete = false
+    }
+  }
+
   network_interface {
     index              = 0
     subnet_id          = "fl85dfa0vicscrh220cv"

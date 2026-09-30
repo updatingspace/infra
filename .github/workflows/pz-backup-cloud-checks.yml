@@ -1,0 +1,28 @@
+name: PZ backup cloud checks
+on:
+  pull_request:
+    paths: ['environments/pz/kubernetes/backup-cloud/**', 'environments/pz/kubernetes/cloud/**', '.github/workflows/pz-backup-cloud-checks.yml']
+permissions:
+  contents: read
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.7
+          terraform_wrapper: false
+      - name: Check backup resources without cloud credentials
+        working-directory: environments/pz/kubernetes/backup-cloud
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+          terraform test
+      - name: Validate VM attachment inputs
+        working-directory: environments/pz/kubernetes/cloud
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate

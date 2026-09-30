@@ -13,7 +13,7 @@
       "alarm": 108000,
       "window": "10m",
       "delay": "30s",
-      "no_points": "ALARM",
+      "no_points": "NO_DATA",
       "no_series": "ALARM",
       "level": "CRITICAL",
       "notification_methods": [
@@ -40,7 +40,7 @@
       "aggregation": "ALL",
       "warning": 0.5,
       "alarm": 0.9,
-      "window": "15m",
+      "window": "45m",
       "delay": "30s",
       "no_points": "ALARM",
       "no_series": "ALARM",
@@ -71,7 +71,7 @@
       "alarm": 0.9,
       "window": "5m",
       "delay": "30s",
-      "no_points": "ALARM",
+      "no_points": "NO_DATA",
       "no_series": "ALARM",
       "level": "CRITICAL",
       "notification_methods": [
@@ -100,7 +100,7 @@
       "alarm": 0.9,
       "window": "5m",
       "delay": "30s",
-      "no_points": "ALARM",
+      "no_points": "NO_DATA",
       "no_series": "ALARM",
       "level": "CRITICAL",
       "notification_methods": [
@@ -129,7 +129,7 @@
       "alarm": 2147483648,
       "window": "5m",
       "delay": "30s",
-      "no_points": "ALARM",
+      "no_points": "NO_DATA",
       "no_series": "ALARM",
       "level": "CRITICAL",
       "notification_methods": [
@@ -158,7 +158,7 @@
       "alarm": 10000,
       "window": "5m",
       "delay": "30s",
-      "no_points": "ALARM",
+      "no_points": "NO_DATA",
       "no_series": "ALARM",
       "level": "CRITICAL",
       "notification_methods": [

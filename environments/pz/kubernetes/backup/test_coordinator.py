@@ -336,38 +336,125 @@ class LifecycleTests(unittest.TestCase):
         command.assert_called_once_with([c.K3S, 'kubectl', 'get', 'deployment', '-n', 'observability',
                                          'otel-collector', '-o', 'json'])
 
-    def test_stopped_container_without_runtime_exit_log_is_not_consistent(self):
+    def exit_evidence(self, *, status=0, logs=None):
         evidence = object.__new__(c.ExitEvidence)
         evidence.container = 'a' * 64
-        evidence.events = [{'exit_status': 0}]
-        evidence.log = io.BytesIO(b'pod deleted but game did not confirm exit')
+        evidence.pid, evidence.pod_uid = 2423196, 'pod-uid'
+        event = {'container_id': evidence.container, 'id': evidence.container,
+                 'pid': evidence.pid, 'exited_at': {'seconds': 1790793846, 'nanos': 425329585}}
+        if status != 'omitted':
+            event['exit_status'] = status
+        evidence.events = [event]
+        evidence.invalid_matching_event = False
+        evidence.log = io.BytesIO(logs if logs is not None else
+            b'Shutdown requested: saving world and requesting graceful quit\nGame process exited with code 0')
         evidence.cgroup = self.root / 'absent-cgroup'
-        with patch.object(c.time, 'sleep'):
+        return evidence
+
+    def test_protobuf_omitted_exit_zero_requires_exact_typed_task_exit(self):
+        evidence = self.exit_evidence(status='omitted')
+        raw = evidence.events[0]
+        evidence.events = []
+        evidence.process = SimpleNamespace(stdout=[
+            'timestamp k8s.io /tasks/exit ' + json.dumps(raw),
+            'timestamp wrong /tasks/exit ' + json.dumps(raw),
+            'timestamp k8s.io /tasks/exit-wrong ' + json.dumps(raw)])
+        evidence.collect()
+        self.assertEqual(evidence.events, [raw])
+        with patch.object(c.time, 'sleep'), patch.object(c, 'STATE', self.root):
+            self.assertEqual(evidence.verify()['exit_code'], 0)
+        proof = c.read_json(self.root / ('container-exit-' + evidence.container + '.json'))
+        self.assertEqual(proof['events'], [raw])
+        self.assertTrue(proof['runtime_shutdown_requested'])
+        self.assertTrue(proof['runtime_child_exit_zero'])
+        self.assertTrue(proof['cgroup_empty'])
+        self.assertNotIn('Shutdown requested', json.dumps(proof))
+
+    def test_malformed_matching_exit_event_never_uses_zero_default_or_cri_fallback(self):
+        for changes in ({'exit_status': None}, {'exit_status': '0'}, {'exit_status': False},
+                        {'pid': '2423196'}, {'pid': 1}, {'exited_at': None},
+                        {'exited_at': {'seconds': '1790793846'}},
+                        {'exited_at': {'seconds': 1790793846, 'nanos': 1000000000}}):
+            with self.subTest(changes=changes):
+                evidence = self.exit_evidence(status='omitted')
+                event = {**evidence.events[0], **changes}
+                evidence.events = []
+                evidence.process = SimpleNamespace(stdout=['timestamp k8s.io /tasks/exit ' + json.dumps(event)])
+                evidence.collect()
+                with patch.object(c.time, 'sleep'), patch.object(c, 'STATE', self.root), patch.object(c, 'command') as command:
+                    with self.assertRaisesRegex(c.Refused, 'clean_container_exit_not_observed'):
+                        evidence.verify()
+                    command.assert_not_called()
+                proof = c.read_json(self.root / ('container-exit-' + evidence.container + '.json'))
+                self.assertTrue(proof['invalid_matching_event'])
+                self.assertTrue(proof['runtime_child_exit_zero'])
+
+    def test_stopped_container_without_runtime_exit_log_is_not_consistent(self):
+        evidence = self.exit_evidence(logs=b'pod deleted but game did not confirm exit')
+        with patch.object(c.time, 'sleep'), patch.object(c, 'STATE', self.root):
             with self.assertRaisesRegex(c.Refused, 'clean_game_process_exit_not_observed'):
                 evidence.verify()
+        proof = c.read_json(self.root / ('container-exit-' + evidence.container + '.json'))
+        self.assertFalse(proof['runtime_child_exit_zero'])
+        self.assertEqual(proof['events'][0]['exit_status'], 0)
 
     def test_exit_137_never_passes_consistency_gate(self):
-        evidence = object.__new__(c.ExitEvidence)
-        evidence.container = 'a' * 64
-        evidence.events = [{'exit_status': 137}]
-        evidence.log = io.BytesIO(b'Shutdown requested: saving world and requesting graceful quit\nGame process exited with code 0')
-        evidence.cgroup = self.root / 'absent-cgroup'
-        with patch.object(c.time, 'sleep'), patch.object(c, 'command', return_value=b'{"status":{"state":"CONTAINER_EXITED","exitCode":137}}'):
+        evidence = self.exit_evidence(status=137)
+        with patch.object(c.time, 'sleep'), patch.object(c, 'STATE', self.root), patch.object(c, 'command') as command:
             with self.assertRaisesRegex(c.Refused, 'clean_container_exit_not_observed'):
                 evidence.verify()
+            command.assert_not_called()
+        proof = c.read_json(self.root / ('container-exit-' + evidence.container + '.json'))
+        self.assertEqual(proof['events'][0]['exit_status'], 137)
+        self.assertTrue(proof['runtime_child_exit_zero'])
 
     def test_game_descendant_process_remaining_refuses_consistency(self):
-        evidence = object.__new__(c.ExitEvidence)
-        evidence.container = 'a' * 64
-        evidence.events = [{'exit_status': 0}]
-        evidence.log = io.BytesIO(b'Shutdown requested: saving world and requesting graceful quit\nGame process exited with code 0')
+        evidence = self.exit_evidence()
         evidence.cgroup = self.root / 'cgroup'
         (evidence.cgroup / 'nested').mkdir(parents=True)
         (evidence.cgroup / 'cgroup.procs').write_text('')
         (evidence.cgroup / 'nested/cgroup.procs').write_text('12345\n')
-        with patch.object(c.time, 'sleep'):
+        with patch.object(c.time, 'sleep'), patch.object(c, 'STATE', self.root):
             with self.assertRaisesRegex(c.Refused, 'game_process_still_exists'):
                 evidence.verify()
+        proof = c.read_json(self.root / ('container-exit-' + evidence.container + '.json'))
+        self.assertFalse(proof['cgroup_empty'])
+
+    def test_stage_stopped_preserves_data_hashes_and_explicit_deadline(self):
+        data, partial = self.root / 'data', self.root / 'snapshot.partial'
+        data.mkdir()
+        (data / 'world').write_bytes(b'world state')
+        os.link(data / 'world', data / 'world-link')
+        (partial / 'recovery').mkdir(parents=True)
+        (partial / 'recovery/index.json').write_text('{}')
+        coordinator = self.coordinator()
+        coordinator.cfg.update(max_entries=100, max_snapshot_bytes=100000,
+                               server_name='survival42', infra_revision='b' * 40)
+        proof = {'exit_code': 0, 'runtime_child_exit': 0, 'cgroup_empty': True}
+        calls = []
+        def command(args, timeout=60):
+            calls.append((args, timeout))
+            if args[0] == 'rsync':
+                subprocess.check_call(['cp', '-a', str(data), str(partial / 'data')])
+            return b''
+        with patch.object(c, 'DATA', data), patch.object(c, 'free_space'), patch.object(c, 'command', side_effect=command), patch.object(c.time, 'monotonic', return_value=100):
+            coordinator.stage_stopped(partial, proof, deadline=250)
+        self.assertEqual(coordinator.journal['phase'], 'staging_verified')
+        manifest = c.read_json(partial / 'manifest.json')
+        records = {row['path']: row for row in manifest['files']}
+        self.assertEqual(records['data/world']['sha256'], hashlib.sha256(b'world state').hexdigest())
+        self.assertEqual(records['data/world-link']['hardlink'], 'data/world')
+        self.assertEqual(manifest['exit_evidence'], proof)
+        self.assertEqual(calls[0][1], 150)
+        self.assertEqual(calls[1][1], 150)
+
+    def test_stage_stopped_elapsed_operator_deadline_cannot_reset_window(self):
+        coordinator = self.coordinator()
+        with patch.object(c.time, 'monotonic', return_value=200), patch.object(c, 'command') as command:
+            with self.assertRaisesRegex(c.Refused, 'staging_deadline_exceeded'):
+                coordinator.stage_stopped(self.root, {'already_stopped': True}, deadline=100)
+            command.assert_not_called()
+        self.assertEqual(coordinator.journal['phase'], 'writers_stopped')
 
     def test_other_namespace_hostpath_writer_is_rejected(self):
         api = c.Kubernetes()

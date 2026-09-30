@@ -169,7 +169,16 @@ def validated_root(value: str | Path) -> tuple[Path, dict[str, Any], dict[str, A
     info = root.lstat()
     require(info.st_uid in (0, os.geteuid()) and info.st_mode & 0o077 == 0, "restore_directory_must_be_private")
     report = remote._private_json(root / "restored.json")
-    manifest = remote._private_json(root / "manifest.json")
+    # Manifests can be larger than small protocol receipts; use the same bound
+    # as restore.py's authenticated manifest decryption.
+    descriptor = os.open(root / "manifest.json", os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(descriptor, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        require(stat.S_ISREG(info.st_mode) and info.st_uid in (0, os.geteuid()) and info.st_mode & 0o077 == 0,
+                "restored_manifest_must_be_private")
+        data = stream.read(restore.MAX_MANIFEST_BYTES + 1)
+    require(len(data) <= restore.MAX_MANIFEST_BYTES, "restored_manifest_exceeds_limit")
+    manifest = remote._read_json(data)
     require(report.get("archive_verified") is True and report.get("runtime_drill_required") is True,
             "verified_archive_restore_required")
     require(report.get("snapshot_id") == manifest.get("snapshot_id") and isinstance(report.get("commit_sha256"), str)

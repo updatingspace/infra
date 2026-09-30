@@ -349,6 +349,8 @@ class ExitEvidence:
         inspection = json.loads(command([K3S, 'crictl', 'inspect', self.container]))
         pid = inspection['info']['pid']
         require(type(pid) is int and pid > 1, 'container_pid_unavailable')
+        self.pid = pid
+        self.pod_uid = pod['metadata']['uid']
         cgroups = Path(f'/proc/{pid}/cgroup').read_text().splitlines()
         unified = [line.split(':', 2)[2] for line in cgroups if line.startswith('0::')]
         require(len(unified) == 1 and unified[0].startswith('/') and '..' not in unified[0].split('/'),
@@ -360,6 +362,7 @@ class ExitEvidence:
         self.log = log_path.open('rb')
         self.log.seek(0, io.SEEK_END)
         self.events = []
+        self.invalid_matching_event = False
         self.process = subprocess.Popen([K3S, 'ctr', '-n', 'k8s.io', 'events'], stdout=subprocess.PIPE,
                                         stderr=subprocess.DEVNULL, text=True)
         self.thread = threading.Thread(target=self.collect, daemon=True)
@@ -367,34 +370,74 @@ class ExitEvidence:
         time.sleep(1)
         require(self.process.poll() is None, 'exit_event_subscription_failed')
 
+    def valid_event(self, event):
+        # ctr encodes TaskExit using protobuf JSON defaults: successful exit
+        # omits exit_status. Only a fully identified, typed TaskExit may use 0.
+        if not isinstance(event, dict) or set(event) - {'container_id', 'id', 'pid', 'exit_status', 'exited_at'}:
+            return False
+        exited_at = event.get('exited_at')
+        status = event.get('exit_status', 0)
+        return (event.get('container_id') == self.container and event.get('id') == self.container
+                and type(event.get('pid')) is int and event['pid'] == self.pid
+                and isinstance(exited_at, dict) and not set(exited_at) - {'seconds', 'nanos'}
+                and type(exited_at.get('seconds')) is int and exited_at['seconds'] > 0
+                and type(exited_at.get('nanos', 0)) is int and 0 <= exited_at.get('nanos', 0) < 1000000000
+                and type(status) is int and 0 <= status <= 0xffffffff)
+
     def collect(self):
         for line in self.process.stdout:
-            if '/tasks/exit' not in line or self.container not in line:
+            header, separator, body = line.partition('{')
+            if not separator or header.split()[-2:] != ['k8s.io', '/tasks/exit']:
                 continue
             try:
-                event = json.loads(line[line.index('{'):])
-            except (ValueError, KeyError):
+                event = json.loads('{' + body)
+            except ValueError:
                 continue
-            if event.get('container_id') == self.container and event.get('id') == self.container:
+            if not isinstance(event, dict) or event.get('container_id') != self.container or event.get('id') != self.container:
+                continue
+            if self.valid_event(event):
                 self.events.append(event)
+            else:
+                self.invalid_matching_event = True
 
     def verify(self):
         time.sleep(0.2)
-        exited = any(e.get('exit_status') == 0 for e in self.events)
-        if not exited:
+        events = list(self.events)
+        invalid = self.invalid_matching_event or any(not self.valid_event(event) for event in events)
+        exited = bool(events) and not invalid and all(event.get('exit_status', 0) == 0 for event in events)
+        retained_cri_exit = None
+        if not events and not invalid:
             try:
                 inspection = json.loads(command([K3S, 'crictl', 'inspect', self.container]))
                 status_value = inspection['status']
-                exited = status_value.get('state') == 'CONTAINER_EXITED' and status_value.get('exitCode') == 0
+                code = status_value.get('exitCode')
+                if status_value.get('id') == self.container and status_value.get('state') == 'CONTAINER_EXITED' and type(code) is int:
+                    retained_cri_exit = code
+                    exited = code == 0
             except (Refused, KeyError, ValueError):
                 pass
-        require(exited, 'clean_container_exit_not_observed')
         logs = self.log.read(8 * 1024 * 1024)
-        require(b'Shutdown requested: saving world and requesting graceful quit' in logs
-                and b'Game process exited with code 0' in logs, 'clean_game_process_exit_not_observed')
-        if self.cgroup.exists():
-            require(not any(p.read_text().strip() for p in self.cgroup.rglob('cgroup.procs')), 'game_process_still_exists')
-        return {'container_id': self.container, 'exit_code': 0, 'runtime_child_exit': 0, 'cgroup_empty': True}
+        requested = b'Shutdown requested: saving world and requesting graceful quit' in logs
+        child_clean = b'Game process exited with code 0' in logs
+        try:
+            cgroup_empty = not self.cgroup.exists() or not any(
+                path.read_text().strip() for path in self.cgroup.rglob('cgroup.procs'))
+        except OSError:
+            cgroup_empty = None
+        # Save only runtime phrase booleans; never persist raw player logs. Do
+        # this before any consistency refusal, while the deleted CRI fd is open.
+        proof_path = STATE / ('container-exit-' + self.container + '.json')
+        atomic_json(proof_path, {'container_id': self.container, 'pod_uid': self.pod_uid, 'pid': self.pid,
+                                'observed_at': utc(), 'topic': '/tasks/exit', 'namespace': 'k8s.io',
+                                'events': events, 'invalid_matching_event': invalid,
+                                'retained_cri_exit_code': retained_cri_exit,
+                                'runtime_shutdown_requested': requested, 'runtime_child_exit_zero': child_clean,
+                                'cgroup_empty': cgroup_empty})
+        require(exited, 'clean_container_exit_not_observed')
+        require(requested and child_clean, 'clean_game_process_exit_not_observed')
+        require(cgroup_empty is True, 'game_process_still_exists')
+        return {'container_id': self.container, 'exit_code': 0, 'runtime_child_exit': 0, 'cgroup_empty': True,
+                'durable_evidence': str(proof_path)}
 
     def close(self):
         self.log.close()
@@ -704,46 +747,56 @@ class Coordinator:
                 require(self.api.updater_idle(), 'updater_started_during_stop')
                 require(not self.api.pods('otel-collector', namespace='observability'), 'collector_restarted_during_stop')
                 self.api.no_unknown_writers()
-                self.phase('writers_stopped', exit_evidence=proof)
-                deadline = time.monotonic() + self.cfg.get('staging_timeout_seconds', 1800)
-                records = self.data_inventory(deadline=deadline)
-                recovery = inventory(partial / 'recovery', max_entries=self.cfg['max_entries'], deadline=deadline)
-                total, required = estimate(records + recovery)
-                require(total <= self.cfg['max_snapshot_bytes'], 'snapshot_budget_exceeded')
-                free_space(SPOOL, required, len(records) + 100, self.cfg)
-                self.phase('staging')
-                # rsync preserves ACLs/xattrs/hardlinks and applies only the
-                # explicit rooted exclusions recorded in the encrypted manifest.
-                command(['rsync', '-aHAX', '--numeric-ids', '--one-file-system',
-                         *['--exclude=/' + p + '/***' for p in self.cfg.get('excluded_paths', [])],
-                         '--', str(DATA) + '/', str(partial / 'data') + '/'], timeout=remaining(deadline))
-                copied = inventory(partial / 'data', max_entries=self.cfg['max_entries'], deadline=deadline)
-                require(copied == records, 'staging_manifest_mismatch')
-                del copied
-                require(self.data_inventory(deadline=deadline) == records, 'source_changed_during_staging')
-                captured_at = utc()
-                all_files = []
-                for prefix, entries in [('data', records), ('recovery', recovery)]:
-                    for entry in entries:
-                        remaining(deadline)
-                        entry['path'] = prefix if entry['path'] == '.' else prefix + '/' + entry['path']
-                        if 'hardlink' in entry:
-                            entry['hardlink'] = prefix + '/' + entry['hardlink']
-                        all_files.append(entry)
-                manifest = {'format': FORMAT, 'snapshot_id': self.journal['snapshot_id'], 'captured_at': captured_at,
-                            'server_name': self.cfg['server_name'], 'infra_revision': self.cfg['infra_revision'],
-                            'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
-                            'original': self.journal['original'], 'exit_evidence': proof}
-                atomic_json(partial / 'manifest.json', manifest, deadline)
-                command(['sync', '-f', str(partial)], timeout=min(300, remaining(deadline)))
-                self.phase('staging_verified', captured_at=captured_at,
-                           manifest_sha256=file_hash(partial / 'manifest.json', deadline))
+                self.stage_stopped(partial, proof)
             finally:
                 if runtime_guard:
                     runtime_guard.__exit__(None, None, None)
                 if evidence:
                     evidence.close()
             self.restore_apps()
+
+    def stage_stopped(self, partial, proof, deadline=None):
+        """Stage with callers holding writer locks and supplying verified exit proof.
+
+        deadline is an absolute monotonic deadline, allowing a reviewed operator
+        continuation to retain its original maintenance-window limit.
+        """
+        self.phase('writers_stopped', exit_evidence=proof)
+        if deadline is None:
+            deadline = time.monotonic() + self.cfg.get('staging_timeout_seconds', 1800)
+        remaining(deadline)
+        records = self.data_inventory(deadline=deadline)
+        recovery = inventory(partial / 'recovery', max_entries=self.cfg['max_entries'], deadline=deadline)
+        total, required = estimate(records + recovery)
+        require(total <= self.cfg['max_snapshot_bytes'], 'snapshot_budget_exceeded')
+        free_space(SPOOL, required, len(records) + 100, self.cfg)
+        self.phase('staging')
+        # rsync preserves ACLs/xattrs/hardlinks and applies only the
+        # explicit rooted exclusions recorded in the encrypted manifest.
+        command(['rsync', '-aHAX', '--numeric-ids', '--one-file-system',
+                 *['--exclude=/' + p + '/***' for p in self.cfg.get('excluded_paths', [])],
+                 '--', str(DATA) + '/', str(partial / 'data') + '/'], timeout=remaining(deadline))
+        copied = inventory(partial / 'data', max_entries=self.cfg['max_entries'], deadline=deadline)
+        require(copied == records, 'staging_manifest_mismatch')
+        del copied
+        require(self.data_inventory(deadline=deadline) == records, 'source_changed_during_staging')
+        captured_at = utc()
+        all_files = []
+        for prefix, entries in [('data', records), ('recovery', recovery)]:
+            for entry in entries:
+                remaining(deadline)
+                entry['path'] = prefix if entry['path'] == '.' else prefix + '/' + entry['path']
+                if 'hardlink' in entry:
+                    entry['hardlink'] = prefix + '/' + entry['hardlink']
+                all_files.append(entry)
+        manifest = {'format': FORMAT, 'snapshot_id': self.journal['snapshot_id'], 'captured_at': captured_at,
+                    'server_name': self.cfg['server_name'], 'infra_revision': self.cfg['infra_revision'],
+                    'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
+                    'original': self.journal['original'], 'exit_evidence': proof}
+        atomic_json(partial / 'manifest.json', manifest, deadline)
+        command(['sync', '-f', str(partial)], timeout=min(300, remaining(deadline)))
+        self.phase('staging_verified', captured_at=captured_at,
+                   manifest_sha256=file_hash(partial / 'manifest.json', deadline))
 
     def archive(self, partial):
         # A payload completed just before a crash may already occupy the whole

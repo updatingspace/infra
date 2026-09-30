@@ -1,0 +1,160 @@
+{
+  "locals": {
+    "monium_project_id": "mond4r1ecj79b4qh7g11",
+    "alert_contracts": {
+      "pz-game-unavailable": {
+        "title": "PZ · игра или сборщик недоступны",
+        "query": "1 - series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"up\"})",
+        "comparison": "GREATER",
+        "aggregation": "ALL",
+        "warning": 0.5,
+        "alarm": 0.9,
+        "window": "15m",
+        "delay": "30s",
+        "no_points": "ALARM",
+        "no_series": "ALARM",
+        "level": "CRITICAL",
+        "notification_methods": [
+          {
+            "type": "escalation",
+            "id": "pz-game-sms",
+            "transport": "telegram",
+            "statuses": [
+              "ALARM"
+            ],
+            "initial_delay": "0s",
+            "repeat": "30m",
+            "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+          }
+        ],
+        "restart_tolerance_note": "15-minute outage tolerance applies to all outages; observed world startup is about 10 minutes. Not a maintenance-mode detector.",
+        "annotations": {
+          "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-game-unavailable/view"
+        }
+      },
+      "pz-tps-degraded": {
+        "title": "PZ · длительная деградация TPS",
+        "query": "100 * (1 - series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"})) / series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_lock_fps\"}))",
+        "comparison": "GREATER",
+        "aggregation": "ALL",
+        "warning": 20,
+        "alarm": 50,
+        "window": "5m",
+        "delay": "30s",
+        "no_points": "NO_DATA",
+        "no_series": "NO_DATA",
+        "level": "CRITICAL",
+        "notification_methods": [
+          {
+            "type": "escalation",
+            "id": "pz-game-sms",
+            "transport": "telegram",
+            "statuses": [
+              "ALARM"
+            ],
+            "initial_delay": "0s",
+            "repeat": "30m",
+            "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+          }
+        ],
+        "annotations": {
+          "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-tps-degraded/view"
+        }
+      },
+      "pz-disk-usage": {
+        "title": "PZ · заканчивается место на диске",
+        "query": "100 * series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.filesystem.utilization\",mountpoint=\"/|/srv/pz-storage/zomboid|/srv/pz-storage/edge|/srv/pz-storage/observability\"})",
+        "reconciliation_note": "Query reconciled via Monium UI and verified on 2026-09-30T16:22:04.481354+00:00 after confirming all four live filesystem series; that query-only change preserved the then-empty notification methods. Later on 2026-09-30, the existing Telegram escalation was linked and a canonical alert_url annotation added, without query, threshold, or evaluation changes. Terraform provider still does not deploy alert rules.",
+        "comparison": "GREATER",
+        "aggregation": "ALL",
+        "warning": 80,
+        "alarm": 90,
+        "window": "10m",
+        "delay": "30s",
+        "no_points": "NO_DATA",
+        "no_series": "NO_DATA",
+        "level": "CRITICAL",
+        "notification_methods": [
+          {
+            "type": "escalation",
+            "id": "pz-game-sms",
+            "transport": "telegram",
+            "statuses": [
+              "ALARM"
+            ],
+            "initial_delay": "0s",
+            "repeat": "30m",
+            "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+          }
+        ],
+        "annotations": {
+          "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-disk-usage/view"
+        }
+      },
+      "pz-heap-pressure": {
+        "title": "PZ · устойчивое заполнение JVM heap",
+        "query": "100 * series_sum({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_used_bytes\",area=\"heap\"}) / series_sum({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_max_bytes\",area=\"heap\"})",
+        "comparison": "GREATER",
+        "aggregation": "ALL",
+        "warning": 85,
+        "alarm": 95,
+        "window": "10m",
+        "delay": "30s",
+        "no_points": "NO_DATA",
+        "no_series": "NO_DATA",
+        "level": "CRITICAL",
+        "notification_methods": [
+          {
+            "type": "escalation",
+            "id": "pz-game-sms",
+            "transport": "telegram",
+            "statuses": [
+              "ALARM"
+            ],
+            "initial_delay": "0s",
+            "repeat": "30m",
+            "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+          }
+        ],
+        "annotations": {
+          "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-heap-pressure/view"
+        }
+      },
+      "pz-panel-unavailable": {
+        "title": "PZ · HTTP-панель недоступна",
+        "query": "1 - series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-panel\",name=\"httpcheck.status\",\"http.status_class\"=\"2xx\",\"check.name\"=\"panel-http\"})",
+        "comparison": "GREATER",
+        "aggregation": "ALL",
+        "warning": 0.5,
+        "alarm": 0.9,
+        "window": "3m",
+        "delay": "30s",
+        "no_points": "WARN",
+        "no_series": "WARN",
+        "level": "INFO",
+        "notification_methods": [
+          {
+            "type": "escalation",
+            "id": "pz-game-sms",
+            "transport": "telegram",
+            "statuses": [
+              "ALARM"
+            ],
+            "initial_delay": "0s",
+            "repeat": "30m",
+            "recipient_user_id": "ajertvmnbh2g2m10j9ej"
+          }
+        ],
+        "annotations": {
+          "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-panel-unavailable/view"
+        }
+      }
+    }
+  },
+  "output": {
+    "alert_contracts": {
+      "description": "Desired Monium rules. Current Yandex provider has no alert resource; apply/reconcile these through Monium UI. This output DOES NOT deploy alerts.",
+      "value": "${local.alert_contracts}"
+    }
+  }
+}

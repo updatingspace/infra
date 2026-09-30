@@ -1,0 +1,502 @@
+{
+  "title": "02 · PZ — игра и JVM",
+  "description": "TPS считается из счётчика тиков. Средняя длительность = скорость суммы / скорость количества. p95/p99 не показываются: текущий экспортёр отдаёт только bucket +Inf. CPU процесса: 100% = одно ядро.",
+  "parametrization": null,
+  "eventSources": null,
+  "widgets": [
+    {
+      "position": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 3
+      },
+      "text": {
+        "text": "TPS считается из счётчика тиков. Средняя длительность = скорость суммы / скорость количества. p95/p99 не показываются: текущий экспортёр отдаёт только bucket +Inf. CPU процесса: 100% = одно ядро."
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-0",
+        "title": "TPS",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}), \"TPS\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_lock_fps\"}, \"Цель TPS\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNTS_PER_SECOND",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-1",
+        "title": "Средний тик",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(1000 * series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_duration_seconds.sum\"})) / series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_duration_seconds.count\"})), \"Средний тик\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_MILLISECONDS",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-2",
+        "title": "Игроки онлайн",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"game\",parameter=\"players\"}, \"Игроки\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-3",
+        "title": "CPU процесса игры",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(100 * non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"process_cpu_seconds_total\"}), \"CPU игры\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_PERCENT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-4",
+        "title": "JVM heap",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_used_bytes\",area=\"heap\"}, \"Heap used\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_committed_bytes\",area=\"heap\"}, \"Heap committed\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_max_bytes\",area=\"heap\"}, \"Heap max\")",
+            "name": "C",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_BYTES_IEC",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-5",
+        "title": "Память процесса RSS",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"process_resident_memory_bytes\"}, \"RSS\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_BYTES_IEC",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-6",
+        "title": "Потоки JVM",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_threads_current\"}, \"Потоки\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_threads_deadlocked\"}, \"Deadlocks\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-7",
+        "title": "GC — затраты времени, s/s",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_gc_collection_seconds.sum\"}), \"{{gc}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_SECONDS",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-game-8",
+        "title": "Объекты мира",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"game\",parameter=\"zombies-loaded|zombies-simulated|animals-instances|loaded-cells\"}, \"{{parameter}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    }
+  ],
+  "presetItems": []
+}

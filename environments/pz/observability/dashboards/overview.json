@@ -1,0 +1,582 @@
+{
+  "id": "fbebhclihlcl4dtaer7v",
+  "description": "Быстрый обзор. 1 = проверка успешна. Экспортёр игры и HTTP-панель не заменяют проверку входа игрока. TPS сравнивается с настроенной целью. Пропуски остаются пропусками.",
+  "title": "01 · PZ — состояние сервера",
+  "widgets": [
+    {
+      "position": {
+        "w": "36",
+        "h": "3"
+      },
+      "text": {
+        "text": "Быстрый обзор. 1 = проверка успешна. Экспортёр игры и HTTP-панель не заменяют проверку входа игрока. TPS сравнивается с настроенной целью. Пропуски остаются пропусками.\n\n[Алерты PZ](https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts). Логи: проект folder__b1gidr45ifb2c25bco2d, cluster=pz-b42, service=zomboid или pz-panel. Telegram пока не подключён."
+      }
+    },
+    {
+      "position": {
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-0",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"up\"}, \"Экспортёр игры\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          },
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-panel\",name=\"httpcheck.status\",\"http.status_class\"=\"2xx\"}), \"Панель HTTP 2xx\")",
+              "text_mode": true,
+              "name": "B"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_TILES",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_COUNT"
+            }
+          },
+          "tiles_settings": {
+            "show_title": true,
+            "show_value": true,
+            "show_sparkline": true
+          }
+        },
+        "title": "Доступность",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-1",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"game\",parameter=\"players\"}, \"Игроки\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_TILES",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_COUNT"
+            }
+          },
+          "tiles_settings": {
+            "show_title": true,
+            "show_value": true,
+            "show_sparkline": true
+          }
+        },
+        "title": "Игроки онлайн",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "3",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-2",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.filesystem.usage\",mountpoint=\"/\",state=\"free\"}, \"Свободно /\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_TILES",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_BYTES_IEC"
+            }
+          },
+          "tiles_settings": {
+            "show_title": true,
+            "show_value": true,
+            "show_sparkline": true
+          }
+        },
+        "title": "Свободное место /",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-3",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}), \"TPS\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          },
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_lock_fps\"}, \"Цель TPS\")",
+              "text_mode": true,
+              "name": "B"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_COUNTS_PER_SECOND"
+            }
+          }
+        },
+        "title": "TPS — фактический и целевой",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-4",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(1000 * series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_duration_seconds.sum\"})) / series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_duration_seconds.count\"})), \"Средний тик\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          },
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(1000 * {project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_interval_seconds\"}, \"Целевой интервал\")",
+              "text_mode": true,
+              "name": "B"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_MILLISECONDS"
+            }
+          }
+        },
+        "title": "Средняя длительность тика",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "11",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-5",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(100 * series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.time\",state=\"user|system|nice|interrupt|softirq|steal\"})) / series_sum({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.logical.count\"}), \"CPU без iowait\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_PERCENT"
+            }
+          }
+        },
+        "title": "CPU хоста",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-6",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias(100 * {project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.filesystem.utilization\",mountpoint=\"/\"}, \"Занято /\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_PERCENT"
+            }
+          }
+        },
+        "title": "Заполнение диска /",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "12",
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-7",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_used_bytes\",area=\"heap\"}, \"Heap used\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          },
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"jvm_memory_max_bytes\",area=\"heap\"}, \"Heap max\")",
+              "text_mode": true,
+              "name": "B"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_BYTES_IEC"
+            }
+          }
+        },
+        "title": "JVM heap",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    },
+    {
+      "position": {
+        "x": "24",
+        "y": "19",
+        "w": "12",
+        "h": "8"
+      },
+      "multi_source_chart": {
+        "id": "pz-overview-8",
+        "targets": [
+          {
+            "monitoring_target": {
+              "data_source_id": "monium",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_exporter_queue_size\",data_type=\"metrics\"}, \"Очередь\")",
+              "text_mode": true,
+              "name": "A"
+            }
+          }
+        ],
+        "data_sources": [
+          {
+            "monitoring_data_source": {
+              "id": "monium",
+              "downsampling": {
+                "max_points": "1000",
+                "grid_aggregation": "GRID_AGGREGATION_AVG",
+                "gap_filling": "GAP_FILLING_NULL"
+              }
+            }
+          }
+        ],
+        "visualization_settings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "interpolate": "INTERPOLATE_LEFT",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "color_scheme_settings": {
+            "automatic": {}
+          },
+          "yaxis_settings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "min": "0",
+              "unit_format": "UNIT_COUNT"
+            }
+          }
+        },
+        "title": "Доставка метрик: очередь",
+        "display_legend": true,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00"
+            }
+          ],
+          "show_mode": "SHOW_MODE_CONSTANT_LINE"
+        }
+      }
+    }
+  ]
+}

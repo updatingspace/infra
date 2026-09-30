@@ -1,0 +1,657 @@
+{
+  "title": "03 · PZ — хост, Kubernetes и доставка",
+  "description": "CPU контейнеров — текущее число занятых ядер × 100%; 100% = одно ядро. Память — container.memory.usage. Время работы контейнера показано в секундах; счётчик перезапусков kubelet summary не предоставляет. Память хоста показана отдельными рядами без суммирования. Заполнение: / и отдельные файловые системы /srv/pz-storage/{zomboid,edge,observability}; пределы окружений 26 GiB, 256 MiB и 512 MiB соответственно. Физический I/O — устройство vda. Ошибки и счётчики — за секунду.",
+  "parametrization": null,
+  "eventSources": null,
+  "widgets": [
+    {
+      "position": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 3
+      },
+      "text": {
+        "text": "CPU контейнеров — текущее число занятых ядер × 100%; 100% = одно ядро. Память — container.memory.usage. Время работы контейнера показано в секундах; счётчик перезапусков kubelet summary не предоставляет. Память хоста показана отдельными рядами без суммирования. Заполнение: / и отдельные файловые системы /srv/pz-storage/{zomboid,edge,observability}; пределы окружений 26 GiB, 256 MiB и 512 MiB соответственно. Физический I/O — устройство vda. Ошибки и счётчики — за секунду."
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-0",
+        "title": "CPU хоста",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(100 * series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.time\",state=\"user|system|nice|interrupt|softirq|steal\"})) / series_sum({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.logical.count\"}), \"CPU без iowait\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_PERCENT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-1",
+        "title": "Load average",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.load_average.1m\"}, \"1 min\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.load_average.5m\"}, \"5 min\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.cpu.logical.count\"}, \"Логические CPU\")",
+            "name": "C",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-2",
+        "title": "Память хоста",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.memory.usage\",state=\"used|free|cached\"}, \"{{state}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_BYTES_IEC",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-3",
+        "title": "Файловые системы — занято",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(100 * {project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.filesystem.utilization\",mountpoint=\"/|/srv/pz-storage/zomboid|/srv/pz-storage/edge|/srv/pz-storage/observability\"}, \"{{mountpoint}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_PERCENT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-4",
+        "title": "Диск vda — чтение и запись",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.disk.io\",device=\"vda\"}), \"{{direction}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_BYTES_IEC_PER_SECOND",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-5",
+        "title": "Диск vda — IOPS",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.disk.operations\",device=\"vda\"}), \"{{direction}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_IO_OPERATIONS_PER_SECOND",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-6",
+        "title": "CPU контейнеров Kubernetes",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(100 * {project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-kubernetes\",name=\"container.cpu.usage\"}, \"{{k8s.namespace.name}} / {{k8s.pod.name}} / {{k8s.container.name}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_PERCENT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-7",
+        "title": "Память контейнеров Kubernetes",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-kubernetes\",name=\"container.memory.usage\"}, \"{{k8s.namespace.name}} / {{k8s.pod.name}} / {{k8s.container.name}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_BYTES_IEC",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-8",
+        "title": "Время работы контейнеров",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-kubernetes\",name=\"container.uptime\"}, \"{{k8s.namespace.name}} / {{k8s.pod.name}} / {{k8s.container.name}}\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_TILES",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_SECONDS",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          },
+          "tilesSettings": {
+            "showTitle": true,
+            "showValue": true,
+            "showSparkline": true
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-9",
+        "title": "Отправка точек метрик",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_exporter_sent_metric_points\"}), \"Доставлено / s\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNTS_PER_SECOND",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-10",
+        "title": "Очередь доставки",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_exporter_queue_size\"}, \"Очередь\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_exporter_queue_capacity\"}, \"Ёмкость\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNT",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    },
+    {
+      "position": {
+        "x": 24,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "multiSourceChart": {
+        "id": "pz-infrastructure-11",
+        "title": "Ошибки сбора / отказы",
+        "displayLegend": true,
+        "dataSources": [
+          {
+            "id": "monium",
+            "type": "monitoring",
+            "downsampling": {
+              "maxPoints": 1000,
+              "gridAggregation": "GRID_AGGREGATION_AVG",
+              "gapFilling": "GAP_FILLING_NULL"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_scraper_errored_metric_points\"})), \"Ошибки сбора\")",
+            "name": "A",
+            "textMode": true,
+            "hidden": false
+          },
+          {
+            "type": "monitoring",
+            "dataSourceId": "monium",
+            "query": "alias(series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"otel-collector\",name=\"otelcol_receiver_refused_metric_points\"})), \"Отказы приёма\")",
+            "name": "B",
+            "textMode": true,
+            "hidden": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_LINE",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "interpolate": "INTERPOLATE_LEFT",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "unitFormat": "UNIT_COUNTS_PER_SECOND",
+              "min": "0"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        }
+      }
+    }
+  ],
+  "presetItems": []
+}

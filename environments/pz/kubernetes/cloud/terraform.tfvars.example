@@ -1,0 +1,5 @@
+# Existing VM capacity. Changing these values is a separate maintenance action.
+vm_cores                  = 4
+vm_memory_gib             = 16
+boot_disk_gib             = 60
+allow_stopping_for_update = false

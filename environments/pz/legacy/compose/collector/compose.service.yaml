@@ -1,0 +1,38 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+    command:
+    - --config=/etc/otelcol/config.yaml
+    restart: unless-stopped
+    user: 0:0
+    env_file:
+    - ./monitoring/monium.env
+    environment:
+      GOMEMLIMIT: 160MiB
+    volumes:
+    - ./monitoring/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    - /:/hostfs:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./data/otelcol:/var/lib/otelcol
+    - ./data/zomboid:/var/log/pz:ro
+    - ./data/panel-logs:/var/log/panel:ro
+    ports:
+    - 127.0.0.1:13133:13133
+    - 127.0.0.1:8888:8888
+    networks:
+    - edge
+    read_only: true
+    tmpfs:
+    - /tmp:size=16m
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

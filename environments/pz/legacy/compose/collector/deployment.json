@@ -1,0 +1,13 @@
+{
+  "dashboard_project_id": "mond4r1ecj79b4qh7g11",
+  "dashboard_project_name": "pz-zomboid",
+  "telemetry_project_id": "folder__b1gidr45ifb2c25bco2d",
+  "migration_status": "awaiting_user_billing_link",
+  "cluster": "pz-b42",
+  "service_account_id": "aje25u06h4nadtlvfrsj",
+  "dashboards": {
+    "overview": "fbebhclihlcl4dtaer7v",
+    "game": "fbeft68e6ut7sqmf13v4",
+    "infrastructure": "fbe72vtm52fkrcjduunu"
+  }
+}

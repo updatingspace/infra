@@ -1,0 +1,262 @@
+receivers:
+  prometheus/game:
+    config:
+      scrape_configs:
+      - job_name: zomboid
+        scrape_interval: 30s
+        scrape_timeout: 10s
+        static_configs:
+        - targets:
+          - zomboid:9090
+  prometheus/collector:
+    config:
+      scrape_configs:
+      - job_name: otel-collector
+        scrape_interval: 60s
+        static_configs:
+        - targets:
+          - 127.0.0.1:8888
+  host_metrics:
+    collection_interval: 60s
+    root_path: /hostfs
+    scrapers:
+      cpu: null
+      load: null
+      memory: null
+      paging: null
+      disk:
+        include:
+          devices:
+          - vda
+          match_type: strict
+      filesystem:
+        include_mount_points:
+          mount_points:
+          - /
+          match_type: strict
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 60s
+    timeout: 10s
+    api_version: '1.44'
+    metrics:
+      container.memory.percent:
+        enabled: true
+      container.restarts:
+        enabled: true
+      container.uptime:
+        enabled: true
+  http_check/panel:
+    collection_interval: 30s
+    targets:
+    - endpoint: http://panel:3001/api/health
+      method: GET
+      timeout: 5s
+  filelog/game:
+    include:
+    - /var/log/pz/server-console-docker.log
+    start_at: end
+    storage: file_storage
+    include_file_path: true
+    max_log_size: 256KiB
+    max_log_size_behavior: truncate
+    resource:
+      service.name: zomboid
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+  filelog/panel:
+    include:
+    - /var/log/panel/combined.log
+    start_at: end
+    storage: file_storage
+    include_file_path: true
+    max_log_size: 256KiB
+    max_log_size_behavior: truncate
+    resource:
+      service.name: pz-panel
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 192
+    spike_limit_mib: 48
+  resource/common:
+    attributes:
+    - key: cluster
+      value: pz-b42
+      action: upsert
+    - key: host.id
+      value: fv4g468rskpfcem690fs
+      action: upsert
+    - key: host.name
+      value: compute-vm-2-6-60-ssd-1785610759198
+      action: upsert
+  resource/host:
+    attributes:
+    - key: service.name
+      value: pz-host
+      action: upsert
+  resource/docker:
+    attributes:
+    - key: service.name
+      value: pz-docker
+      action: upsert
+  resource/panel:
+    attributes:
+    - key: service.name
+      value: pz-panel
+      action: upsert
+  resource/collector:
+    attributes:
+    - key: service.name
+      value: otel-collector
+      action: upsert
+  transform/panel_identity:
+    error_mode: propagate
+    metric_statements:
+    - context: datapoint
+      statements:
+      - delete_key(attributes, "http.url")
+      - delete_key(attributes, "http.status_code")
+      - set(attributes["check.name"], "panel-http")
+  transform/log_redaction:
+    error_mode: propagate
+    log_statements:
+    - context: log
+      statements:
+      - set(severity_number, SEVERITY_NUMBER_INFO)
+      - set(severity_text, "INFO")
+      - set(severity_number, SEVERITY_NUMBER_WARN) where IsMatch(body, "(?i)\\bwarn(ing)?\\b")
+      - set(severity_text, "WARN") where severity_number == SEVERITY_NUMBER_WARN
+      - set(severity_number, SEVERITY_NUMBER_ERROR) where IsMatch(body, "(?i)\\b(error|fatal|exception)\\b")
+      - set(severity_text, "ERROR") where severity_number == SEVERITY_NUMBER_ERROR
+      - 'replace_pattern(body, "(?i)(password|passwd|token|api[_-]?key|secret|authorization)([=:
+        ]+).*", "$$1$$2[REDACTED]")'
+  batch/logs:
+    timeout: 5s
+    send_batch_size: 256
+    send_batch_max_size: 512
+exporters:
+  otlp_http/monium:
+    endpoint: https://ingest.monium.yandex.cloud/otlp
+    compression: zstd
+    headers:
+      Authorization: Api-Key ${env:MONIUM_API_KEY}
+      x-monium-project: folder__b1gidr45ifb2c25bco2d
+    sending_queue:
+      queue_size: 100
+      num_consumers: 2
+      batch:
+        flush_timeout: 5s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+  otlp_http/monium_logs:
+    endpoint: https://ingest.monium.yandex.cloud/otlp
+    compression: zstd
+    headers:
+      Authorization: Api-Key ${env:MONIUM_LOGS_API_KEY}
+      x-monium-project: folder__b1gidr45ifb2c25bco2d
+    sending_queue:
+      storage: file_storage
+      queue_size: 67108864
+      num_consumers: 2
+      sizer: bytes
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 0s
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol
+    create_directory: true
+    max_size: 134217728
+    compaction:
+      on_start: true
+      on_rebound: true
+      directory: /var/lib/otelcol/compaction
+      rebound_needed_threshold_mib: 64
+      rebound_trigger_threshold_mib: 16
+service:
+  extensions:
+  - health_check
+  - file_storage
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: normal
+      readers:
+      - pull:
+          exporter:
+            prometheus:
+              host: 0.0.0.0
+              port: 8888
+  pipelines:
+    metrics/game:
+      receivers:
+      - prometheus/game
+      processors:
+      - memory_limiter
+      - resource/common
+      exporters:
+      - otlp_http/monium
+    metrics/host:
+      receivers:
+      - host_metrics
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/host
+      exporters:
+      - otlp_http/monium
+    metrics/docker:
+      receivers:
+      - docker_stats
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/docker
+      exporters:
+      - otlp_http/monium
+    metrics/panel:
+      receivers:
+      - http_check/panel
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/panel
+      - transform/panel_identity
+      exporters:
+      - otlp_http/monium
+    metrics/collector:
+      receivers:
+      - prometheus/collector
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/collector
+      exporters:
+      - otlp_http/monium
+    logs/pz:
+      receivers:
+      - filelog/game
+      - filelog/panel
+      processors:
+      - memory_limiter
+      - resource/common
+      - transform/log_redaction
+      - batch/logs
+      exporters:
+      - otlp_http/monium_logs

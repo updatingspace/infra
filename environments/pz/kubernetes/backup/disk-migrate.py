@@ -80,7 +80,7 @@ def mount_record(path, expected_uuid):
     require(UUID.fullmatch(expected_uuid), 'expected_mount_uuid_required')
     backup.check_mount(path, expected_uuid)
     result = json.loads(command(['findmnt', '--json', '--mountpoint', str(path),
-                                 '-o', 'SOURCE,TARGET,FSTYPE,UUID,OPTIONS']))['filesystems']
+                                 '-o', 'SOURCE,TARGET,FSTYPE,UUID,OPTIONS,FS-OPTIONS']))['filesystems']
     require(len(result) == 1, 'mount_ambiguous')
     return result[0]
 
@@ -96,6 +96,16 @@ def source_identity(expected_uuid):
     require(stat.S_ISREG(info.st_mode) and info.st_uid == 0 and info.st_nlink == 1,
             'source_image_identity_invalid')
     require(DATA.stat().st_dev != NEW.stat().st_dev, 'source_target_same_filesystem')
+    return row
+
+
+def read_only_source(expected_uuid):
+    row = source_identity(expected_uuid)
+    # A read-only VFS bind alone does not freeze the filesystem through other
+    # mount namespaces. Require the ext4 superblock itself to remain read-only.
+    fs_options = set(row.get('fs-options', '').split(','))
+    require(row.get('fstype') == 'ext4' and 'ro' in row.get('options', '').split(',')
+            and 'ro' in fs_options and 'rw' not in fs_options, 'source_not_read_only')
     return row
 
 
@@ -290,14 +300,21 @@ def install_boot_guard(target_uuid, expected_host):
 
 
 def compare_copy(records, source_uuid, target_uuid, deadline=None):
-    source_identity(source_uuid)
+    read_only_source(source_uuid)
     mount_record(NEW, target_uuid)
     # There are no exclusions during disk migration, including old local ZIPs.
-    require(records == backup.inventory(DATA, deadline=deadline), 'source_changed_during_disk_copy')
+    # Initial source hashes describe the frozen ext4 contents. Recheck every
+    # metadata field without rereading those bytes; hash all destination files.
+    source_metadata = backup.inventory(DATA, hashes=False, deadline=deadline)
+    require(len(records) == len(source_metadata) and all(
+        {key: value for key, value in original.items() if key != 'sha256'} == current
+        for original, current in zip(records, source_metadata)), 'source_changed_during_disk_copy')
+    del source_metadata
     destination = backup.inventory(NEW, deadline=deadline)
     if not any(item['path'] == 'lost+found' for item in records):
         destination = [item for item in destination if item['path'] != 'lost+found']
     require(records == destination, 'disk_copy_hash_or_metadata_mismatch')
+    read_only_source(source_uuid)
 
 
 def migrate(args):
@@ -366,7 +383,7 @@ def migrate(args):
             writers_stopped(controller.api)
             wait_mount_release()
             command(['mount', '-o', 'remount,ro', str(DATA)])
-            require('ro' in mount_record(DATA, cfg['data_uuid'])['options'].split(','), 'source_not_read_only')
+            read_only_source(cfg['data_uuid'])
             deadline = time.monotonic() + cfg.get('staging_timeout_seconds', 1800)
             records = backup.inventory(DATA, deadline=deadline)
             controller.phase('copying')

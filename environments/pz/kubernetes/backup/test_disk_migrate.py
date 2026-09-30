@@ -15,6 +15,7 @@ spec.loader.exec_module(disk)
 
 IDENTITY = 'fv4123456789012345678'
 UUID = '11111111-2222-3333-4444-555555555555'
+READ_ONLY_SOURCE = {'fstype': 'ext4', 'options': 'ro,relatime', 'fs-options': 'ro'}
 
 
 class FstabTests(unittest.TestCase):
@@ -116,6 +117,18 @@ class SpoolTests(unittest.TestCase):
             write.assert_not_called()
 
 
+class ReadOnlySourceTests(unittest.TestCase):
+    def test_requires_ext4_superblock_read_only_not_only_vfs_read_only(self):
+        for changes in [{'fs-options': 'rw'}, {'fs-options': ''}, {'fs-options': 'ro,rw'},
+                        {'fstype': 'xfs'}, {'options': 'rw'}]:
+            with self.subTest(changes=changes), \
+                    patch.object(disk, 'source_identity', return_value=READ_ONLY_SOURCE | changes):
+                with self.assertRaisesRegex(disk.backup.Refused, 'source_not_read_only'):
+                    disk.read_only_source(UUID)
+        with patch.object(disk, 'source_identity', return_value=READ_ONLY_SOURCE):
+            self.assertEqual(disk.read_only_source(UUID), READ_ONLY_SOURCE)
+
+
 class CopyTests(unittest.TestCase):
     def test_corrupted_destination_is_not_verified(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -126,19 +139,43 @@ class CopyTests(unittest.TestCase):
             shutil.copytree(source, target, copy_function=shutil.copy2)
             records = disk.backup.inventory(source)
             with patch.object(disk, 'DATA', source), patch.object(disk, 'NEW', target), \
-                    patch.object(disk, 'source_identity'), patch.object(disk, 'mount_record'):
-                disk.compare_copy(records, UUID, UUID)
+                    patch.object(disk, 'source_identity', return_value=READ_ONLY_SOURCE), \
+                    patch.object(disk, 'mount_record'):
+                with patch.object(disk.backup, 'file_hash', wraps=disk.backup.file_hash) as hash_file:
+                    disk.compare_copy(records, UUID, UUID)
+                self.assertEqual([call.args[0] for call in hash_file.call_args_list], [target / 'world.db'])
                 before = (target / 'world.db').stat()
                 (target / 'world.db').write_bytes(b'corrupt!')
                 os.utime(target / 'world.db', ns=(before.st_atime_ns, before.st_mtime_ns))
                 with self.assertRaises(disk.backup.Refused):
                     disk.compare_copy(records, UUID, UUID)
 
-    def test_changed_source_is_not_verified(self):
-        with patch.object(disk, 'source_identity'), patch.object(disk, 'mount_record'), \
-                patch.object(disk.backup, 'inventory', return_value=[{'changed': True}]):
-            with self.assertRaises(disk.backup.Refused):
-                disk.compare_copy([{'original': True}], UUID, UUID)
+    def test_changed_source_metadata_is_not_verified(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / 'source'
+            target = Path(temporary) / 'target'
+            source.mkdir()
+            original = source / 'world.db'
+            original.write_bytes(b'original')
+            shutil.copytree(source, target, copy_function=shutil.copy2)
+            records = disk.backup.inventory(source)
+            original.chmod(original.stat().st_mode ^ 0o100)
+            with patch.object(disk, 'DATA', source), patch.object(disk, 'NEW', target), \
+                    patch.object(disk, 'source_identity', return_value=READ_ONLY_SOURCE), \
+                    patch.object(disk, 'mount_record'):
+                with self.assertRaisesRegex(disk.backup.Refused, 'source_changed_during_disk_copy'):
+                    disk.compare_copy(records, UUID, UUID)
+
+    def test_loss_of_read_only_before_or_during_verification_is_rejected(self):
+        writable = READ_ONLY_SOURCE | {'fs-options': 'rw'}
+        for states in [[writable], [READ_ONLY_SOURCE, writable]]:
+            with self.subTest(states=states), \
+                    patch.object(disk, 'source_identity', side_effect=states), \
+                    patch.object(disk, 'mount_record'), \
+                    patch.object(disk.backup, 'inventory', return_value=[]) as inventory:
+                with self.assertRaisesRegex(disk.backup.Refused, 'source_not_read_only'):
+                    disk.compare_copy([], UUID, UUID)
+                self.assertEqual(inventory.call_count, 0 if len(states) == 1 else 2)
 
 
 class WriterTests(unittest.TestCase):

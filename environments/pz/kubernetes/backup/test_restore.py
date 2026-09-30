@@ -3,6 +3,7 @@
 import base64
 import copy
 from decimal import Decimal
+import errno
 import hashlib
 import io
 import os
@@ -248,6 +249,188 @@ class RestoreTests(unittest.TestCase):
         self.assertTrue(report["archive_verified"])
         self.assertEqual((self.destination / "data/world.db").stat().st_ino,
                          (self.destination / "data/world2.db").stat().st_ino)
+
+    def download_fixture(self, *, age_status=0):
+        source = self.root / "download"
+        source.mkdir(exist_ok=True)
+        identity = self.root / "age.key"
+        identity.write_bytes(b"private fixture; decryption is mocked")
+        identity.chmod(0o600)
+        manifest = self.manifest()
+        stream, encoded = self.archive(manifest)
+        marker = {"format": remote.FORMAT, "snapshot_format": "pz-backup-v1",
+                  "snapshot_id": manifest["snapshot_id"], "captured_at": manifest["captured_at"]}
+        for kind in ("payload", "manifest"):
+            path = source / (kind + ".enc")
+            path.write_bytes(kind.encode())
+            marker[kind] = remote._local_digest(path)
+        remote._atomic_json(source / "COMMITTED.json", marker)
+        age = mock.Mock(stdout=io.BytesIO())
+        age.wait.return_value = age.poll.return_value = age_status
+        zstd = mock.Mock(stdout=stream)
+        zstd.wait.return_value = zstd.poll.return_value = 0
+        return source, identity, encoded, age, zstd
+
+    def test_filesystem_barrier_open_precedes_mkdir_and_stays_open_through_report(self):
+        source, identity, encoded, age, zstd = self.download_fixture()
+        descriptors, events = [], []
+        original_open, original_mkdir = os.open, Path.mkdir
+        original_atomic = remote._atomic_json
+        def opening(path, flags, *args, **kwargs):
+            fd = original_open(path, flags, *args, **kwargs)
+            if Path(path) == self.root and flags & os.O_DIRECTORY and flags & os.O_NOFOLLOW:
+                descriptors.append(fd)
+                events.append("open")
+                self.assertFalse(self.destination.exists())
+            return fd
+        def mkdir(path, *args, **kwargs):
+            self.assertTrue(descriptors)
+            os.fstat(descriptors[0])
+            events.append("mkdir")
+            return original_mkdir(path, *args, **kwargs)
+        def syncfs(fd):
+            self.assertEqual(fd, descriptors[0])
+            self.assertEqual((self.destination / "manifest.json").read_bytes(), encoded)
+            restore._verify_extracted(self.destination, restore.validate_manifest(self.manifest()))
+            events.append("syncfs")
+            return 0
+        def atomic(path, value):
+            self.assertEqual(path.name, "restored.json")
+            self.assertEqual(events[-1], "syncfs")
+            os.fstat(descriptors[0])
+            original_atomic(path, value)
+            os.fstat(descriptors[0])
+            events.append("report")
+        barrier = mock.Mock(side_effect=syncfs)
+        with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+             mock.patch.object(restore.platform, "release", return_value="6.8.0-test"), \
+             mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)), \
+             mock.patch.object(restore, "_decrypt_manifest", return_value=encoded), \
+             mock.patch.object(restore.subprocess, "Popen", side_effect=[age, zstd]), \
+             mock.patch.object(os, "open", side_effect=opening), \
+             mock.patch.object(Path, "mkdir", mkdir), \
+             mock.patch.object(remote, "_atomic_json", side_effect=atomic):
+            report = restore.restore_download(source, identity, self.destination, durability="filesystem")
+        self.assertEqual(events[0], "open")
+        self.assertLess(events.index("open"), events.index("mkdir"))
+        self.assertEqual(events[-1], "report")
+        self.assertLess(events.index("syncfs"), events.index("report"))
+        self.assertEqual(report["durability"], "filesystem-syncfs")
+        barrier.assert_called_once()
+        with self.assertRaises(OSError):
+            os.fstat(descriptors[0])
+
+    def test_filesystem_writeback_errors_are_fatal_once_and_never_write_success(self):
+        for code in (errno.EIO, errno.ENOSPC, errno.EDQUOT):
+            with self.subTest(errno=code):
+                self.destination = self.root / ("restored-" + str(code))
+                source, identity, encoded, age, zstd = self.download_fixture()
+                seen = []
+                def syncfs(fd):
+                    seen.append(fd)
+                    return -1 if len(seen) == 1 else 0
+                barrier = mock.Mock(side_effect=syncfs)
+                with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+                     mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+                     mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)), \
+                     mock.patch.object(restore.ctypes, "get_errno", return_value=code), \
+                     mock.patch.object(restore, "_decrypt_manifest", return_value=encoded), \
+                     mock.patch.object(restore.subprocess, "Popen", side_effect=[age, zstd]), \
+                     self.assertRaisesRegex(restore.RestoreError, "filesystem_durability_failed_" + errno.errorcode[code]):
+                    restore.restore_download(source, identity, self.destination, durability="filesystem")
+                barrier.assert_called_once()
+                self.assertFalse((self.destination / "restored.json").exists())
+                with self.assertRaises(OSError):
+                    os.fstat(seen[0])
+
+    def test_late_age_failure_still_prevents_success_after_filesystem_barrier(self):
+        source, identity, encoded, age, zstd = self.download_fixture(age_status=1)
+        barrier = mock.Mock(return_value=0)
+        with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+             mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+             mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)), \
+             mock.patch.object(restore, "_decrypt_manifest", return_value=encoded), \
+             mock.patch.object(restore.subprocess, "Popen", side_effect=[age, zstd]), \
+             self.assertRaisesRegex(restore.RestoreError, "payload_decryption_or_decompression_failed"):
+            restore.restore_download(source, identity, self.destination, durability="filesystem")
+        barrier.assert_called_once()
+        self.assertTrue((self.destination / "manifest.json").exists())
+        self.assertFalse((self.destination / "restored.json").exists())
+        with self.assertRaises(OSError):
+            os.fstat(barrier.call_args.args[0])
+
+    def test_filesystem_mode_retains_manifest_fsync_and_default_retains_file_fsync(self):
+        original_fsync = os.fsync
+        for mode in ("per-file", "filesystem"):
+            with self.subTest(mode=mode):
+                self.destination = self.root / mode
+                stream, encoded = self.archive(self.manifest())
+                synced = []
+                def fsync(fd):
+                    synced.append(Path(os.readlink("/proc/self/fd/" + str(fd))).name)
+                    original_fsync(fd)
+                barrier = mock.Mock(return_value=0)
+                with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+                     mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+                     mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)), \
+                     mock.patch.object(os, "fsync", side_effect=fsync):
+                    report = restore.extract_verified(stream, self.manifest(), encoded, self.destination, durability=mode)
+                self.assertIn(".manifest.json.partial", synced)
+                self.assertEqual("world.db" in synced, mode == "per-file")
+                if mode == "per-file":
+                    self.assertNotIn("durability", report)
+                    barrier.assert_not_called()
+                else:
+                    barrier.assert_called_once()
+
+    def test_filesystem_mode_rejects_old_kernel_or_untrusted_parent_before_mkdir(self):
+        for system, version in (("Linux", "5.7.19"), ("Darwin", "23.0"), ("Linux", "invalid")):
+            with self.subTest(system=system, version=version), \
+                 mock.patch.object(restore.platform, "system", return_value=system), \
+                 mock.patch.object(restore.platform, "release", return_value=version), \
+                 self.assertRaisesRegex(restore.RestoreError, "requires_linux_5_8"):
+                with restore._durability(self.destination, "filesystem"):
+                    self.fail("Unsupported barrier accepted")
+            self.assertFalse(self.destination.exists())
+        self.root.chmod(0o770)
+        with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+             mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+             self.assertRaisesRegex(restore.RestoreError, "parent_untrusted"):
+            with restore._durability(self.destination, "filesystem"):
+                self.fail("Untrusted parent accepted")
+        self.assertFalse(self.destination.exists())
+
+    def test_filesystem_barrier_fd_closes_on_early_extraction_error(self):
+        barrier = mock.Mock(return_value=0)
+        stream, encoded = self.archive(self.manifest(), contents={"data/world.db": b"corrupt contents!"})
+        with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+             mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+             mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)):
+            with self.assertRaisesRegex(restore.RestoreError, "archive_sha256_mismatch"):
+                with restore._durability(self.destination, "filesystem") as descriptor:
+                    restore._extract_verified(stream, self.manifest(), encoded, self.destination, descriptor)
+        barrier.assert_not_called()
+        with self.assertRaises(OSError):
+            os.fstat(descriptor[0])
+
+    def test_filesystem_barrier_rejects_destination_on_different_filesystem(self):
+        barrier = mock.Mock(return_value=0)
+        original_lstat = Path.lstat
+        def lstat(path, *args, **kwargs):
+            result = original_lstat(path, *args, **kwargs)
+            if path == self.destination:
+                return mock.Mock(st_dev=result.st_dev + 1)
+            return result
+        stream, encoded = self.archive(self.manifest())
+        with mock.patch.object(restore.platform, "system", return_value="Linux"), \
+             mock.patch.object(restore.platform, "release", return_value="6.8.0"), \
+             mock.patch.object(restore.ctypes, "CDLL", return_value=mock.Mock(syncfs=barrier)), \
+             mock.patch.object(Path, "lstat", lstat), \
+             self.assertRaisesRegex(restore.RestoreError, "filesystem_durability_destination_changed"):
+            restore.extract_verified(stream, self.manifest(), encoded, self.destination, durability="filesystem")
+        barrier.assert_not_called()
+        self.assertFalse((self.destination / "data").exists())
+        self.assertFalse((self.destination / "restored.json").exists())
 
 
 if __name__ == "__main__":

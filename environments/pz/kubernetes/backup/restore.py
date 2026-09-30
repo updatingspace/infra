@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
+import ctypes
 from decimal import Decimal, InvalidOperation
+import errno
 import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import platform
 import re
 import stat
 import subprocess
@@ -142,7 +146,7 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return expected
 
 
-def prepare_destination(destination: str | Path) -> Path:
+def _new_destination_path(destination: str | Path) -> Path:
     path = Path(destination).absolute()
     require(".." not in path.parts, "unsafe_restore_parent")
     require(path.name not in ("", ".", ".."), "invalid_restore_destination")
@@ -151,9 +155,53 @@ def prepare_destination(destination: str | Path) -> Path:
     for parent in reversed(path.parents):
         require(parent.exists() and parent.is_dir() and not parent.is_symlink(), "unsafe_restore_parent")
     require(not path.exists() and not path.is_symlink(), "restore_destination_must_be_new")
+    return path
+
+
+def prepare_destination(destination: str | Path) -> Path:
+    path = _new_destination_path(destination)
     path.mkdir(mode=0o700)
     remote._fsync_dir(path.parent)
     return path
+
+
+@contextmanager
+def _durability(destination: str | Path, mode: str):
+    require(mode in ("per-file", "filesystem"), "unsupported_restore_durability")
+    if mode == "per-file":
+        yield None
+        return
+    version = re.match(r"^(\d+)\.(\d+)", platform.release())
+    require(platform.system() == "Linux" and version is not None
+            and tuple(map(int, version.groups())) >= (5, 8), "filesystem_durability_requires_linux_5_8")
+    path = _new_destination_path(destination)
+    info = path.parent.lstat()
+    require(stat.S_ISDIR(info.st_mode) and info.st_uid in (0, os.geteuid())
+            and not info.st_mode & 0o022, "filesystem_durability_parent_untrusted")
+    try:
+        syncfs = ctypes.CDLL(None, use_errno=True).syncfs
+        syncfs.argtypes, syncfs.restype = [ctypes.c_int], ctypes.c_int
+    except (AttributeError, OSError):
+        raise RestoreError("filesystem_durability_syncfs_unavailable") from None
+    # Opening before mkdir/any write samples the kernel superblock errseq.
+    # Keep this same FD until the caller has finished, including report fsync.
+    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        opened = os.fstat(descriptor)
+        require((opened.st_dev, opened.st_ino) == (info.st_dev, info.st_ino),
+                "filesystem_durability_parent_changed")
+        yield descriptor, syncfs
+    finally:
+        os.close(descriptor)
+
+
+def _sync_filesystem(barrier) -> None:
+    descriptor, syncfs = barrier
+    # Never retry: syncfs advances this FD's error cursor even on writeback
+    # failure, so a subsequent zero must not erase EIO/ENOSPC/EDQUOT evidence.
+    if syncfs(descriptor) != 0:
+        code = errno.errorcode.get(ctypes.get_errno(), "UNKNOWN")
+        raise RestoreError("filesystem_durability_failed_" + code)
 
 
 class BudgetReader:
@@ -221,10 +269,21 @@ def _verify_extracted(destination: Path, expected: dict[str, dict[str, Any]]) ->
 
 
 def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes: bytes,
-                     destination: str | Path) -> dict[str, Any]:
+                     destination: str | Path, *, durability: str = "per-file") -> dict[str, Any]:
     """Create destination and extract only manifest records; preserve metadata."""
+    with _durability(destination, durability) as barrier:
+        return _extract_verified(stream, manifest, manifest_bytes, destination, barrier)
+
+
+def _extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes: bytes,
+                      destination: str | Path, barrier) -> dict[str, Any]:
     expected = validate_manifest(manifest)
     destination = prepare_destination(destination)
+    if barrier is not None:
+        parent = os.fstat(barrier[0])
+        current_parent = destination.parent.lstat()
+        require((parent.st_dev, parent.st_ino) == (current_parent.st_dev, current_parent.st_ino)
+                and destination.lstat().st_dev == parent.st_dev, "filesystem_durability_destination_changed")
     logical_size = sum(item.get("size", 0) for item in expected.values())
     available = os.statvfs(destination)
     require(available.f_bavail * available.f_frsize >= logical_size + len(manifest_bytes) + 64 * 1024 * 1024,
@@ -286,7 +345,8 @@ def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes:
                         digest.update(chunk)
                         size += len(chunk)
                     output.flush()
-                    os.fsync(output.fileno())
+                    if barrier is None:
+                        os.fsync(output.fileno())
                 require(size == item["size"] and digest.hexdigest() == item["sha256"], "archive_sha256_mismatch")
                 if "hardlink" in item:
                     target = destination / item["hardlink"]
@@ -317,13 +377,19 @@ def extract_verified(stream: BinaryIO, manifest: dict[str, Any], manifest_bytes:
         output.flush()
         os.fsync(output.fileno())
     os.rename(temporary, destination / "manifest.json")
-    for name, item in expected.items():
-        if item["type"] == "dir":
-            remote._fsync_dir(destination / name)
-    remote._fsync_dir(destination)
-    return {"snapshot_id": manifest["snapshot_id"], "archive_verified": True,
-            "verified_entries": len(expected), "logical_bytes": logical_size,
-            "runtime_drill_required": True}
+    if barrier is None:
+        for name, item in expected.items():
+            if item["type"] == "dir":
+                remote._fsync_dir(destination / name)
+        remote._fsync_dir(destination)
+    else:
+        _sync_filesystem(barrier)
+    report = {"snapshot_id": manifest["snapshot_id"], "archive_verified": True,
+              "verified_entries": len(expected), "logical_bytes": logical_size,
+              "runtime_drill_required": True}
+    if barrier is not None:
+        report["durability"] = "filesystem-syncfs"
+    return report
 
 
 def _decrypt_manifest(source: Path, identity: Path) -> bytes:
@@ -342,7 +408,13 @@ def _decrypt_manifest(source: Path, identity: Path) -> bytes:
 
 
 def restore_download(download_dir: str | Path, identity_path: str | Path,
-                     destination: str | Path) -> dict[str, Any]:
+                     destination: str | Path, *, durability: str = "per-file") -> dict[str, Any]:
+    with _durability(destination, durability) as barrier:
+        return _restore_download(download_dir, identity_path, destination, barrier)
+
+
+def _restore_download(download_dir: str | Path, identity_path: str | Path,
+                      destination: str | Path, barrier) -> dict[str, Any]:
     source, identity = Path(download_dir), Path(identity_path)
     require(source.is_dir() and not source.is_symlink(), "invalid_download_directory")
     identity_info = identity.lstat()
@@ -371,7 +443,7 @@ def restore_download(download_dir: str | Path, identity_path: str | Path,
         zstd = subprocess.Popen(["zstd", "--decompress", "--stdout", "--quiet"], stdin=age.stdout,
                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         age.stdout.close()
-        report = extract_verified(zstd.stdout, manifest, plain, destination)
+        report = _extract_verified(zstd.stdout, manifest, plain, destination, barrier)
         require(zstd.wait(timeout=30) == 0 and age.wait(timeout=30) == 0, "payload_decryption_or_decompression_failed")
         report["commit_sha256"] = remote.commit_sha256(marker)
         report["verified_at"] = remote.utc_now()
@@ -392,9 +464,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--download-dir", required=True)
     parser.add_argument("--identity", required=True)
     parser.add_argument("--destination", required=True)
+    parser.add_argument("--durability", choices=("per-file", "filesystem"), default="per-file",
+                        help="Default: fsync each file/directory; filesystem uses one checked Linux>=5.8 syncfs barrier.")
     args = parser.parse_args(argv)
     try:
-        print(json.dumps(restore_download(args.download_dir, args.identity, args.destination), sort_keys=True))
+        print(json.dumps(restore_download(args.download_dir, args.identity, args.destination,
+                                          durability=args.durability), sort_keys=True))
         return 0
     except (RestoreError, remote.BackupError) as error:
         print(str(error), file=sys.stderr)

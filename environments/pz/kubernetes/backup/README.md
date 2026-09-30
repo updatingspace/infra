@@ -89,8 +89,32 @@ PutBucketPolicy: административные отрицательные п�
    `pz-backup-restore-attestation-v1`, привязанный к bucket/endpoint/prefix,
    snapshot format/ID и SHA commit. `restore.py` сам эту аттестацию не создаёт.
 
+Для нового полного извлечения на Linux ≥5.8 можно явно передать `restore.py`
+параметр `--durability filesystem`. По умолчанию остаётся `per-file`: отдельный
+fsync каждого файла и каталога. Новый режим открывает FD доверенного parent
+каталога **до mkdir и первой записи**, проверяет совпадение filesystem и держит
+FD до окончания операции. После всех SHA/metadata-проверок и сохранения manifest
+выполняется один проверяемый `syncfs`; fsync manifest и итогового отчёта остаются.
+Parent должен принадлежать root или текущему UID и не допускать записи группы
+или остальных пользователей. Отчёт содержит `durability=filesystem-syncfs`.
+
+Полный age/zstd поток, inventory и повторная проверка извлечённого дерева
+сохраняются; `restored.json` появляется только после успешных exit codes обоих
+процессов. Любая ошибка барьера, включая EIO/ENOSPC/EDQUOT, завершает попытку
+без retry и без success report. Даже ошибка другой записи на том же filesystem
+может вызвать отказ. Повторный syncfs не используется для отмены уже полученной
+ошибки: kernel продвигает error cursor открытого FD. Семантика описана в
+[sync(2)](https://man7.org/linux/man-pages/man2/sync.2.html),
+[open.c](https://github.com/torvalds/linux/blob/v6.8/fs/open.c) и
+[sync.c](https://github.com/torvalds/linux/blob/v6.8/fs/sync.c).
+Этот режим не разрешает reuse/очистку прежнего trial: destination остаётся NEW,
+а failed reports и исходная временная шкала RTO сохраняются отдельно.
+
 `runtime-drill.py` проверяет изолированный запуск точного сохранённого образа,
-RCON, чтение существующего мира и штатное завершение. Если production уже имеет
+RCON, чтение существующего мира и штатное завершение. Workshop providers
+подключаются только из восстановленного дерева через проверяемый список bind
+mounts. Явный `-cachedir=/zomboid` сохраняет те же saves/config paths и исключает
+расхождение canonical/lexical путей загрузчика при симлинках. Если production уже имеет
 предупреждение об отсутствующем моде или несколько поставщиков одного mod ID,
 можно передать `--mod-baseline` с приватным отчётом, снятым **до** snapshot.
 Он должен подтверждать фактически загруженные IDs, выбранные каталоги,

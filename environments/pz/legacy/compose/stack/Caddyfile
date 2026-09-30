@@ -1,0 +1,36 @@
+{
+	email {$ACME_EMAIL}
+
+	# Уменьшает поверхность атаки:
+	# runtime API Caddy в этой конфигурации не нужен.
+	admin off
+}
+
+{$PANEL_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy panel:3001 {
+		health_uri /api/health
+		health_interval 30s
+		health_timeout 5s
+
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 60s
+		}
+	}
+
+	header {
+		-Server
+
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -1,0 +1,84 @@
+# CURRENT 4-vCPU / 16-GiB VM; recheck node allocatable and system pod usage first.
+# These are application budgets, after reserving room for OS/k3s/system services.
+# Kubernetes does not discover these numbers from cloud VM settings.
+kubeconfig_path      = "~/.kube/zomboid.yaml"
+kubeconfig_context   = "zomboid"
+pod_security_version = "v1.36"
+allocatable = {
+  cpu_m     = 3000
+  memory_mi = 12000
+}
+
+# Limits: 3000m CPU / 11904Mi RAM; 96Mi remains in the application budget.
+# Includes the panel updater. Minecraft and sandbox await the VM upgrade.
+# Steam/Monium external access and public ingress need workload-specific rules.
+# PVC requests are accounting only. The storage root separately bounds backing
+# filesystems to 26Gi (zomboid), 256Mi (edge), and 512Mi (observability).
+environments = {
+  zomboid = {
+    quota = {
+      cpu_request_m        = 2000
+      cpu_limit_m          = 2600
+      memory_request_mi    = 8512
+      memory_limit_mi      = 11136
+      ephemeral_request_mi = 2048
+      ephemeral_limit_mi   = 4096
+      storage_gi           = 26
+      pvc_count            = 8
+      pod_count            = 6
+    }
+    container_defaults = {
+      cpu_request_m        = 100
+      cpu_limit_m          = 200
+      memory_request_mi    = 128
+      memory_limit_mi      = 256
+      ephemeral_request_mi = 128
+      ephemeral_limit_mi   = 512
+    }
+  }
+  edge = {
+    quota = {
+      cpu_request_m        = 100
+      cpu_limit_m          = 200
+      memory_request_mi    = 128
+      memory_limit_mi      = 256
+      ephemeral_request_mi = 128
+      ephemeral_limit_mi   = 512
+      storage_gi           = 0.25
+      pvc_count            = 2
+      pod_count            = 2
+    }
+    container_defaults = {
+      cpu_request_m        = 50
+      cpu_limit_m          = 100
+      memory_request_mi    = 64
+      memory_limit_mi      = 128
+      ephemeral_request_mi = 64
+      ephemeral_limit_mi   = 128
+    }
+  }
+  observability = {
+    # Host filesystem metrics/logs need read-only hostPath. Keep workload-level
+    # capabilities dropped; this exception is only for the trusted collector.
+    pod_security_level = "privileged"
+    quota = {
+      cpu_request_m        = 100
+      cpu_limit_m          = 200
+      memory_request_mi    = 256
+      memory_limit_mi      = 512
+      ephemeral_request_mi = 256
+      ephemeral_limit_mi   = 1024
+      storage_gi           = 0.5
+      pvc_count            = 2
+      pod_count            = 2
+    }
+    container_defaults = {
+      cpu_request_m        = 50
+      cpu_limit_m          = 100
+      memory_request_mi    = 128
+      memory_limit_mi      = 256
+      ephemeral_request_mi = 128
+      ephemeral_limit_mi   = 256
+    }
+  }
+}

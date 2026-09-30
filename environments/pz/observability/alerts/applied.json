@@ -1,0 +1,231 @@
+{
+  "project_id": "mond4r1ecj79b4qh7g11",
+  "apply_method": "Monium UI (Terraform provider lacks alerts)",
+  "notifications_enabled": true,
+  "alerts": {
+    "pz-game-unavailable": {
+      "id": "mond4r1ecj79b4qh7g11_pz-game-unavailable",
+      "status": "configuration_verified",
+      "window": "15m",
+      "delay": "30s",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ]
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-game-unavailable/view"
+      },
+      "notification_verified_at": "2026-09-30T17:12:05+00:00",
+      "notification_verification_method": "Read back existing escalation pz-game-sms, ALARM subscription and canonical alert_url annotation in Monium UI; no game alert changes."
+    },
+    "pz-tps-degraded": {
+      "id": "mond4r1ecj79b4qh7g11_pz-tps-degraded",
+      "status": "configuration_verified",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ]
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-tps-degraded/view"
+      },
+      "notification_verified_at": "2026-09-30T17:11:12+00:00",
+      "notification_verification_method": "Saved in Monium UI and read back escalation pz-game-sms, ALARM subscription and canonical alert_url annotation; query, thresholds and evaluation settings unchanged."
+    },
+    "pz-disk-usage": {
+      "id": "mond4r1ecj79b4qh7g11_pz-disk-usage",
+      "status": "configuration_verified",
+      "query": "100 * series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-host\",name=\"system.filesystem.utilization\",mountpoint=\"/|/srv/pz-storage/zomboid|/srv/pz-storage/edge|/srv/pz-storage/observability\"})",
+      "comparison": "GREATER",
+      "aggregation": "ALL",
+      "warning": 80,
+      "alarm": 90,
+      "window": "10m",
+      "delay": "30s",
+      "no_points": "NO_DATA",
+      "no_series": "NO_DATA",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ]
+        }
+      ],
+      "strict_evaluation": true,
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-disk-usage/view"
+      },
+      "notification_verified_at": "2026-09-30T17:11:12+00:00",
+      "notification_verification_method": "Saved in Monium UI and read back escalation pz-game-sms, ALARM subscription and canonical alert_url annotation; query, thresholds and evaluation settings unchanged.",
+      "query_verification": {
+        "verified_at": "2026-09-30T16:22:04.481354+00:00",
+        "apply_method": "Monium UI; only query changed",
+        "verification_method": "Saved in UI, reopened view and checked exact query and evaluation settings",
+        "observed_status": "OK",
+        "observed_value": 65.662750759,
+        "historical": true
+      }
+    },
+    "pz-heap-pressure": {
+      "id": "mond4r1ecj79b4qh7g11_pz-heap-pressure",
+      "status": "configuration_verified",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ]
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-heap-pressure/view"
+      },
+      "notification_verified_at": "2026-09-30T17:11:12+00:00",
+      "notification_verification_method": "Saved in Monium UI and read back escalation pz-game-sms, ALARM subscription and canonical alert_url annotation; query, thresholds and evaluation settings unchanged."
+    },
+    "pz-panel-unavailable": {
+      "id": "mond4r1ecj79b4qh7g11_pz-panel-unavailable",
+      "status": "configuration_verified",
+      "notification_methods": [
+        {
+          "type": "escalation",
+          "id": "pz-game-sms",
+          "transport": "telegram",
+          "statuses": [
+            "ALARM"
+          ]
+        }
+      ],
+      "annotations": {
+        "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-panel-unavailable/view"
+      },
+      "notification_verified_at": "2026-09-30T17:11:12+00:00",
+      "notification_verification_method": "Saved in Monium UI and read back escalation pz-game-sms, ALARM subscription and canonical alert_url annotation; query, thresholds and evaluation settings unchanged."
+    }
+  },
+  "verified_at": "2026-09-30T17:12:05+00:00",
+  "observed_status": "All five production alerts are configured for ALARM-only notifications through Telegram escalation pz-game-sms, with canonical alert_url annotations verified in Monium UI. Existing game escalation delivered via Telegram with transport status Accepted at 2026-09-30T19:11:00+03:00; it automatically stopped at 19:36:43. No synthetic test was sent and no new user receipt confirmation was obtained.",
+  "notification_scope": [
+    "pz-game-unavailable",
+    "pz-tps-degraded",
+    "pz-disk-usage",
+    "pz-heap-pressure",
+    "pz-panel-unavailable"
+  ],
+  "escalation": {
+    "id": "pz-game-sms",
+    "id_note": "Immutable ID retained after user requested Telegram instead of SMS; transport is Telegram.",
+    "recipient_user_id": "ajertvmnbh2g2m10j9ej",
+    "schedule": "24/7",
+    "initial_delay": "0s",
+    "repeat": "30m",
+    "max_iterations": 10,
+    "stop_on_recovery": true,
+    "recovery_message": false,
+    "description": "PZ: Telegram владельцу при ALARM существующих алертов игры/сборщика, HTTP-панели, TPS, диска и JVM heap. Круглосуточно, без начальной задержки, повтор каждые 30 минут, максимум 10 итераций, до восстановления или остановки эскалации. SMS не используется; технический ID сохранён.",
+    "configuration_verified_at": "2026-09-30T17:11:12+00:00"
+  },
+  "disabled_sms_channel": {
+    "id": "mond4r1ecj79b4qh7g11_11111",
+    "linked_alerts": [],
+    "default_severities": [],
+    "previous_error": "Permission denied: recipient not authorized to read data (resource absent in error text)",
+    "root_cause_note": "Legacy Cloud sms delivery failed despite monium.admin on custom project. Internal cause not established; no IAM changes made."
+  },
+  "verification": {
+    "historical_restart": {
+      "calculation_time": "2026-09-19T15:07:00+03:00",
+      "new_status": "OK",
+      "window": "15m"
+    },
+    "delivery_test": {
+      "alert_id": "mond4r1ecj79b4qh7g11_pz-telegram-delivery-test",
+      "started_at": "2026-09-19T15:26:02+03:00",
+      "transport": "telegram",
+      "transport_status": "Accepted",
+      "transport_at": "2026-09-19T15:26:06+03:00",
+      "stopped_at": "2026-09-19T15:27:25+03:00",
+      "notification_methods": [],
+      "final_query": "0 * series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"up\"})",
+      "user_receipt_confirmed": true,
+      "historical": true,
+      "scope_note": "Historical delivery test of the Telegram escalation on 2026-09-19; does not verify delivery after the 2026-09-30 subscription expansion."
+    },
+    "game_restarted_by_this_task": false,
+    "telegram_link_workaround": {
+      "observed_problem": "User received native Telegram links with malformed prefix https://monium.yandex.cloudhttps//monitoring.yandex.cloud/",
+      "suspected_cause": "Monium native notification URL generation; not confirmed by vendor.",
+      "workaround": "Plain canonical alert_url annotation on all five production alerts; game annotation retained, four other annotations added on 2026-09-30.",
+      "saved_and_evaluated_in_ui": true,
+      "native_link_fixed": false,
+      "telegram_rendering_retested": false,
+      "documentation": "https://yandex.cloud/ru/docs/monium/concepts/alerting/annotation",
+      "additional_annotations_verified_at": "2026-09-30T17:11:12+00:00",
+      "additional_annotations_verification_method": "Saved and read back in Monium UI; Telegram rendering has not been retested."
+    },
+    "notification_configuration_20260930": {
+      "verified_at": "2026-09-30T17:11:12+00:00",
+      "apply_method": "Monium UI",
+      "added_subscriptions": [
+        "pz-tps-degraded",
+        "pz-disk-usage",
+        "pz-heap-pressure",
+        "pz-panel-unavailable"
+      ],
+      "retained_subscription": "pz-game-unavailable",
+      "statuses": [
+        "ALARM"
+      ],
+      "escalation_id": "pz-game-sms",
+      "annotations_added": "Canonical alert_url for each of the four newly subscribed production alerts",
+      "escalation_description_updated": true,
+      "verification_method": "Saved and read back in Monium UI",
+      "queries_thresholds_evaluation_unchanged": true,
+      "delivery_test_result": "No new synthetic test sent; separate recent_production_delivery records existing game escalation Telegram transport acceptance.",
+      "retained_subscription_verified_at": "2026-09-30T17:12:05+00:00"
+    },
+    "recent_production_delivery": {
+      "verified_at": "2026-09-30T17:12:05+00:00",
+      "verification_method": "Read Monium notification feed filtered by escalation pz-game-sms and expanded production game escalation iteration 6",
+      "notification_feed_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/notification-feed?escalation=pz-game-sms",
+      "alert_id": "mond4r1ecj79b4qh7g11_pz-game-unavailable",
+      "escalation_id": "pz-game-sms",
+      "started_at": "2026-09-30T16:40:00+03:00",
+      "started_at_precision": "minute (as displayed in UI)",
+      "iterations": 7,
+      "accepted_iteration": 6,
+      "transport": "telegram",
+      "recipient_chat": "ajertvmnbh2g2m10j9ej",
+      "transport_status": "Accepted",
+      "transport_status_ui": "Принят",
+      "transport_at": "2026-09-30T19:11:00+03:00",
+      "transport_at_precision": "minute (as displayed in UI)",
+      "stopped_at": "2026-09-30T19:36:43+03:00",
+      "stop_method": "automatic",
+      "final_iteration": 7,
+      "final_iteration_status": "Cancelled",
+      "final_iteration_status_ui": "Отменённый",
+      "running_escalations_at_verification": 0,
+      "synthetic_test_sent": false,
+      "new_user_receipt_confirmed": false,
+      "scope_note": "Existing production game escalation shows working Telegram transport before the four additional alert subscriptions were configured. Transport acceptance does not establish user receipt, delivery for each newly subscribed alert, or annotation rendering."
+    }
+  },
+  "verification_scope": "Notification configuration read back in Monium UI for all five production alerts; existing production escalation history confirms Telegram transport acceptance on 2026-09-30, before the four additional subscriptions. No new synthetic delivery test or user receipt confirmation."
+}

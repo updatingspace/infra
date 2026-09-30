@@ -40,3 +40,14 @@ variable "allow_stopping_for_update" {
   default     = false
   nullable    = false
 }
+
+variable "backup_disks" {
+  description = "Explicit IDs from backup-cloud outputs. Attachment only; disks remain independently protected."
+  type        = map(string)
+  default     = {}
+  nullable    = false
+  validation {
+    condition     = alltrue([for name, id in var.backup_disks : contains(["pz-data", "pz-backup-spool"], name) && can(regex("^[a-z0-9]{20}$", id))])
+    error_message = "Only pz-data and pz-backup-spool attachments with explicit disk IDs are allowed."
+  }
+}

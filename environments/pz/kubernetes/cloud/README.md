@@ -70,3 +70,11 @@ terraform plan -detailed-exitcode
 
 Документация провайдера: [VM и импорт](https://yandex.cloud/en/docs/terraform/resources/compute_instance),
 [диск](https://yandex.cloud/en/docs/terraform/resources/compute_disk).
+
+## Дополнительные диски backup
+
+После внедрения backup два secondary disks защищены от auto-delete, их ID
+сохраняются в приватном `backup-disks.auto.tfvars.json`. Не удалять этот файл
+перед plan: пустой `backup_disks` означает запрос на отсоединение. Диски создаёт
+отдельный `backup-cloud/` state. Boot disk/VM не пересоздавались; подробности и
+текущее состояние переноса — [в отчёте](../backup/IMPLEMENTATION-20260930.md).

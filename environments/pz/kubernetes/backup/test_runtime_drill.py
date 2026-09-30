@@ -45,6 +45,7 @@ class FakeDocker:
         self.health_ok = True
         self.fail_load = False
         self.env_seen = None
+        self.env_contents = None
 
     def run(self, args, **kwargs):
         self.calls.append(args)
@@ -60,6 +61,7 @@ class FakeDocker:
             identifier = args[args.index("--label") + 1].split("=", 1)[1]
             self.env_seen = Path(args[args.index("--env-file") + 1])
             assert self.env_seen.stat().st_mode & 0o777 == 0o600
+            self.env_contents = self.env_seen.read_text()
             self.document = {
                 "Id": "a" * 64, "Name": "/pz-restore-drill-" + identifier, "Image": self.image,
                 "Config": {"User": "1000:1000", "Labels": {drill.LABEL: identifier}},
@@ -149,6 +151,23 @@ class RuntimeDrillTests(unittest.TestCase):
         self.assertNotIn("test-rcon-secret", commands)
         self.assertNotIn("test-admin-secret", (self.root / "runtime-drill.json").read_text())
         self.assertFalse(any(command[:2] in (["image", "rm"], ["system", "prune"]) for command in self.engine.calls))
+
+    def test_recovered_jvm_mod_bootstrap_is_carried_only_in_private_environment(self):
+        options = "-javaagent:/zomboid/Workshop/storm/Contents/mods/storm/bootstrap/storm-bootstrap.jar -DstormType=local -Dstorm.core.updateUrl="
+        self.secret["JAVA_TOOL_OPTIONS"] = options
+        self.set_config()
+        result = self.run_fake()
+        self.assertTrue(result["passed"], result)
+        self.assertIn("JAVA_TOOL_OPTIONS=" + options + "\n", self.engine.env_contents)
+        self.assertNotIn(options, json.dumps(self.engine.calls))
+        self.assertNotIn(options, (self.root / "runtime-drill.json").read_text())
+        self.assertFalse(self.engine.env_seen.exists())
+
+    def test_recovered_jvm_options_cannot_inject_an_environment_line(self):
+        self.secret["JAVA_TOOL_OPTIONS"] = "-DstormType=local\nRCON_PASSWORD=other"
+        self.set_config()
+        with self.assertRaisesRegex(drill.DrillError, "unsupported_multiline_runtime_secret"):
+            drill.read_server_config(self.root, self.manifest)
 
     def test_network_and_mount_arguments_are_narrow_and_resource_limits_fixed(self):
         arguments = drill.create_arguments(self.root, "a" * 32, self.image, self.root / "private.env", "helper.py")
@@ -364,6 +383,45 @@ class RuntimeDrillTests(unittest.TestCase):
         self.assertTrue(drill.verify_fresh_mod_log(self.root, adaptation)["verified"])
         log.write_text('LOG : Mod f:0 st:2> loading One\n')
         self.assertFalse(drill.verify_fresh_mod_log(self.root, adaptation)["verified"])
+
+    def test_staged_pinned_provider_precedes_updated_steam_copy(self):
+        self.set_config(mods="storm-core-b42", workshop="3670772371")
+        self.manifest["captured_at"] = "2026-01-01T01:00:00Z"
+        folders = [self.root / "data/zomboid/Workshop/storm/Contents/mods/storm",
+                   self.root / "data/pz-server/steamapps/workshop/content/108600/3670772371/mods/storm"]
+        expected = {}
+        for index, folder in enumerate(folders):
+            info = folder / "42/mod.info"
+            info.parent.mkdir(parents=True)
+            info.write_text("id=storm-core-b42\nname=version-" + str(index) + "\n")
+            expected[info.relative_to(self.root).as_posix()] = {"type": "file", **remote._local_digest(info)}
+        config = self.root / "data/zomboid/Server/world.ini"
+        expected[config.relative_to(self.root).as_posix()] = remote._local_digest(config)
+        classes = {name: hashlib.sha256(name.encode()).hexdigest() for name in (
+            "zombie/ZomboidFileSystem.class", "zombie/core/znet/SteamWorkshop.class",
+            "zombie/network/GameServer.class", "zombie/network/GameServerWorkshopItems.class",
+            "zombie/gameStates/ChooseGameInfo.class")}
+        jar = self.root / "data/pz-server/java/projectzomboid.jar"
+        jar.parent.mkdir()
+        with zipfile.ZipFile(jar, "w") as archive:
+            for name in classes:
+                archive.writestr(name, name.encode())
+        selected = folders[0].relative_to(self.root).as_posix()
+        baseline = {"format": "pz-production-mod-baseline-v1", "server_name": "world",
+                    "observed_at": "2026-01-01T00:00:00Z", "config_sha256": remote._local_digest(config)["sha256"],
+                    "configured_mods": ["storm-core-b42"], "workshop_items": ["3670772371"],
+                    "loaded_mods": ["storm-core-b42"], "missing_mods": [], "missing_mod_warnings": [],
+                    "loader_class_sha256": classes, "duplicate_provider_resolution": {"storm-core-b42": selected}}
+        wrong = copy.deepcopy(baseline)
+        wrong["duplicate_provider_resolution"]["storm-core-b42"] = folders[1].relative_to(self.root).as_posix()
+        with mock.patch.object(drill.restore, "validate_manifest", return_value=expected), self.assertRaisesRegex(drill.DrillError, "not_proven"):
+            drill.prepare_offline_mods(self.root, self.manifest, "a" * 32, wrong)
+        with mock.patch.object(drill.restore, "validate_manifest", return_value=expected):
+            result = drill.prepare_offline_mods(self.root, self.manifest, "a" * 32, baseline)
+        self.assertEqual([link["source"] for link in result["created_links"]], [selected])
+        self.assertEqual(result["created_links"][0]["source_kind"], "staged_workshop")
+        self.assertEqual((self.root / result["created_links"][0]["path"]).resolve(), folders[0])
+        self.assertEqual(result["provenance"]["storm-core-b42"][0]["folder"], selected)
 
     def test_archived_image_returns_verified_oci_config_digest(self):
         blobs = {}

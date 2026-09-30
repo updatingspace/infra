@@ -210,7 +210,10 @@ def read_server_config(root: Path, manifest: dict[str, Any]) -> tuple[dict[str, 
                and item.get("metadata", {}).get("name") == "pz-runtime"]
     require(len(secrets) == 1, "restored_runtime_secret_missing_or_ambiguous")
     environment = {}
-    for key in ("PZ_ADMIN_PASSWORD", "RCON_PASSWORD", "PZ_SERVER_NAME", "PZ_BRANCH", "RCON_PORT"):
+    # The production JVM can load its mod framework through JAVA_TOOL_OPTIONS.
+    # Carry this recovered value only through the private env file as well; a
+    # successful vanilla launch is insufficient evidence for that runtime.
+    for key in ("PZ_ADMIN_PASSWORD", "RCON_PASSWORD", "PZ_SERVER_NAME", "PZ_BRANCH", "RCON_PORT", "JAVA_TOOL_OPTIONS"):
         encoded = secrets[0].get("data", {}).get(key)
         if encoded is not None:
             try:
@@ -330,6 +333,29 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
     roots = [(root / "data/pz-server/steamapps/workshop/content/108600", "/pz-server/steamapps/workshop/content/108600"),
              (root / "data/steam/steamapps/workshop/content/108600", "/home/steam/Steam/steamapps/workshop/content/108600")]
     folders = []
+    priorities = {}
+    origins = {}
+    # The deployed loader's default is workshop,steam,mods. A pinned local
+    # Workshop install therefore precedes the Steam copy. Both sources are
+    # hidden by -nosteam and need verified links into the local mods directory.
+    staged = root / "data/zomboid/Workshop"
+    if staged.exists():
+        require(staged.is_dir() and not staged.is_symlink(), "unsafe_restored_staged_workshop_directory")
+        for item_folder in sorted(staged.iterdir()):
+            if not item_folder.is_dir():
+                continue
+            require(not item_folder.is_symlink(), "unsafe_restored_staged_workshop_directory")
+            directory = item_folder / "Contents/mods"
+            if not directory.exists():
+                continue
+            require(directory.is_dir() and not directory.is_symlink()
+                    and not directory.parent.is_symlink(), "unsafe_restored_staged_workshop_directory")
+            for folder in sorted(directory.iterdir()):
+                require(folder.is_dir() and not folder.is_symlink(), "unsafe_restored_workshop_mod_folder")
+                relative = folder.relative_to(root).as_posix()
+                folders.append((None, folder, "/zomboid/" + folder.relative_to(root / "data/zomboid").as_posix()))
+                priorities[relative] = (0, 0)
+                origins[relative] = "staged_workshop"
     for item in items:
         choices = [(base / item / "mods", target + "/" + item + "/mods") for base, target in roots
                    if (base / item / "mods").is_dir()]
@@ -339,12 +365,18 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
         for folder in sorted(directory.iterdir()):
             require(folder.is_dir() and not folder.is_symlink(), "unsafe_restored_workshop_mod_folder")
             folders.append((item, folder, target + "/" + folder.name))
+            relative = folder.relative_to(root).as_posix()
+            priorities[relative] = (1, items.index(item))
+            origins[relative] = "installed_workshop"
     local_mods = root / "data/zomboid/mods"
     if local_mods.exists():
         require(local_mods.is_dir() and not local_mods.is_symlink(), "unsafe_restored_local_mod_directory")
         for folder in sorted(local_mods.iterdir()):
             if folder.is_dir() and not folder.is_symlink():
                 folders.append((None, folder, None))
+                relative = folder.relative_to(root).as_posix()
+                priorities[relative] = (2, 0)
+                origins[relative] = "local_mods"
     providers = {value: [] for value in mods}
     for item, folder, target in folders:
         candidates = [folder / "mod.info", *folder.glob("*/mod.info")]
@@ -360,6 +392,7 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
             if values[0] in providers:
                 providers[values[0]].append({"workshop_id": item, "folder": folder.relative_to(root).as_posix(),
                                            "mod_info": relative, "sha256": expected[relative]["sha256"],
+                                           "source_kind": origins[folder.relative_to(root).as_posix()],
                                            "versioned": info.parent != folder})
     mapping = {}
     for mod, candidates in providers.items():
@@ -371,33 +404,31 @@ def prepare_offline_mods(root: Path, manifest: dict[str, Any], identifier: str,
         require(bool(selected), "configured_mod_provenance_missing_or_ambiguous")
         if len({candidate["folder"] for candidate in selected}) > 1:
             require(baseline is not None, "configured_mod_provenance_missing_or_ambiguous")
-            # The verified deployed loader walks WorkshopItems in configured
-            # order, setModIdToDir uses putIfAbsent, and ChooseGameInfo prefers
-            # the first folder index. Existing
-            # local mods follow Workshop folders. Same-item duplicates remain
-            # ambiguous because filesystem directory order is not reproduced.
-            priority = min(items.index(candidate["workshop_id"]) if candidate["workshop_id"] in items else len(items)
-                           for candidate in selected)
+            # Staged Workshop folders precede configured Steam items; local
+            # mods follow them. Within one source tier, unknown filesystem
+            # ordering remains ambiguous even when a baseline names a folder.
+            priority = min(priorities[candidate["folder"]] for candidate in selected)
             selected = [candidate for candidate in selected
-                        if (items.index(candidate["workshop_id"]) if candidate["workshop_id"] in items else len(items)) == priority]
+                        if priorities[candidate["folder"]] == priority]
             require(len({candidate["folder"] for candidate in selected}) == 1
                     and baseline.get("duplicate_provider_resolution", {}).get(mod) == selected[0]["folder"],
                     "duplicate_mod_provider_selection_not_proven")
         mapping[mod] = selected
     links = []
     selected_folders = {candidate["folder"] for candidates in mapping.values() for candidate in candidates}
-    if items:
+    if any(target is not None for _, _, target in folders):
         local_mods.mkdir(mode=0o755, exist_ok=True)
         for index, (item, folder, target) in enumerate(folders):
-            if item is None or folder.relative_to(root).as_posix() not in selected_folders:
+            if target is None or folder.relative_to(root).as_posix() not in selected_folders:
                 continue
-            name = "pz-drill-" + identifier + "-" + item + "-" + str(index)
+            name = "pz-drill-" + identifier + "-" + (item or "staged") + "-" + str(index)
             link = local_mods / name
             require(not link.exists() and not link.is_symlink(), "offline_mod_link_already_exists")
             link_target = posixpath.relpath(target, "/zomboid/mods")
             link.symlink_to(link_target, target_is_directory=True)
             links.append({"path": link.relative_to(root).as_posix(), "target": link_target,
-                          "source": folder.relative_to(root).as_posix(), "workshop_id": item})
+                          "source": folder.relative_to(root).as_posix(), "workshop_id": item,
+                          "source_kind": origins[folder.relative_to(root).as_posix()]})
     return {"kind": "restored_workshop_links_for_nosteam", "configured_mods": mods,
             "workshop_items": items, "provenance": mapping, "created_links": links,
             "effective_mods": [mod for mod in mods if mod not in baseline_missing],

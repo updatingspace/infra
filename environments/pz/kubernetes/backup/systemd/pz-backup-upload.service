@@ -5,6 +5,10 @@ Wants=network-online.target
 After=network-online.target
 RequiresMountsFor=/srv/pz-backup-spool
 ConditionPathExists=/etc/pz-backup/upload-enabled
+# Skip empty queue ticks before OnSuccess can chain cleanup and a full remote
+# retention scan. Failed retention stays safe and is retried manually or after
+# the next successful publication; it never discards extra snapshots blindly.
+ConditionPathExistsGlob=/srv/pz-backup-spool/*.ready
 
 [Service]
 Type=oneshot

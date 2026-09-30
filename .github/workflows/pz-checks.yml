@@ -21,6 +21,8 @@ jobs:
         run: python -m unittest discover -s environments/pz/kubernetes/backup -p 'test_*.py'
       - name: Deployment maintenance checks
         run: python -m unittest discover -s environments/pz/kubernetes -p 'test_deploy*.py'
+      - name: Preserve pinned runtime during Secret import
+        run: python -m unittest discover -s environments/pz/kubernetes -p 'test_sync_secrets.py'
       - name: Legacy storage migration safety checks
         run: python -m unittest discover -s environments/pz/kubernetes/storage -p 'test_storage.py'
       - name: Legacy loop growth safety checks

@@ -345,7 +345,6 @@ def resume_evidence(args, cfg, attestation, original_fstab, original_boot_guard)
     require(digest == args.resume_boot_guard_sha256, 'resume_boot_guard_changed')
     require(previous.get('boot_guard_before_sha256', digest) == digest, 'resume_original_boot_guard_changed')
     resume_unit_stopped(args.resume_unit)
-    wait_mount_release(path=NEW)
     return raw
 
 
@@ -499,6 +498,9 @@ def migrate(args):
             # after shutdown proof; the shared maintenance lock remains held.
             writers_stopped(controller.api)
             wait_mount_release()
+            # The collector's read-only host-root bind also includes NEW.
+            # Require release after stopping its owner, before freezing/hashing.
+            wait_mount_release(path=NEW)
             command(['mount', '-o', 'remount,ro', str(DATA)])
             read_only_source(cfg['data_uuid'])
             deadline = time.monotonic() + budget

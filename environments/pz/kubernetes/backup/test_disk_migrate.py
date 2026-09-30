@@ -1,5 +1,6 @@
 import importlib.util
 import hashlib
+from contextlib import ExitStack, nullcontext
 import json
 import os
 from pathlib import Path
@@ -234,6 +235,13 @@ class MountNamespaceTests(unittest.TestCase):
         rows = [self.row(), self.row(target='/var/lib/kubelet/pods/uid/volumes/pz-zomboid', root='/zomboid')]
         self.assertFalse(disk.detachable_references(rows, 'host'))
 
+    def test_new_disk_collector_alias_remains_rejected_while_following_metrics_copy_is_allowed(self):
+        host = self.row(target=str(disk.NEW), propagation=['shared:805'])
+        metrics = self.row('metrics', str(disk.NEW), propagation=['shared:881', 'master:805'])
+        collector = self.row('collector', '/hostfs' + str(disk.NEW), propagation=[])
+        self.assertTrue(disk.detachable_references([host, metrics], 'host', disk.NEW))
+        self.assertFalse(disk.detachable_references([host, metrics, collector], 'host', disk.NEW))
+
     def test_migration_never_unmounts_inside_a_private_service_namespace(self):
         with patch.object(disk.os, 'readlink', side_effect=['host', 'private']), patch.object(disk, 'command') as command:
             with self.assertRaisesRegex(disk.backup.Refused, 'host_mount_namespace'):
@@ -317,7 +325,7 @@ class ResumeTests(unittest.TestCase):
                     if index == 0:
                         self.assertEqual(disk.resume_evidence(args, {'data_uuid': 'old'}, attestation, 'fstab', guard), raw)
                         stopped.assert_called_once_with(args.resume_unit)
-                        release.assert_called_once_with(path=disk.NEW)
+                        release.assert_not_called()  # Collector is still healthy during identity preflight.
                     else:
                         with self.assertRaises(disk.backup.Refused):
                             disk.resume_evidence(args, {'data_uuid': 'old'}, attestation, 'fstab', guard)
@@ -365,6 +373,74 @@ class ResumeTests(unittest.TestCase):
         target = [records[0], records[1] | {'mtime_ns': 1},
                   {'path': 'stale', 'type': 'file', 'size': 999999, 'mtime_ns': 1}]
         self.assertEqual(disk.resume_copy_budget(records, target), 500+3*8192)
+
+    def test_target_release_follows_writer_stop_and_failure_restores_apps_before_hash(self):
+        for blocked in (False, True):
+            with self.subTest(blocked=blocked), tempfile.TemporaryDirectory() as tmp, ExitStack() as mocks:
+                root = Path(tmp)
+                source, target, old, state = (root/name for name in ('source', 'target', 'old', 'state'))
+                for directory in (source, target, old, state): directory.mkdir()
+                image = root/'source.ext4'; image.write_bytes(b'fixture')
+                fstab = root/'fstab'; fstab.write_text('original')
+                (state/'journal.json').write_bytes(b'aborted')
+                guard = root/'absent-boot-guard'
+                events = []
+                class Controller:
+                    def __init__(self):
+                        self.api = Mock(); self.api.pods.return_value = []
+                    def original_state(self):
+                        return {name: {'spec': {'replicas': 0}} for name in ('panel', 'zomboid')}
+                    def phase(self, phase, **values): self.journal.update(phase=phase, **values)
+                    def suspend_updater(self): self.phase('updater_suspended')
+                    def stop_collector(self): events.append('collector_stopped'); self.phase('collector_stopped')
+                    def restore_apps(self): events.append('apps_restored'); self.phase('apps_restored')
+                controller = Controller()
+                cfg = {'data_uuid': 'old', 'stop_timeout_seconds': 300}
+                args = self.arguments(config=str(root/'config'), remote_config=str(root/'remote'),
+                                      attestation=str(root/'attestation'), size_gib=40, expected_host='fixture')
+                def release(*args, **kwargs):
+                    events.append('target_release' if kwargs.get('path') == target else 'source_release')
+                    self.assertEqual(controller.journal['phase'], 'writers_stopped')
+                    if blocked and kwargs.get('path') == target:
+                        raise disk.backup.Refused('target_still_bound')
+                def inventory(path, *, hashes=True, **kwargs):
+                    if hashes:
+                        events.append('source_hash')
+                        raise disk.backup.Refused('fixture_hash_boundary')
+                    return []
+                def command(argv, **kwargs):
+                    events.append('remount_ro' if argv[2] == 'remount,ro' else 'remount_rw')
+                    return b''
+                values = {'DATA': source, 'NEW': target, 'OLD': old, 'STATE': state, 'IMAGE': image,
+                          'FSTAB': fstab, 'prepare_target': lambda *a, **k: Path('/dev/fixture'),
+                          'source_identity': lambda *a: {'source': '/dev/loop2'},
+                          'verify_attestation': lambda *a: {'snapshot_id': 'snapshot', 'commit_sha256': 'commit'},
+                          'replacement_fstab': lambda *a: 'replacement',
+                          'resume_evidence': lambda *a: b'aborted', 'preserve_abort': lambda *a: state/'preserved',
+                          'writers_stopped': lambda *a: events.append('writers_checked'),
+                          'wait_mount_release': release, 'read_only_source': lambda *a: events.append('source_ro_verified'),
+                          'mount_record': lambda *a: {'options': 'rw'}, 'command': command}
+                for name, value in values.items(): mocks.enter_context(patch.object(disk, name, value))
+                mocks.enter_context(patch.object(disk, 'Path', side_effect=lambda value:
+                    guard if str(value) == '/etc/systemd/system/k3s.service.d/60-pz-data-disk.conf' else Path(value)))
+                mocks.enter_context(patch.object(disk.os, 'readlink', return_value='host'))
+                for name, value in {'configuration': lambda *a: cfg, 'trusted': lambda *a, **k: None,
+                                    'locked': lambda *a: nullcontext(), 'inventory': inventory,
+                                    'free_space': lambda *a: None, 'Coordinator': lambda *a: controller}.items():
+                    mocks.enter_context(patch.object(disk.backup, name, value))
+                with self.assertRaisesRegex(disk.backup.Refused,
+                                            'target_still_bound' if blocked else 'fixture_hash_boundary'):
+                    disk.migrate(args)
+                self.assertLess(events.index('collector_stopped'), events.index('source_release'))
+                self.assertLess(events.index('source_release'), events.index('target_release'))
+                self.assertEqual(controller.journal['phase'], 'aborted_before_cutover')
+                self.assertIn('apps_restored', events)
+                if blocked:
+                    self.assertNotIn('remount_ro', events)
+                    self.assertNotIn('source_hash', events)
+                else:
+                    self.assertLess(events.index('target_release'), events.index('remount_ro'))
+                    self.assertLess(events.index('source_ro_verified'), events.index('source_hash'))
 
     @unittest.skipUnless(shutil.which('rsync'), 'rsync required for real partial-cache reconciliation fixture')
     def test_real_resume_reconciles_partial_and_stale_files_then_verifies_exact_tree(self):

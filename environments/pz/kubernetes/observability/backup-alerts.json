@@ -64,7 +64,7 @@
     },
     "pz-backup-failed": {
       "title": "PZ · ошибка резервирования или восстановления",
-      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_job_failed|pz_backup_state_file_invalid|pz_backup_verification_failed|pz_backup_capture_failed|pz_backup_restore_failed\"})",
+      "query": "series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_current_job_failed|pz_backup_state_file_invalid|pz_backup_verification_failed|pz_backup_capture_failed|pz_backup_restore_failed\"})",
       "comparison": "GREATER",
       "aggregation": "ALL",
       "warning": 0.5,

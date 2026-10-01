@@ -2,6 +2,7 @@
 """Read-only aggregate backup metrics; fixed labels, bounded files, no S3 credentials."""
 import argparse
 from datetime import datetime
+import hashlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import math
@@ -20,6 +21,7 @@ JOBS = {'capture': 'pz-backup.service', 'upload': 'pz-backup-upload.service',
         'cleanup': 'pz-backup-cleanup.service', 'retain': 'pz-backup-retain.service',
         'migration': 'pz-disk-migration.service'}
 MAX_JSON = 1024 * 1024
+EVIDENCE_UID = 0
 
 
 def read(path):
@@ -95,8 +97,9 @@ def host_mounted(path, devices):
 def service_states():
     try:
         result = subprocess.run(['systemctl', 'show', '--no-pager',
-                                 '--property=Id,LoadState,ActiveState,SubState,Result,ExecMainStatus',
-                                 *JOBS.values()], capture_output=True, text=True, timeout=3)
+                                 '--property=Id,LoadState,ActiveState,SubState,Result,ExecMainStatus,MainPID,ControlPID,ExecMainStartTimestamp,ExecMainExitTimestamp',
+                                 *JOBS.values()], capture_output=True, text=True, timeout=3,
+                                env={**os.environ, 'TZ': 'UTC', 'LC_ALL': 'C'})
         # systemctl may return nonzero because an optional migration unit is
         # absent while still returning complete state for the installed jobs.
         if not result.stdout:
@@ -109,6 +112,88 @@ def service_states():
         return states
     except (OSError, subprocess.SubprocessError):
         return {}
+
+
+def migration_evidence(name):
+    """Read only a private root-owned file below the fixed migration directory."""
+    descriptors = []
+    try:
+        for part in (STATE, 'disk-migration'):
+            descriptor = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                 **({'dir_fd': descriptors[-1]} if descriptors else {}))
+            descriptors.append(descriptor)
+            info = os.fstat(descriptor)
+            if info.st_uid != EVIDENCE_UID or info.st_mode & 0o022:
+                return None
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                             dir_fd=descriptors[-1])
+        descriptors.append(descriptor)
+        before = os.fstat(descriptor)
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != EVIDENCE_UID
+                or before.st_mode & 0o077 or before.st_nlink != 1 or before.st_size > MAX_JSON):
+            return None
+        with os.fdopen(descriptor, 'rb', closefd=False) as source:
+            raw = source.read(MAX_JSON + 1)
+        after = os.fstat(descriptor)
+        linked = os.stat(name, dir_fd=descriptors[-2], follow_symlinks=False)
+        identity = lambda row: (row.st_dev, row.st_ino, row.st_size, row.st_mtime_ns, row.st_ctime_ns)
+        if len(raw) > MAX_JSON or identity(before) != identity(after) or identity(after) != identity(linked):
+            return None
+        value = json.loads(raw)
+        return (value, raw) if isinstance(value, dict) else None
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        return None
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def unit_timestamp(value):
+    # systemctl show uses whole seconds. Treat the value as [t, t+1), rather
+    # than comparing a truncated unit exit against a fractional journal time.
+    if not isinstance(value, str) or not re.fullmatch(r'[A-Z][a-z]{2} \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC', value):
+        return 0
+    return timestamp(value[4:-4].replace(' ', 'T') + '+00:00')
+
+
+def migration_failure_superseded(migration, status, now):
+    """A completed, SHA-bound resume may resolve only its old inactive attempt."""
+    if (status.get('MainPID') != '0' or status.get('ControlPID') != '0'
+            or (status.get('ActiveState'), status.get('SubState')) not in
+            {('failed', 'failed'), ('inactive', 'dead')}):
+        return False
+    complete = migration_evidence('journal.json')
+    if not complete or complete[0] != migration:
+        return False
+    digest = migration.get('resumed_from_sha256')
+    if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return False
+    name = 'journal.aborted-' + digest + '.json'
+    if migration.get('resumed_from') != str(STATE / 'disk-migration' / name):
+        return False
+    prior = migration_evidence(name)
+    if not prior or hashlib.sha256(prior[1]).hexdigest() != digest:
+        return False
+    previous = prior[0]
+    if (migration.get('format') != 'pz-disk-migration-v1' or migration.get('phase') != 'complete'
+            or previous.get('format') != 'pz-disk-migration-v1'
+            or previous.get('phase') != 'aborted_before_cutover'
+            or previous.get('operator_inspection_required') is not True):
+        return False
+    for value in (migration.get('snapshot_id'), previous.get('snapshot_id')):
+        if not isinstance(value, str) or not re.fullmatch(r'disk-[0-9a-f]{32}', value):
+            return False
+    if migration['snapshot_id'] == previous['snapshot_id']:
+        return False
+    for field in ('old_uuid', 'new_uuid', 'disk_id', 'source_loop', 'restore_snapshot_id', 'restore_commit_sha256'):
+        if not isinstance(previous.get(field), str) or not previous[field] or migration.get(field) != previous[field]:
+            return False
+    start, end = unit_timestamp(status.get('ExecMainStartTimestamp')), unit_timestamp(status.get('ExecMainExitTimestamp'))
+    old_start, aborted = timestamp(previous.get('started_at')), timestamp(previous.get('updated_at'))
+    resumed, completed = timestamp(migration.get('started_at')), timestamp(migration.get('completed_at'))
+    # Require this unit's interval to contain the preserved failed attempt and
+    # end before the successful resume started. A later unit failure stays red.
+    return 0 < start <= old_start <= aborted < end + 1 <= resumed <= completed <= now and start <= end
 
 
 def render(now=None, services=None):
@@ -190,8 +275,10 @@ def render(now=None, services=None):
         known = status.get('LoadState') == 'loaded'
         metrics[f'pz_backup_job_state_known{{job="{label}"}}'] = int(known)
         if known:
-            metrics[f'pz_backup_job_failed{{job="{label}"}}'] = int(status.get('ActiveState') == 'failed'
-                  or status.get('Result') not in (None, '', 'success'))
+            failed = status.get('ActiveState') == 'failed' or status.get('Result') not in (None, '', 'success')
+            metrics[f'pz_backup_job_failed{{job="{label}"}}'] = int(failed)
+            superseded = label == 'migration' and failed and migration_failure_superseded(migration, status, now)
+            metrics[f'pz_backup_current_job_failed{{job="{label}"}}'] = int(failed and not superseded)
             metrics[f'pz_backup_job_active{{job="{label}"}}'] = int(status.get('ActiveState') == 'activating'
                   or status.get('SubState') in {'running', 'start', 'start-post', 'stop', 'stop-sigterm'})
     mount_devices = host_mount_devices()

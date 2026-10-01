@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import math
 import os
@@ -85,5 +86,79 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(self.render()['pz_backup_restore_attested'],'0')
         self.put('state','restore-status.json',{'format':'pz-backup-restore-status-v1','observed_at':'2026-09-30T19:00:00Z','passed':False})
         self.assertEqual(self.render()['pz_backup_restore_failed'],'1')
+
+    def resumed_migration(self):
+        directory=self.root/'state/disk-migration';directory.mkdir()
+        previous={'format':'pz-disk-migration-v1','snapshot_id':'disk-'+'1'*32,
+                  'phase':'aborted_before_cutover','operator_inspection_required':True,
+                  'started_at':'2026-09-30T17:00:00.500000Z','updated_at':'2026-09-30T17:30:00.174681Z',
+                  'old_uuid':'11111111-1111-1111-1111-111111111111',
+                  'new_uuid':'22222222-2222-2222-2222-222222222222','disk_id':'disk-fixture',
+                  'source_loop':'/dev/loop2','restore_snapshot_id':'20260930T010203Z-'+'a'*32,
+                  'restore_commit_sha256':'b'*64}
+        raw=json.dumps(previous,sort_keys=True).encode();digest=hashlib.sha256(raw).hexdigest()
+        archived=directory/('journal.aborted-'+digest+'.json');archived.write_bytes(raw);archived.chmod(0o600)
+        current={**previous,'snapshot_id':'disk-'+'2'*32,'phase':'complete',
+                 'started_at':'2026-09-30T18:00:00Z','completed_at':'2026-09-30T19:00:00Z',
+                 'resumed_from':str(archived),'resumed_from_sha256':digest}
+        current.pop('operator_inspection_required')
+        path=directory/'journal.json';path.write_text(json.dumps(current));path.chmod(0o600)
+        status={'LoadState':'loaded','ActiveState':'failed','SubState':'failed','Result':'exit-code',
+                'MainPID':'0','ControlPID':'0','ExecMainStartTimestamp':'Wed 2026-09-30 16:59:00 UTC',
+                'ExecMainExitTimestamp':'Wed 2026-09-30 17:30:00 UTC'}
+        return path,archived,current,status
+
+    def test_verified_resume_resolves_only_current_migration_failure_and_keeps_history(self):
+        _,_,_,status=self.resumed_migration()
+        self.put('state','journal.json',{'phase':'capture_failed'})
+        services={m.JOBS[job]:dict(status) for job in ('migration','capture','cleanup')}
+        with patch.object(m,'EVIDENCE_UID',os.getuid()): data=self.render(services)
+        self.assertEqual(data['pz_backup_job_failed{job="migration"}'],'1')
+        self.assertEqual(data['pz_backup_current_job_failed{job="migration"}'],'0')
+        self.assertEqual(data['pz_backup_migration_incomplete'],'0')
+        self.assertEqual(data['pz_backup_capture_failed'],'1')
+        for job in ('capture','cleanup'):
+            self.assertEqual(data[f'pz_backup_current_job_failed{{job="{job}"}}'],'1')
+
+    def test_resume_without_exact_trusted_archive_cannot_hide_failure(self):
+        path,archived,current,status=self.resumed_migration()
+        cases=[('phase','copying'),('resumed_from_sha256','0'*64),('resumed_from','/etc/passwd'),
+               ('snapshot_id','disk-'+'1'*32),('disk_id','another-disk'),
+               ('completed_at','2026-10-01T00:00:00Z'),('started_at','2026-09-30T17:30:00Z')]
+        for key,value in cases:
+            with self.subTest(key=key),patch.object(m,'EVIDENCE_UID',os.getuid()):
+                changed={**current,key:value};path.write_text(json.dumps(changed))
+                self.assertEqual(self.render({m.JOBS['migration']:status})['pz_backup_current_job_failed{job="migration"}'],'1')
+        path.write_text(json.dumps(current))
+        raw=archived.read_bytes()
+        for change in ('corrupt','public','symlink','missing','owner'):
+            with self.subTest(change=change):
+                archived.unlink(missing_ok=True);archived.write_bytes(raw);archived.chmod(0o600)
+                if change=='corrupt':archived.write_bytes(raw+b' ')
+                elif change=='public':archived.chmod(0o644)
+                elif change=='symlink':archived.unlink();archived.symlink_to(path)
+                elif change=='missing':archived.unlink()
+                with patch.object(m,'EVIDENCE_UID',os.getuid()+1 if change=='owner' else os.getuid()):
+                    self.assertEqual(self.render({m.JOBS['migration']:status})['pz_backup_current_job_failed{job="migration"}'],'1')
+
+    def test_later_or_active_original_unit_failure_is_not_superseded(self):
+        _,_,_,status=self.resumed_migration()
+        cases=[{'MainPID':'123'}, {'ControlPID':'123'}, {'ActiveState':'activating','SubState':'start'},
+               {'ExecMainStartTimestamp':'Wed 2026-09-30 19:10:00 UTC','ExecMainExitTimestamp':'Wed 2026-09-30 19:11:00 UTC'},
+               {'ExecMainExitTimestamp':'Wed 2026-09-30 17:29:59 UTC'},
+               {'ExecMainExitTimestamp':''}, {'ExecMainStartTimestamp':'Wed 2026-09-30 16:59:00 MSK'}]
+        for changed in cases:
+            with self.subTest(changed=changed),patch.object(m,'EVIDENCE_UID',os.getuid()):
+                data=self.render({m.JOBS['migration']:{**status,**changed}})
+                self.assertEqual(data['pz_backup_current_job_failed{job="migration"}'],'1')
+
+    def test_systemctl_requests_stable_utc_timestamps_and_process_identity(self):
+        with patch.object(m.subprocess,'run',return_value=SimpleNamespace(stdout='')) as run:
+            m.service_states()
+        options=run.call_args.kwargs
+        self.assertEqual(options['env']['TZ'],'UTC');self.assertEqual(options['env']['LC_ALL'],'C')
+        requested=run.call_args.args[0][3]
+        for field in ('MainPID','ControlPID','ExecMainStartTimestamp','ExecMainExitTimestamp'):
+            self.assertIn(field,requested)
 
 if __name__=='__main__':unittest.main()

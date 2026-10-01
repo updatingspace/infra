@@ -19,6 +19,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tarfile
@@ -189,7 +190,7 @@ def file_hash(path, deadline=None):
     return digest.hexdigest()
 
 
-def inventory(root, *, hashes=True, max_entries=2000000, excluded=(), deadline=None):
+def inventory(root, *, hashes=True, max_entries=2000000, excluded=(), deadline=None, identities=None):
     """Do not follow links or cross mounts. Include binary, log and backup data."""
     root = root.absolute()
     root_stat = root.lstat()
@@ -205,6 +206,8 @@ def inventory(root, *, hashes=True, max_entries=2000000, excluded=(), deadline=N
         relative = '.' if path == root else path.relative_to(root).as_posix()
         if relative in excluded:
             continue
+        if identities is not None:
+            identities[relative] = source_identity(info)
         item = {'path': relative, 'uid': info.st_uid, 'gid': info.st_gid,
                 'mode': stat.S_IMODE(info.st_mode), 'mtime_ns': info.st_mtime_ns,
                 'xattrs': xattrs(path)}
@@ -542,6 +545,197 @@ def stop_children(processes):
             process.wait(timeout=5)
 
 
+def source_identity(info):
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid,
+            info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def check_future_manifest_size(manifest, deadline):
+    # The final file SHA fields have a fixed encoded size. Count them without
+    # creating a false manifest or allocating another large JSON byte string.
+    extra = len(json.dumps({'sha256': '0' * 64}, separators=(',', ':'))) - 1
+    count = 1  # final newline
+    for chunk in json.JSONEncoder(sort_keys=True, separators=(',', ':')).iterencode(manifest):
+        remaining(deadline)
+        count += len(chunk.encode())
+        require(count <= MANIFEST_MAX_BYTES, 'manifest_size_limit_exceeded')
+    count += extra * sum(item['type'] == 'file' and 'sha256' not in item for item in manifest['files'])
+    require(count <= MANIFEST_MAX_BYTES, 'manifest_size_limit_exceeded')
+
+
+@contextmanager
+def source_parent(root, relative, deadline):
+    """Walk only real directories; a replaced FIFO/ancestor must never block."""
+    remaining(deadline)
+    parts = relative.split('/')
+    require(relative == '.' or (not relative.startswith('/') and all(p not in {'', '.', '..'} for p in parts)),
+            'source_relative_path_invalid')
+    descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in parts[:-1]:
+            remaining(deadline)
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        yield descriptor, parts[-1]
+    finally:
+        os.close(descriptor)
+
+
+class SourceHashReader:
+    """Hash the source FD bytes that the TAR writer consumes, exactly once."""
+    def __init__(self, source, deadline):
+        self.source, self.deadline = source, deadline
+        self.digest, self.size = hashlib.sha256(), 0
+
+    def read(self, count=-1):
+        remaining(self.deadline)
+        result = self.source.read(count)
+        remaining(self.deadline)
+        self.digest.update(result)
+        self.size += len(result)
+        return result
+
+
+def pax_acl_text(encoded):
+    # Linux POSIX ACL xattr v2, numeric IDs like GNU tar --numeric-owner.
+    data = base64.b64decode(encoded, validate=True)
+    require(len(data) >= 28 and (len(data) - 4) % 8 == 0
+            and struct.unpack_from('<I', data)[0] == 2, 'source_acl_format_invalid')
+    names = {1: 'user', 2: 'user', 4: 'group', 8: 'group', 16: 'mask', 32: 'other'}
+    output = []
+    for offset in range(4, len(data), 8):
+        tag, perm, identifier = struct.unpack_from('<HHI', data, offset)
+        require(tag in names and 0 <= perm <= 7, 'source_acl_entry_invalid')
+        named = tag in {2, 8}
+        require((identifier != 0xffffffff) == named, 'source_acl_id_invalid')
+        permissions = ''.join(letter if perm & bit else '-' for bit, letter in ((4, 'r'), (2, 'w'), (1, 'x')))
+        output.append(names[tag] + ':' + (str(identifier) if named else '') + ':' + permissions)
+    return '\n'.join(output)
+
+
+def source_tarinfo(item):
+    info = tarfile.TarInfo(item['path'])
+    info.uid, info.gid, info.mode = item['uid'], item['gid'], item['mode']
+    info.mtime = item['mtime_ns'] // 10**9
+    info.uname = info.gname = ''
+    info.pax_headers = {'mtime': format(Decimal(item['mtime_ns']) / Decimal(10**9), 'f')}
+    info.pax_headers.update({'SCHILY.xattr.' + key: base64.b64decode(value, validate=True).decode('utf-8', 'surrogateescape')
+                             for key, value in item['xattrs'].items()})
+    for kind in ('access', 'default'):
+        value = item['xattrs'].get('system.posix_acl_' + kind)
+        if value is not None:
+            info.pax_headers['SCHILY.acl.' + kind] = pax_acl_text(value)
+    if item['type'] == 'dir':
+        info.type = tarfile.DIRTYPE
+    elif item['type'] == 'symlink':
+        info.type, info.linkname = tarfile.SYMTYPE, item['target']
+    elif item.get('hardlink'):
+        info.type, info.linkname = tarfile.LNKTYPE, item['hardlink']
+        # GNU tar also stores inode xattrs only with the content-bearing entry.
+        info.pax_headers = {'mtime': info.pax_headers['mtime']}
+    else:
+        require(item['type'] == 'file', 'source_type_invalid')
+        info.type, info.size = tarfile.REGTYPE, item['size']
+    return info
+
+
+def add_source_member(archive, root, relative, item, identities, completed, deadline):
+    baseline = identities[relative]
+    with source_parent(root, relative, deadline) as (parent, name):
+        before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+        require(source_identity(before) == baseline, 'source_changed_before_copy')
+        # /proc/self/fd anchors the checked parent; final component is not followed.
+        anchored = '/proc/self/fd/' + str(parent) + '/' + name
+        require(xattrs(anchored) == item['xattrs'], 'source_xattrs_changed_before_copy')
+        info = source_tarinfo(item)
+        if item['type'] == 'file':
+            flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            fd = os.open(name, flags, dir_fd=parent)
+            with os.fdopen(fd, 'rb') as source:
+                require(stat.S_ISREG(os.fstat(source.fileno()).st_mode)
+                        and source_identity(os.fstat(source.fileno())) == baseline, 'source_changed_before_copy')
+                if item.get('hardlink'):
+                    prior = completed.get(item['hardlink'])
+                    require(prior is not None and prior['identity'] == baseline, 'source_hardlink_identity_changed')
+                    require(item.get('sha256', prior['sha256']) == prior['sha256'], 'source_known_sha256_mismatch')
+                    item['sha256'] = prior['sha256']
+                    archive.addfile(info)
+                else:
+                    reader = SourceHashReader(source, deadline)
+                    archive.addfile(info, reader)
+                    require(reader.size == item['size'] and not source.read(1), 'source_size_changed_while_copying')
+                    digest = reader.digest.hexdigest()
+                    require(item.get('sha256', digest) == digest, 'source_known_sha256_mismatch')
+                    item['sha256'] = digest
+                remaining(deadline)
+                require(source_identity(os.fstat(source.fileno())) == baseline, 'source_changed_while_copying')
+                require(xattrs(anchored) == item['xattrs'], 'source_xattrs_changed_while_copying')
+                if before.st_nlink > 1:
+                    completed[item['path']] = {'identity': baseline, 'sha256': item['sha256']}
+        else:
+            if item['type'] == 'symlink':
+                require(os.readlink(name, dir_fd=parent) == item['target'], 'source_symlink_changed')
+            archive.addfile(info)
+        require(source_identity(os.stat(name, dir_fd=parent, follow_symlinks=False)) == baseline,
+                'source_path_changed_while_copying')
+        # TarInfo objects otherwise accumulate for every written member.
+        archive.members.clear()
+        remaining(deadline)
+
+
+def create_two_pass_staging_tar(stage, manifest, deadline, data_ids, recovery_ids):
+    """Hash each source while copying, then independently read back the TAR."""
+    temporary, target = stage / 'staging.tar.partial', stage / 'staging.tar'
+    require(not target.exists() and not target.is_symlink(), 'staging_tar_exists')
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    completed = {}
+    pending_hardlinks = []
+    with os.fdopen(fd, 'wb') as output:
+        with tarfile.open(fileobj=output, mode='w|', format=tarfile.PAX_FORMAT,
+                          encoding='utf-8', errors='surrogateescape', copybufsize=1024*1024) as archive:
+            for item in manifest['files']:
+                remaining(deadline)
+                # Inventory selects the content-bearing link in DFS order; its
+                # final lexical record order can put a punctuation sibling first.
+                if item.get('hardlink') and item['hardlink'] not in completed:
+                    pending_hardlinks.append(item)
+                    continue
+                prefix, separator, suffix = item['path'].partition('/')
+                require(prefix in {'data', 'recovery'}, 'source_root_invalid')
+                root, identities = (DATA, data_ids) if prefix == 'data' else (stage / 'recovery', recovery_ids)
+                add_source_member(archive, root, suffix if separator else '.', item,
+                                  identities, completed, deadline)
+            for item in pending_hardlinks:
+                remaining(deadline)
+                prefix, separator, suffix = item['path'].partition('/')
+                require(prefix in {'data', 'recovery'}, 'source_root_invalid')
+                root, identities = (DATA, data_ids) if prefix == 'data' else (stage / 'recovery', recovery_ids)
+                add_source_member(archive, root, suffix if separator else '.', item,
+                                  identities, completed, deadline)
+            # Hashes are all final now. No placeholder SHA is ever persisted.
+            atomic_json(stage / 'manifest.json', manifest, deadline)
+            require((stage / 'manifest.json').stat().st_size <= MANIFEST_MAX_BYTES, 'manifest_size_limit_exceeded')
+            encoded = (stage / 'manifest.json').read_bytes()
+            info = tarfile.TarInfo('manifest.json')
+            info.mode, info.size = 0o600, len(encoded)
+            archive.addfile(info, io.BytesIO(encoded))
+        output.flush()
+        os.fsync(output.fileno())
+        remaining(deadline)
+    # Same complete on-disk member/hash/metadata verification and journal gates
+    # as before; the source metadata postcheck remains in stage_stopped().
+    with os.fdopen(os.open(temporary, os.O_RDONLY | os.O_NOFOLLOW), 'rb') as source:
+        stream = HashTee(source, deadline=deadline)
+        verify_tar(stream, manifest['files'], encoded, deadline)
+        result = {'path': 'staging.tar', 'sha256': stream.digest.hexdigest(), 'size': stream.size}
+    require(temporary.stat().st_size == result['size'], 'staging_tar_size_changed')
+    os.rename(temporary, target)
+    fsync_directory(stage)
+    remaining(deadline)
+    return result
+
+
 def create_staging_tar(stage, manifest, deadline):
     """Write one plaintext file, then verify every byte/member from disk."""
     temporary, target = stage / 'staging.tar.partial', stage / 'staging.tar'
@@ -691,12 +885,12 @@ class Coordinator:
         self.api.no_unknown_writers()
         return {'bytes': total, 'entries': len(records), 'required_spool_bytes': required}
 
-    def data_inventory(self, hashes=True, deadline=None):
+    def data_inventory(self, hashes=True, deadline=None, identities=None):
         exclusions = self.cfg.get('excluded_paths', [])
         if exclusions:
             require((DATA / 'zomboid/Saves').is_dir() and (DATA / 'zomboid/Server').is_dir(),
                     'primary_world_paths_required_before_backup_exclusion')
-        return inventory(DATA, hashes=hashes, max_entries=self.cfg['max_entries'], excluded=exclusions, deadline=deadline)
+        return inventory(DATA, hashes=hashes, max_entries=self.cfg['max_entries'], excluded=exclusions, deadline=deadline, identities=identities)
 
     def original_state(self):
         original = {}
@@ -860,8 +1054,9 @@ class Coordinator:
         if deadline is None:
             deadline = time.monotonic() + self.cfg.get('staging_timeout_seconds', 1800)
         remaining(deadline)
-        records = self.data_inventory(deadline=deadline)
-        recovery = inventory(partial / 'recovery', max_entries=self.cfg['max_entries'], deadline=deadline)
+        data_ids, recovery_ids = {}, {}
+        records = self.data_inventory(hashes=False, deadline=deadline, identities=data_ids)
+        recovery = inventory(partial / 'recovery', hashes=False, max_entries=self.cfg['max_entries'], deadline=deadline, identities=recovery_ids)
         total, required = estimate(records + recovery)
         require(total <= self.cfg['max_snapshot_bytes'], 'snapshot_budget_exceeded')
         free_space(SPOOL, required, len(records) + 100, self.cfg)
@@ -878,12 +1073,12 @@ class Coordinator:
                     'server_name': self.cfg['server_name'], 'infra_revision': self.cfg['infra_revision'],
                     'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
                     'original': self.journal['original'], 'exit_evidence': proof}
-        atomic_json(partial / 'manifest.json', manifest, deadline)
-        require((partial / 'manifest.json').stat().st_size <= MANIFEST_MAX_BYTES, 'manifest_size_limit_exceeded')
+        check_future_manifest_size(manifest, deadline)
         self.phase('staging')
-        staged_tar = create_staging_tar(partial, manifest, deadline)
-        # Tar member hashes already prove every copied byte matches the initial
-        # inventory. Recheck source metadata without a third content read.
+        staged_tar = create_two_pass_staging_tar(partial, manifest, deadline, data_ids, recovery_ids)
+        del data_ids, recovery_ids
+        # TAR disk readback proved every copied byte matches source FD bytes
+        # hashed while writing. Recheck source metadata without another content read.
         # The on-disk manifest and TAR are complete; reuse the baseline records
         # rather than retaining a third full 585k-entry inventory in memory.
         for row in records:

@@ -236,8 +236,6 @@ def collect(output):
             matching = [p for p in pods if all(p['metadata'].get('labels', {}).get(k) == v for k, v in selector.items())
                         and not p['metadata'].get('deletionTimestamp') and p['status'].get('phase') == 'Running']
             configured = [c['image'] for c in obj['spec']['template']['spec']['containers']]
-            for ref in configured:
-                image_refs.add(ref)
             for pod in matching:
                 statuses = pod['status'].get('containerStatuses', [])
                 if {item['name'] for item in statuses} != {item['name'] for item in pod['spec']['containers']}:
@@ -259,10 +257,13 @@ def collect(output):
                 if obj['spec'].get('replicas', 1) != 0:
                     raise RuntimeError('Expected running recovery workload has no running pod')
                 for ref in configured:
+                    image_refs.add(ref)
                     images.append({'namespace': ns, 'workload': resource, 'configured_image': ref,
                                    'export_ref': ref, 'image_id': None, 'intentionally_stopped': True})
-    # Export every configured image from containerd. Export failure is fatal: tags
-    # and a Dockerfile alone cannot reproduce the installed image bytes.
+    # Running workloads use their available runtime references. A configured
+    # tag@digest alias need not exist in containerd even when its exact runtime
+    # image is present. verify_oci_archive binds each export to the running ID;
+    # configured references remain in the saved resources and image metadata.
     archive = output / 'runtime-images.oci.tar'
     run(['k3s', 'ctr', '-n', 'k8s.io', 'images', 'export', '--platform', 'linux/amd64', str(archive), *sorted(image_refs)], timeout=900)
     verified = verify_oci_archive(archive, images)

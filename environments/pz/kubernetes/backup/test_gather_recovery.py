@@ -90,6 +90,60 @@ class RecoveryArtifactsTests(unittest.TestCase):
                 g.collect(self.root / 'capture')
         self.assertFalse((self.root / 'capture/index.json').exists())
 
+    def test_running_image_exports_available_digest_alias_without_absent_configured_alias(self):
+        digest = 'sha256:' + 'a' * 64
+        configured = 'registry/panel:1.4.2@' + digest
+        runtime = 'registry/panel@' + digest
+        resource = {'kind': 'Deployment', 'metadata': {'name': 'panel'}, 'spec': {
+            'replicas': 1, 'selector': {'matchLabels': {'app': 'panel'}},
+            'template': {'spec': {'containers': [{'name': 'panel', 'image': configured}]}}}}
+        pod = {'metadata': {'labels': {'app': 'panel'}},
+               'spec': {'containers': [{'name': 'panel', 'image': configured}]},
+               'status': {'phase': 'Running', 'containerStatuses': [{
+                   'name': 'panel', 'imageID': runtime, 'state': {'running': {}}}]}}
+        commands = []
+
+        def run(args, timeout=120):
+            commands.append(args)
+            if args[-2:] == ['ls', '-q']:
+                return (runtime + '\n').encode()
+            if 'export' in args:
+                self.assertEqual(args[9:], [runtime])
+                self.assertNotIn(configured, args)
+                raise RuntimeError('export reached with correct references')
+            self.fail('unexpected command')
+
+        def kube(_namespace, args):
+            return {'items': [pod]} if args == ['get', 'pods'] else {'items': [resource]}
+
+        with patch.object(g, 'NAMESPACES', ('zomboid',)), \
+             patch.dict(g.WORKLOADS, {'zomboid': ('deployment/panel',)}, clear=True), \
+             patch.object(g, 'run', side_effect=run), patch.object(g, 'kube', side_effect=kube):
+            with self.assertRaisesRegex(RuntimeError, 'export reached with correct references'):
+                g.collect(self.root / 'capture')
+        self.assertEqual(len(commands), 2)
+
+    def test_stopped_workload_still_requires_configured_image_export(self):
+        configured = 'registry/panel:pinned'
+        resource = {'kind': 'Deployment', 'metadata': {'name': 'panel'}, 'spec': {
+            'replicas': 0, 'selector': {'matchLabels': {'app': 'panel'}},
+            'template': {'spec': {'containers': [{'name': 'panel', 'image': configured}]}}}}
+
+        def run(args, timeout=120):
+            if args[-2:] == ['ls', '-q']:
+                return (configured + '\n').encode()
+            self.assertEqual(args[9:], [configured])
+            raise RuntimeError('configured export required')
+
+        def kube(_namespace, args):
+            return {'items': []} if args == ['get', 'pods'] else {'items': [resource]}
+
+        with patch.object(g, 'NAMESPACES', ('zomboid',)), \
+             patch.dict(g.WORKLOADS, {'zomboid': ('deployment/panel',)}, clear=True), \
+             patch.object(g, 'run', side_effect=run), patch.object(g, 'kube', side_effect=kube):
+            with self.assertRaisesRegex(RuntimeError, 'configured export required'):
+                g.collect(self.root / 'capture')
+
     def test_game_metadata_captures_build_mods_and_workshop_without_passwords(self):
         (self.root / 'pz-server/steamapps').mkdir(parents=True)
         (self.root / 'pz-server/steamapps/appmanifest_380870.acf').write_text('"AppState" { "buildid" "123456" }')

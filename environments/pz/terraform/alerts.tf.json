@@ -27,7 +27,7 @@
             "recipient_user_id": "ajertvmnbh2g2m10j9ej"
           }
         ],
-        "restart_tolerance_note": "Actual failed game scrapes retain ALL15m thresholds. A gap in an existing series is NO_DATA; the shared collector/export path is monitored by pz-backup-exporter with ALL45m and ALARM missing-data policies. A missing selector still alarms. ALL15m does not guarantee startup grace after a telemetry gap.",
+        "restart_tolerance_note": "Actual failed game scrapes retain ALL15m thresholds. A gap in an existing series is NO_DATA; the shared collector/export path is monitored by pz-backup-exporter with ALL60m and ALARM missing-data policies. A missing selector still alarms. ALL15m does not guarantee startup grace after a telemetry gap.",
         "annotations": {
           "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-game-unavailable/view"
         }

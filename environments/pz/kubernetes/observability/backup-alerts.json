@@ -40,7 +40,7 @@
       "aggregation": "ALL",
       "warning": 0.5,
       "alarm": 0.9,
-      "window": "45m",
+      "window": "60m",
       "delay": "30s",
       "no_points": "ALARM",
       "no_series": "ALARM",

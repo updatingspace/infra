@@ -270,7 +270,7 @@
           {
             "monitoring_target": {
               "data_source_id": "monium",
-              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_job_failed\"}, \"{{job}}\")",
+              "query": "alias({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"pz-backup\",name=\"pz_backup_current_job_failed\"}, \"{{job}}\")",
               "text_mode": true,
               "name": "A"
             }
@@ -302,7 +302,7 @@
             }
           }
         },
-        "title": "Ошибки процессов",
+        "title": "Текущие ошибки процессов",
         "display_legend": true
       }
     },

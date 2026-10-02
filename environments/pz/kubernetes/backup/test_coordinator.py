@@ -20,7 +20,8 @@ SPEC.loader.exec_module(c)
 
 
 def original(game=1, panel=1, suspended=False):
-    return {'zomboid': {'kind': 'statefulset', 'uid': 'game-uid', 'spec': {'replicas': game}},
+    return {'zomboid': {'kind': 'statefulset', 'uid': 'game-uid',
+                        'spec': {'replicas': game, 'template': {'spec': {'containers': [{'name': 'game'}]}}}},
             'panel': {'kind': 'deployment', 'uid': 'panel-uid', 'spec': {'replicas': panel}},
             'panel-auto-update': {'kind': 'cronjob', 'uid': 'updater-uid', 'spec': {'suspend': suspended}}}
 
@@ -29,8 +30,18 @@ class FakeKubernetes:
     def __init__(self, game=0, panel=0, suspended=True):
         self.current = original(game, panel, suspended)
         self.patches = []
+        self.game_pod = {
+            'metadata': {'name': 'zomboid-0', 'namespace': 'zomboid', 'uid': 'new-pod',
+                         'ownerReferences': [{'kind': 'StatefulSet', 'name': 'zomboid',
+                                              'uid': 'game-uid', 'controller': True}]},
+            'status': {'phase': 'Running', 'conditions': [{'type': 'Ready', 'status': 'True'}],
+                       'containerStatuses': [{'name': 'game', 'ready': True, 'state': {'running': {}}}]}}
 
-    def get(self, kind, name, namespace='zomboid'):
+    def get(self, kind, name=None, namespace='zomboid', timeout=60, selector=None):
+        if kind == 'endpointslices':
+            assert selector == 'kubernetes.io/service-name=zomboid'
+            return {'items': [{'endpoints': [{'addresses': ['10.42.0.42'], 'conditions': {'ready': True},
+                'targetRef': {'kind': 'Pod', 'namespace': 'zomboid', 'name': 'zomboid-0', 'uid': 'new-pod'}}]}]}
         row = self.current[name]
         return {'metadata': {'uid': row['uid']}, 'spec': deepcopy(row['spec'])}
 
@@ -42,6 +53,10 @@ class FakeKubernetes:
 
     def updater_idle(self):
         return True
+
+    def pods(self, app, namespace='zomboid', timeout=60):
+        assert app == 'zomboid'
+        return [deepcopy(self.game_pod)] if self.current[app]['spec']['replicas'] else []
 
 
 class InventoryTests(unittest.TestCase):
@@ -171,6 +186,13 @@ class LifecycleTests(unittest.TestCase):
         value.journal = {'snapshot_id': '20260930T010203Z-' + 'a' * 32, 'original': original()}
         return value
 
+    def with_collector(self, coordinator, replicas=1):
+        state = {'kind': 'deployment', 'namespace': 'observability',
+                 'uid': 'collector-uid', 'spec': {'replicas': 0}}
+        coordinator.api.current['otel-collector'] = deepcopy(state)
+        coordinator.journal['original']['otel-collector'] = {**state, 'spec': {'replicas': replicas}}
+        return coordinator
+
     def test_intentionally_stopped_game_and_suspended_updater_remain_stopped(self):
         api = FakeKubernetes()
         coordinator = self.coordinator(api)
@@ -197,9 +219,209 @@ class LifecycleTests(unittest.TestCase):
                                          'uid': 'collector-uid', 'spec': {'replicas': 0}}
         coordinator = self.coordinator(api)
         coordinator.journal['original']['otel-collector'] = {**api.current['otel-collector'], 'spec': {'replicas': 1}}
-        with patch.object(c, 'updater_journal'):
+        with patch.object(c, 'updater_journal'), patch.object(coordinator, 'wait_restored_game') as wait:
             coordinator.restore_preparation()
+        wait.assert_not_called()
         self.assertEqual(api.patches, [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_collector_waits_for_owned_ready_running_game_and_deadline_precedes_restart(self):
+        coordinator = self.with_collector(self.coordinator())
+        api = coordinator.api
+        observed = []
+
+        def pods(app, **kwargs):
+            self.assertEqual(api.patches, [('zomboid', 1), ('panel', 1)])
+            saved = c.read_json(coordinator.journal_path)['game_ready_wait']
+            observed.append(saved['deadline_at'])
+            pod = deepcopy(api.game_pod)
+            if len(observed) == 1:
+                pod['status']['conditions'][0]['status'] = 'False'
+            return [pod]
+
+        original_patch = api.patch
+
+        def replica_patch(*args, **kwargs):
+            self.assertIn('game_ready_wait', c.read_json(coordinator.journal_path))
+            return original_patch(*args, **kwargs)
+
+        with patch.object(c, 'updater_journal'), patch.object(api, 'pods', side_effect=pods), \
+                patch.object(api, 'patch', side_effect=replica_patch), patch.object(c.time, 'sleep'):
+            coordinator.restore_apps()
+        self.assertEqual(len(set(observed)), 1)
+        self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'ready')
+        self.assertEqual(coordinator.journal['game_ready_wait']['pod_uid'], 'new-pod')
+        self.assertEqual(coordinator.journal['game_ready_wait']['endpoint_pod_uid'], 'new-pod')
+        self.assertEqual(api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_ready_pod_waits_for_service_endpoint_to_reference_same_uid(self):
+        coordinator = self.with_collector(self.coordinator())
+        api_get = coordinator.api.get
+        calls = [0]
+
+        def get(kind, *args, **kwargs):
+            result = api_get(kind, *args, **kwargs)
+            if kind == 'endpointslices':
+                calls[0] += 1
+                self.assertNotIn(('otel-collector', 1), coordinator.api.patches)
+                if calls[0] == 1:
+                    result['items'] = []
+                elif calls[0] == 2:
+                    result['items'][0]['endpoints'][0]['targetRef']['uid'] = 'previous-pod'
+            return result
+
+        with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'get', side_effect=get), \
+                patch.object(c.time, 'sleep'):
+            coordinator.restore_apps()
+        self.assertEqual(calls[0], 3)
+        self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'ready')
+
+    def test_stopped_game_or_collector_has_no_readiness_wait(self):
+        for stopped in ('zomboid', 'otel-collector'):
+            with self.subTest(stopped=stopped):
+                coordinator = self.with_collector(self.coordinator())
+                coordinator.journal['original'][stopped]['spec']['replicas'] = 0
+                with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods') as pods:
+                    coordinator.restore_apps()
+                pods.assert_not_called()
+                self.assertNotIn('game_ready_wait', coordinator.journal)
+
+    def test_recovery_expired_ready_deadline_restores_collection_and_archives_without_new_wait(self):
+        coordinator = self.with_collector(self.coordinator())
+        wait = {'started_at': '2026-09-30T01:00:00+00:00',
+                'deadline_at': '2026-09-30T01:15:00+00:00', 'result': 'pending', 'pod_uid': 'new-pod'}
+        c.atomic_json(coordinator.journal_path,
+                      {**coordinator.journal, 'phase': 'apps_restoring', 'game_ready_wait': wait})
+        partial = self.root / (coordinator.journal['snapshot_id'] + '.partial')
+        partial.mkdir()
+        with patch.object(c, 'SPOOL', self.root), patch.object(c, 'check_mount'), \
+                patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods') as pods, \
+                patch.object(c.time, 'sleep') as sleep, patch.object(coordinator, 'archive') as archive:
+            coordinator.recover()
+        pods.assert_not_called()
+        sleep.assert_not_called()
+        archive.assert_called_once_with(partial)
+        self.assertEqual(coordinator.journal['game_ready_wait']['deadline_at'], wait['deadline_at'])
+        self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'timeout')
+        self.assertEqual(coordinator.journal['phase'], 'apps_restored')
+        self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_ready_condition_alone_or_ready_container_alone_never_suffices(self):
+        for field in ('pod_condition', 'container_ready', 'container_running', 'container_names'):
+            with self.subTest(field=field):
+                coordinator = self.with_collector(self.coordinator())
+                status = coordinator.api.game_pod['status']
+                if field == 'pod_condition':
+                    status['conditions'][0]['status'] = 'False'
+                elif field == 'container_ready':
+                    status['containerStatuses'][0]['ready'] = False
+                elif field == 'container_running':
+                    status['containerStatuses'][0]['state'] = {'terminated': {'exitCode': 0}}
+                else:
+                    status['containerStatuses'][0]['name'] = 'other'
+                clock = [0.0]
+                with patch.object(c, 'updater_journal'), \
+                        patch.object(c.time, 'monotonic', side_effect=lambda: clock[0]), \
+                        patch.object(c.time, 'sleep', side_effect=lambda _: clock.__setitem__(0, 901.0)):
+                    coordinator.restore_apps()
+                self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'timeout')
+                self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_ambiguous_foreign_or_replaced_pod_fails_after_restoring_collector(self):
+        for variant in ('ambiguous', 'owner', 'terminating', 'namespace', 'replaced'):
+            with self.subTest(variant=variant):
+                coordinator = self.with_collector(self.coordinator())
+                pod = coordinator.api.game_pod
+                if variant == 'owner':
+                    pod['metadata']['ownerReferences'][0]['uid'] = 'foreign'
+                elif variant == 'terminating':
+                    pod['metadata']['deletionTimestamp'] = 'now'
+                elif variant == 'namespace':
+                    pod['metadata']['namespace'] = 'elsewhere'
+                calls = [0]
+
+                def pods(app, **kwargs):
+                    calls[0] += 1
+                    result = deepcopy(pod)
+                    if variant == 'replaced':
+                        result['metadata']['uid'] = 'new-pod' if calls[0] == 1 else 'replacement'
+                        result['status']['conditions'][0]['status'] = 'False'
+                    return [result, deepcopy(result)] if variant == 'ambiguous' else [result]
+
+                with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods', side_effect=pods), \
+                        patch.object(c.time, 'sleep'), self.assertRaisesRegex(c.Refused, 'game_ready_pod_'):
+                    coordinator.restore_apps()
+                self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'identity_failed')
+                self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+                with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods') as no_retry, \
+                        self.assertRaisesRegex(c.Refused, 'requires_inspection'):
+                    coordinator.restore_apps()
+                no_retry.assert_not_called()
+
+    def test_api_wait_failure_does_not_strand_collector_or_verified_archive(self):
+        coordinator = self.with_collector(self.coordinator())
+        partial = self.root / (coordinator.journal['snapshot_id'] + '.partial')
+        partial.mkdir()
+        c.atomic_json(coordinator.journal_path, {**coordinator.journal, 'phase': 'staging_verified'})
+        with patch.object(c, 'SPOOL', self.root), patch.object(c, 'check_mount'), \
+                patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods',
+                    side_effect=c.Refused('command_unavailable_or_timed_out')), \
+                patch.object(coordinator, 'archive') as archive:
+            coordinator.recover()
+        archive.assert_called_once_with(partial)
+        self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'api_failed')
+        self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_interrupted_wait_restores_collector_and_updater_then_reraises(self):
+        coordinator = self.with_collector(self.coordinator())
+        with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods', side_effect=KeyboardInterrupt), \
+                self.assertRaises(KeyboardInterrupt):
+            coordinator.restore_apps()
+        self.assertEqual(coordinator.journal['phase'], 'apps_restoring')
+        self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
+
+    def test_updater_safety_failure_still_restores_collector(self):
+        coordinator = self.with_collector(self.coordinator())
+        with patch.object(c, 'updater_journal', side_effect=c.Refused('updater_unresolved')), \
+                self.assertRaisesRegex(c.Refused, 'updater_unresolved'):
+            coordinator.restore_apps()
+        self.assertEqual(coordinator.api.patches, [('zomboid', 1), ('panel', 1), ('otel-collector', 1)])
+
+    def test_collector_restore_failure_still_attempts_safe_updater_restore(self):
+        coordinator = self.with_collector(self.coordinator())
+        coordinator.api.current['otel-collector']['uid'] = 'replacement'
+        with patch.object(c, 'updater_journal'), self.assertRaisesRegex(c.Refused, 'workload_identity_changed'):
+            coordinator.restore_apps()
+        self.assertEqual(coordinator.api.patches, [('zomboid', 1), ('panel', 1), ('panel-auto-update', False)])
+        self.assertEqual(coordinator.journal['phase'], 'apps_restoring')
+
+    def test_resumed_wait_limits_each_api_call_to_remaining_original_budget(self):
+        coordinator = self.with_collector(self.coordinator())
+        coordinator.journal['game_ready_wait'] = {
+            'started_at': '1970-01-01T00:16:40+00:00', 'deadline_at': '1970-01-01T00:31:40+00:00',
+            'result': 'pending'}
+        pod = deepcopy(coordinator.api.game_pod)
+        pod['status']['conditions'][0]['status'] = 'False'
+        clock = [0.0]
+        with patch.object(c, 'updater_journal'), patch.object(c.time, 'time', return_value=1898.0), \
+                patch.object(c.time, 'monotonic', side_effect=lambda: clock[0]), \
+                patch.object(c.time, 'sleep', side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
+                patch.object(coordinator.api, 'pods', return_value=[pod]) as pods:
+            coordinator.restore_apps()
+        self.assertEqual([call.kwargs['timeout'] for call in pods.call_args_list], [2.0, 1.0])
+        self.assertEqual(clock[0], 2.0)
+        self.assertEqual(coordinator.journal['game_ready_wait']['result'], 'timeout')
+
+    def test_invalid_saved_deadline_fails_without_wait_but_restores_collection(self):
+        for end in ('invalid', '1970-01-01T00:31:41+00:00', '1970-01-01T00:31:40'):
+            with self.subTest(end=end):
+                coordinator = self.with_collector(self.coordinator())
+                coordinator.journal['game_ready_wait'] = {
+                    'started_at': '1970-01-01T00:16:40+00:00', 'deadline_at': end, 'result': 'pending'}
+                with patch.object(c, 'updater_journal'), patch.object(coordinator.api, 'pods') as pods, \
+                        self.assertRaisesRegex(c.Refused, 'game_ready_wait_deadline_invalid'):
+                    coordinator.restore_apps()
+                pods.assert_not_called()
+                self.assertEqual(coordinator.api.patches[-2:], [('otel-collector', 1), ('panel-auto-update', False)])
 
     def test_restore_replicas_before_reenabling_schedule(self):
         api = FakeKubernetes()
@@ -325,7 +547,7 @@ class LifecycleTests(unittest.TestCase):
         api = c.Kubernetes()
         with patch.object(c, 'command', return_value=b'{"items": []}') as command:
             self.assertEqual(api.get('pvc', all_namespaces=True), {'items': []})
-        command.assert_called_once_with([c.K3S, 'kubectl', 'get', 'pvc', '-A', '-o', 'json'])
+        command.assert_called_once_with([c.K3S, 'kubectl', 'get', 'pvc', '-A', '-o', 'json'], timeout=60)
         args = command.call_args.args[0]
         self.assertGreater(args.index('-A'), args.index('get'))
 
@@ -333,8 +555,8 @@ class LifecycleTests(unittest.TestCase):
         api = c.Kubernetes()
         with patch.object(c, 'command', return_value=b'{"spec": {"replicas": 1}}') as command:
             api.get('deployment', 'otel-collector', namespace='observability')
-        command.assert_called_once_with([c.K3S, 'kubectl', 'get', 'deployment', '-n', 'observability',
-                                         'otel-collector', '-o', 'json'])
+            command.assert_called_once_with([c.K3S, 'kubectl', 'get', 'deployment', '-n', 'observability',
+                                             'otel-collector', '-o', 'json'], timeout=60)
 
     def exit_evidence(self, *, status=0, logs=None):
         evidence = object.__new__(c.ExitEvidence)

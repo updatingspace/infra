@@ -8,7 +8,7 @@ uncertain stop deliberately leaves the writers stopped for operator inspection.
 import argparse
 import base64
 from contextlib import contextmanager, ExitStack
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import fcntl
 import hashlib
@@ -34,6 +34,7 @@ LOCK = Path('/var/lib/pz-volumes/migration.lock')
 K3S = '/usr/local/bin/k3s'
 FORMAT = 'pz-backup-v1'
 MANIFEST_MAX_BYTES = 512 * 1024 * 1024
+GAME_READY_WAIT_SECONDS = 900
 SUBDIRS = {'pz-server', 'zomboid', 'steam', 'panel', 'panel-logs'}
 IDENTIFIER = re.compile(r'\d{8}T\d{6}Z-[0-9a-f]{32}\Z')
 TERMINAL = {'ready', 'preparation_failed', 'capture_failed'}
@@ -247,7 +248,7 @@ def estimate(records):
 
 
 class Kubernetes:
-    def get(self, kind, name=None, selector=None, all_namespaces=False, namespace='zomboid'):
+    def get(self, kind, name=None, selector=None, all_namespaces=False, namespace='zomboid', timeout=60):
         require(namespace in {'zomboid', 'observability'}, 'unexpected_workload_namespace')
         # --all-namespaces belongs to the get subcommand, unlike the persistent
         # namespace flag. Putting -A before get is rejected by kubectl.
@@ -256,7 +257,7 @@ class Kubernetes:
             args.append(name)
         if selector:
             args += ['-l', selector]
-        return json.loads(command(args + ['-o', 'json']))
+        return json.loads(command(args + ['-o', 'json'], timeout=timeout))
 
     def patch(self, kind, name, original_uid, field, previous, value, namespace='zomboid'):
         current = self.get(kind, name, namespace=namespace)
@@ -266,8 +267,9 @@ class Kubernetes:
                       {'op': 'replace', 'path': field, 'value': value}]
         command([K3S, 'kubectl', '-n', namespace, 'patch', kind, name, '--type=json', '-p', json.dumps(operations)])
 
-    def pods(self, app, namespace='zomboid'):
-        return self.get('pods', selector='app.kubernetes.io/name=' + app, namespace=namespace)['items']
+    def pods(self, app, namespace='zomboid', timeout=60):
+        return self.get('pods', selector='app.kubernetes.io/name=' + app,
+                        namespace=namespace, timeout=timeout)['items']
 
     def updater_idle(self):
         jobs = self.get('jobs', selector='app.kubernetes.io/name=panel-auto-update')['items']
@@ -943,12 +945,91 @@ class Coordinator:
         settled['panel-auto-update'] = updater
         self.phase('updater_suspended', original=settled)
 
-    def restore_apps(self):
-        self.phase('apps_restoring')
-        for name in ('zomboid', 'panel'):
-            self.restore_replica(name)
-        if 'otel-collector' in self.journal['original']:
-            self.restore_replica('otel-collector')
+    def wait_restored_game(self):
+        """Delay collector startup, never extend the journalled deadline on recover."""
+        original = self.journal['original']['zomboid']
+        collector = self.journal['original'].get('otel-collector', {})
+        if not original['spec']['replicas'] or not collector.get('spec', {}).get('replicas'):
+            return
+        now = datetime.fromtimestamp(time.time(), timezone.utc)
+        wait = self.journal.get('game_ready_wait')
+        require(isinstance(wait, dict), 'game_ready_wait_deadline_invalid')
+        try:
+            start, end = (datetime.fromisoformat(wait[key]) for key in ('started_at', 'deadline_at'))
+            require(start.tzinfo is not None and end.tzinfo is not None
+                    and (end - start).total_seconds() == GAME_READY_WAIT_SECONDS and now >= start,
+                    'game_ready_wait_deadline_invalid')
+        except (TypeError, ValueError, KeyError):
+            raise Refused('game_ready_wait_deadline_invalid') from None
+        require(wait.get('result') in {'pending', 'ready', 'timeout', 'api_failed'},
+                'game_ready_wait_requires_inspection')
+        if wait['result'] != 'pending':
+            return
+        deadline = time.monotonic() + max(0, (end - now).total_seconds())
+
+        def budget():
+            seconds = deadline - time.monotonic()
+            require(seconds > 0, 'game_ready_wait_timed_out')
+            return min(60, seconds)
+
+        try:
+            while True:
+                current = self.api.get('statefulset', 'zomboid', timeout=budget())
+                require(current['metadata']['uid'] == original['uid']
+                        and current['spec']['replicas'] == 1, 'game_ready_workload_changed')
+                pods = self.api.pods('zomboid', timeout=budget())
+                require(len(pods) <= 1, 'game_ready_pod_ambiguous')
+                if pods:
+                    pod = pods[0]
+                    metadata, status = pod.get('metadata', {}), pod.get('status', {})
+                    owners = [owner for owner in metadata.get('ownerReferences', [])
+                              if owner.get('controller') is True]
+                    uid = metadata.get('uid')
+                    require(metadata.get('name') == 'zomboid-0' and metadata.get('namespace') == 'zomboid'
+                            and not metadata.get('deletionTimestamp') and isinstance(uid, str) and uid
+                            and len(owners) == 1 and owners[0].get('kind') == 'StatefulSet'
+                            and owners[0].get('name') == 'zomboid' and owners[0].get('uid') == original['uid']
+                            and uid != self.journal.get('game_pod_uid')
+                            and uid == wait.get('pod_uid', uid), 'game_ready_pod_identity_changed')
+                    if 'pod_uid' not in wait:
+                        wait['pod_uid'] = uid
+                        self.phase('apps_restoring')
+                    names = {item['name'] for item in original['spec']['template']['spec']['containers']}
+                    containers = status.get('containerStatuses', [])
+                    ready = [item for item in status.get('conditions', []) if item.get('type') == 'Ready']
+                    if (status.get('phase') == 'Running' and len(ready) == 1 and ready[0].get('status') == 'True'
+                            and names and len(containers) == len(names)
+                            and {item.get('name') for item in containers} == names
+                            and all(item.get('ready') is True and set(item.get('state', {})) == {'running'}
+                                    for item in containers)):
+                        # Pod readiness can precede the headless Service's
+                        # EndpointSlice update. Do not expose that short gap to
+                        # a freshly resumed collector with no good points yet.
+                        slices = self.api.get('endpointslices', selector='kubernetes.io/service-name=zomboid',
+                                              timeout=budget())['items']
+                        endpoints = [endpoint for item in slices for endpoint in item.get('endpoints', [])
+                                     if endpoint.get('conditions', {}).get('ready') is True
+                                     and not endpoint.get('conditions', {}).get('terminating', False)]
+                        if endpoints and all(
+                                endpoint.get('addresses') and endpoint.get('targetRef', {}).get('kind') == 'Pod'
+                                and endpoint['targetRef'].get('namespace') == 'zomboid'
+                                and endpoint['targetRef'].get('name') == 'zomboid-0'
+                                and endpoint['targetRef'].get('uid') == uid for endpoint in endpoints):
+                            budget()
+                            wait.update(result='ready', completed_at=utc(), endpoint_pod_uid=uid)
+                            self.phase('apps_restoring')
+                            return
+                time.sleep(min(1, budget()))
+        except Refused as error:
+            reason = str(error)
+            result = ('timeout' if reason == 'game_ready_wait_timed_out' else 'api_failed'
+                      if reason in {'command_failed', 'command_unavailable_or_timed_out'} else 'identity_failed')
+            wait.update(result=result, reason=reason, completed_at=utc())
+            self.phase('apps_restoring')
+            if result == 'identity_failed':
+                raise
+
+    def restore_updater(self):
         updater_journal()
         require(self.api.updater_idle(), 'updater_conflict_before_restore')
         updater = self.journal['original']['panel-auto-update']
@@ -956,6 +1037,36 @@ class Coordinator:
         require(current['metadata']['uid'] == updater['uid'], 'updater_identity_changed')
         if not updater['spec'].get('suspend', False) and current['spec'].get('suspend', False):
             self.api.patch('cronjob', 'panel-auto-update', updater['uid'], '/spec/suspend', True, False)
+
+    def restore_apps(self):
+        restored = False
+        try:
+            original = self.journal['original']
+            if (original['zomboid']['spec']['replicas']
+                    and original.get('otel-collector', {}).get('spec', {}).get('replicas')
+                    and 'game_ready_wait' not in self.journal):
+                now = datetime.fromtimestamp(time.time(), timezone.utc)
+                self.journal['game_ready_wait'] = {
+                    'started_at': now.isoformat(),
+                    'deadline_at': (now + timedelta(seconds=GAME_READY_WAIT_SECONDS)).isoformat(),
+                    'result': 'pending'}
+            # Persist the deadline before either application is started. A crash
+            # after the replica patch therefore cannot grant a new wait budget.
+            self.phase('apps_restoring')
+            for name in ('zomboid', 'panel'):
+                self.restore_replica(name)
+            restored = True
+            self.wait_restored_game()
+        finally:
+            # Even an interrupted/failed health wait must restore observability.
+            # If replica CAS itself failed, do not resume an updater against an
+            # application state we could not safely restore.
+            try:
+                if 'otel-collector' in self.journal['original']:
+                    self.restore_replica('otel-collector')
+            finally:
+                if restored:
+                    self.restore_updater()
         self.phase('apps_restored', downtime_finished_at=utc())
 
     def restore_preparation(self):

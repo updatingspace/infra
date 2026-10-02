@@ -34,7 +34,7 @@
       },
       "pz-tps-degraded": {
         "title": "PZ · длительная деградация TPS",
-        "query": "100 * (1 - series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"})) / series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_lock_fps\"}))",
+        "query": "100 * (1 - series_sum(non_negative_derivative({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"})) / series_max({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_lock_fps\"})) * ((count(drop_nan(series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}))) * (count(drop_nan(series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}))) - 1)) / (count(drop_nan(series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}))) * (count(drop_nan(series_min({project=\"folder__b1gidr45ifb2c25bco2d\",cluster=\"pz-b42\",service=\"zomboid\",name=\"storm_server_tick_total\"}))) - 1)))",
         "comparison": "GREATER",
         "aggregation": "ALL",
         "warning": 20,
@@ -59,7 +59,8 @@
         ],
         "annotations": {
           "alert_url": "https://monium.yandex.cloud/projects/mond4r1ecj79b4qh7g11/alerts/mond4r1ecj79b4qh7g11_pz-tps-degraded/view"
-        }
+        },
+        "data_gap_note": "Require at least two non-NaN raw counter samples in the evaluation window: C=count(drop_nan(series_min(tick_total))), G=C*(C-1), TPS*(G/G). For C=0 or 1, the result is NaN; otherwise the existing TPS expression and thresholds are preserved. This is a minimum sample guard, not continuous window coverage."
       },
       "pz-disk-usage": {
         "title": "PZ · заканчивается место на диске",

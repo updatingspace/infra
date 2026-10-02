@@ -1,5 +1,9 @@
 # PZ: Kubernetes и управление ресурсами
 
+Подготовлены отдельные SSD 40 GiB, HDD spool 64 GiB и S3 COLD. Игра пока на прежнем
+loop; backup/restore/перенос ожидают ключей и окна обслуживания.
+[Фактический статус backup](backup/IMPLEMENTATION-20260930.md).
+
 **Статус на 30 сентября 2026: миграция завершена.** Игра, панель,
 Caddy и collector Ready; итоговая проверка фактических лимитов, томов и состояния
 прошла 139 проверок без ошибок. Игра запущена на сохранённом мире, RCON и публичный
@@ -256,6 +260,36 @@ Secrets `zomboid/pz-runtime`, `zomboid/pz-panel`, `edge/caddy-runtime` и
 Не печатать `kubectl get secret -o yaml`, `docker inspect` environment, kubeconfig
 или полный state/plan JSON. Стандартный `kubectl get secrets -A` показывает только
 имена и допустим для проверки наличия.
+
+## Закреплённая локальная версия Storm
+
+Steam Workshop может обновить моды при запуске самой игры, даже когда wrapper
+не запускает SteamCMD. Для совместимой версии Storm используется локальный
+провайдер `/zomboid/Workshop/storm/Contents/mods/storm` с полным проверенным
+содержимым framework, launcher, bootstrap и зависимостей. В `JAVA_TOOL_OPTIONS`
+сохраняются прочие JVM-аргументы, а Storm получает:
+
+```text
+-javaagent:/zomboid/Workshop/storm/Contents/mods/storm/bootstrap/storm-bootstrap.jar
+-DstormType=local
+-Dstorm.core.updateUrl=
+```
+
+Пустой `storm.core.updateUrl` обязателен: выбор `local` сам по себе не отключает
+обновление core из CDN. Локальные Lua-ресурсы и Java core должны относиться к
+одной проверенной версии. Мир, `Mods`, `WorkshopItems` и Steam ACF для этого
+не изменяются. Перед заменой версии нужны сохранённые файлы/Secret, проверка
+SHA256 и штатная остановка писателей; успешный запуск подтверждается RCON и
+Ready, а не только наличием процесса.
+
+Канонический override хранится только на VM: `/etc/pz-runtime/storm-pin.json`,
+root:root `0600`, JSON с единственным ключом `JAVA_TOOL_OPTIONS` и полным
+значением аргументов. При специальном повторном миграционном импорте
+`sync-secrets.py` применяет этот override только к `pz-runtime`. Если текущий
+Secret уже содержит локальный pin, а защищённого override нет, импорт
+останавливается. Файл не коммитится; его значения и содержимое локального
+провайдера входят в зашифрованные recovery-артефакты. Обычный Terraform apply
+не управляет значениями Secret и не меняет pin.
 
 ## История первого запуска и текущая проверка
 

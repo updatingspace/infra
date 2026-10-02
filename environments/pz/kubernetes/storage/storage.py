@@ -27,11 +27,27 @@ JOB_UNIT = "pz-storage-migration.service"
 JOB_TIMEOUT_SECONDS = 2 * 60 * 60
 JOB_POLL_SECONDS = 15
 MAX_SSH_FAILURES = 120
+DISK_MIGRATION_JOURNAL = Path("/var/lib/pz-backup/disk-migration/journal.json")
+FSTAB = Path("/etc/fstab")
 
 
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def require_legacy_storage(spec):
+    # Any attempted cutover retires this one-time loop provisioner, including
+    # an interrupted cutover. Never regenerate its old fstab over a new disk.
+    require(not os.path.lexists(DISK_MIGRATION_JOURNAL),
+            "Data disk migration exists; legacy loop provisioning is disabled")
+    target = str(Path(spec["mount_root"]) / "zomboid")
+    image = str(Path(spec["image_root"]) / "zomboid.ext4")
+    rows = [line.split() for line in FSTAB.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+    matches = [row for row in rows if len(row) > 1 and row[1] == target]
+    require(len(matches) <= 1 and all(row[0] == image for row in matches),
+            "Data mount no longer belongs to legacy loop provisioning")
 
 
 def run(argv, **kwargs):
@@ -190,6 +206,7 @@ def managed_fstab(original, lines):
 
 
 def configure_boot(spec):
+    require_legacy_storage(spec)
     mounts = [str(Path(spec["mount_root"]) / name) for name in spec["filesystems"]]
     lines = [f'{spec["image_root"]}/{name}.ext4 {spec["mount_root"]}/{name} ext4 loop,nodev,nosuid,noatime 0 0' for name in spec["filesystems"]]
     fstab = Path("/etc/fstab")
@@ -318,6 +335,7 @@ def apply_remote(spec):
     root.mkdir(parents=True, exist_ok=True)
     with open(root / "migration.lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        require_legacy_storage(spec)
         state = root / "migration.json"
         journal = json.loads(state.read_text()) if state.exists() else {"filesystems": {}, "directories": {}}
         def save():

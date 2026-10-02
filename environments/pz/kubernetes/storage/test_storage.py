@@ -21,6 +21,26 @@ class StorageSafetyTests(unittest.TestCase):
             self.writer_checks[name] = check.start()
             self.addCleanup(check.stop)
 
+    def test_disk_cutover_permanently_blocks_legacy_fstab_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = Path(directory) / "disk-journal.json"
+            fstab = Path(directory) / "fstab"
+            fstab.write_text("/var/lib/pz-volumes/zomboid.ext4 /srv/pz-storage/zomboid ext4 loop 0 0\n")
+            spec = {"image_root": "/var/lib/pz-volumes", "mount_root": "/srv/pz-storage"}
+            with patch.object(storage, "DISK_MIGRATION_JOURNAL", journal), patch.object(storage, "FSTAB", fstab):
+                storage.require_legacy_storage(spec)
+                for phase in ("copying", "boot_configuration_written", "complete"):
+                    journal.write_text(json.dumps({"phase": phase}))
+                    with self.subTest(phase=phase), self.assertRaisesRegex(RuntimeError, "legacy loop"):
+                        storage.require_legacy_storage(spec)
+                journal.unlink()
+                fstab.write_text("UUID=dedicated-disk /srv/pz-storage/zomboid ext4 nodev,nosuid 0 2\n")
+                with patch.object(storage, "atomic_write") as write, patch.object(storage, "run") as run:
+                    with self.assertRaisesRegex(RuntimeError, "no longer belongs"):
+                        storage.configure_boot(spec)
+                    write.assert_not_called()
+                    run.assert_not_called()
+
     def test_fstab_is_idempotent_and_preserves_unmanaged_entries(self):
         original = "UUID=host-root / ext4 defaults 0 1\n"
         lines = ["/var/lib/pz-volumes/edge.ext4 /srv/pz-storage/edge ext4 loop,nodev,nosuid,noatime 0 0"]

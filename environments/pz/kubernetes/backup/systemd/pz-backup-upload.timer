@@ -1,0 +1,8 @@
+[Unit]
+Description=Retry pending encrypted PZ uploads without stopping the game
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=10min
+Unit=pz-backup-upload.service
+[Install]
+WantedBy=timers.target

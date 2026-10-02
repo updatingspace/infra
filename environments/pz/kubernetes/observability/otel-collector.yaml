@@ -11,6 +11,15 @@ receivers:
           - zomboid.zomboid.svc.cluster.local:9090
           labels:
             instance: zomboid:9090
+  prometheus/backup:
+    config:
+      scrape_configs:
+      - job_name: pz-backup
+        scrape_interval: 60s
+        scrape_timeout: 10s
+        static_configs:
+        - targets:
+          - ${env:K8S_NODE_IP}:9109
   prometheus/collector:
     config:
       scrape_configs:
@@ -141,6 +150,11 @@ processors:
     - key: service.name
       value: otel-collector
       action: upsert
+  resource/backup:
+    attributes:
+    - key: service.name
+      value: pz-backup
+      action: upsert
   transform/panel_identity:
     error_mode: propagate
     metric_statements:
@@ -258,6 +272,15 @@ service:
       - resource/common
       - resource/panel
       - transform/panel_identity
+      exporters:
+      - otlp_http/monium
+    metrics/backup:
+      receivers:
+      - prometheus/backup
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/backup
       exporters:
       - otlp_http/monium
     metrics/collector:

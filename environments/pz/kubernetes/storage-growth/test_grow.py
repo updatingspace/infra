@@ -133,6 +133,15 @@ class Resume(unittest.TestCase):
             self.apply()
         self.assertEqual(self.allocations, 0)
 
+    def test_disk_migration_blocks_growth_before_observation_or_allocation(self):
+        journal = self.image.with_name("disk-migration.json")
+        journal.write_text('{"phase":"complete"}')
+        with patch.object(grow, "DISK_MIGRATION_JOURNAL", journal):
+            with self.assertRaisesRegex(RuntimeError, "disables_legacy_growth"):
+                self.apply()
+        self.assertEqual(self.allocations, 0)
+        self.assertEqual(self.commands, [])
+
 
 if __name__ == "__main__":
     unittest.main()

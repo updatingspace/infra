@@ -132,7 +132,7 @@ run "bounded_egress" {
     condition = alltrue([
       for rule in kubernetes_network_policy_v1.collector.spec[0].egress :
       length(rule.to) > 0 && length(rule.ports) > 0 && alltrue([
-        for port in rule.ports : port.protocol == "TCP" && contains(["9090", "3001", "10250", "443"], port.port)
+        for port in rule.ports : port.protocol == "TCP" && contains(["9090", "3001", "10250", "9109", "443"], port.port)
       ])
     ])
     error_message = "Collector policy must not grow unrestricted egress destinations or ports. DNS is a separate platform policy."
@@ -155,6 +155,27 @@ run "bounded_egress" {
       ]) if contains([for port in rule.ports : port.port], "443")
     ])
     error_message = "External HTTPS access must not open private, loopback or cloud metadata addresses."
+  }
+}
+
+run "private_backup_monitoring" {
+  command = plan
+  assert {
+    condition = (
+      yamldecode(local.collector_config).receivers["prometheus/backup"].config.scrape_configs[0].static_configs[0].targets == ["$${env:K8S_NODE_IP}:9109"] &&
+      yamldecode(local.collector_config).receivers["prometheus/backup"].config.scrape_configs[0].scrape_interval == "60s" &&
+      yamldecode(local.collector_config).processors["resource/backup"].attributes[0].value == "pz-backup" &&
+      yamldecode(local.collector_config).service.pipelines["metrics/backup"].processors == ["memory_limiter", "resource/common", "resource/backup"] &&
+      yamldecode(local.collector_config).service.pipelines["metrics/backup"].exporters == ["otlp_http/monium"]
+    )
+    error_message = "Backup telemetry must retain an independent service identity and scrape only the private host exporter."
+  }
+  assert {
+    condition = one([
+      for rule in kubernetes_network_policy_v1.collector.spec[0].egress :
+      rule.to[0].ip_block[0].cidr if contains([for port in rule.ports : port.port], "9109")
+    ]) == "${var.node_private_ip}/32"
+    error_message = "Backup scrape egress must target only this node, never a public or subnet-wide listener."
   }
 }
 

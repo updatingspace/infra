@@ -1,0 +1,78 @@
+name: PZ infrastructure checks
+on:
+  pull_request:
+    paths: ['environments/pz/**', '.github/workflows/pz-checks.yml']
+  push:
+    branches: ['chore/pz-k3s-iac']
+    paths: ['environments/pz/**', '.github/workflows/pz-checks.yml']
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends age zstd rsync acl
+      - name: Backup failure and recovery checks
+        run: python -m unittest discover -s environments/pz/kubernetes/backup -p 'test_*.py'
+      - name: Deployment maintenance checks
+        run: python -m unittest discover -s environments/pz/kubernetes -p 'test_deploy*.py'
+      - name: Preserve pinned runtime during Secret import
+        run: python -m unittest discover -s environments/pz/kubernetes -p 'test_sync_secrets.py'
+      - name: Legacy storage migration safety checks
+        run: python -m unittest discover -s environments/pz/kubernetes/storage -p 'test_storage.py'
+      - name: Legacy loop growth safety checks
+        run: python -m unittest discover -s environments/pz/kubernetes/storage-growth -p 'test_grow.py'
+      - name: Read-only live acceptance fixtures
+        run: python -m unittest discover -s environments/pz/kubernetes -p 'test_verify_live*.py'
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.7
+          terraform_wrapper: false
+      - name: Terraform static and mock checks
+        working-directory: environments/pz/kubernetes/backup-cloud
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+          terraform test
+      - name: Collector Terraform checks
+        working-directory: environments/pz/kubernetes/observability
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+          terraform test
+      - name: Validate pinned collector configuration offline
+        run: |
+          mkdir -p "$RUNNER_TEMP/pz-collector-hostfs-fixture"
+          mkdir -p "$RUNNER_TEMP/pz-collector-serviceaccount-fixture"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=offline-fixture' \
+            -keyout "$RUNNER_TEMP/pz-collector-serviceaccount-fixture/ca.key" \
+            -out "$RUNNER_TEMP/pz-collector-serviceaccount-fixture/ca.crt" 2>/dev/null
+          echo fixture-only > "$RUNNER_TEMP/pz-collector-serviceaccount-fixture/token"
+          docker run --rm --network none \
+            -e K8S_NODE_IP=10.0.0.1 -e MONIUM_API_KEY=fixture-only -e MONIUM_LOGS_API_KEY=fixture-only \
+            -v "$RUNNER_TEMP/pz-collector-hostfs-fixture:/hostfs:ro" \
+            -v "$RUNNER_TEMP/pz-collector-serviceaccount-fixture:/var/run/secrets/kubernetes.io/serviceaccount:ro" \
+            -v "$PWD/environments/pz/kubernetes/observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1 \
+            validate --config=/etc/otelcol/config.yaml
+      - name: Reject private deployment artifacts in Git
+        run: |
+          python - <<'PY'
+          from pathlib import PurePosixPath
+          import subprocess
+          files = subprocess.check_output(['git', 'ls-files', 'environments/pz'], text=True).splitlines()
+          forbidden = []
+          for name in files:
+              path = PurePosixPath(name)
+              if 'private' in path.parts or '.terraform' in path.parts or path.name == '.env' or any(s in path.name for s in ['.tfstate', '.tfplan', '.kubeconfig', 'credentials.json']):
+                  forbidden.append(name)
+          if forbidden:
+              raise SystemExit('Private deployment artifacts must never be tracked: ' + ', '.join(forbidden))
+          PY

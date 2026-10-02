@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['environments/pz/**', '.github/workflows/pz-checks.yml']
   push:
-    branches: ['chore/pz-k3s-iac']
+    branches: ['chore/pz-k3s-iac', 'chore/pz-verified-backups', 'feat/pz-game-auto-update']
     paths: ['environments/pz/**', '.github/workflows/pz-checks.yml']
 permissions:
   contents: read
@@ -21,6 +21,8 @@ jobs:
         run: python -m unittest discover -s environments/pz/kubernetes/backup -p 'test_*.py'
       - name: Deployment maintenance checks
         run: python -m unittest discover -s environments/pz/kubernetes -p 'test_deploy*.py'
+      - name: Game update failure checks
+        run: python -m unittest discover -s environments/pz/kubernetes/game-updater -p 'test_*.py'
       - name: Preserve pinned runtime during Secret import
         run: python -m unittest discover -s environments/pz/kubernetes -p 'test_sync_secrets.py'
       - name: Legacy storage migration safety checks
@@ -40,6 +42,12 @@ jobs:
           terraform init -backend=false -input=false -lockfile=readonly
           terraform validate
           terraform test
+      - name: Game updater Terraform checks
+        working-directory: environments/pz/kubernetes/game-updater
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false
+          terraform validate
       - name: Collector Terraform checks
         working-directory: environments/pz/kubernetes/observability
         run: |

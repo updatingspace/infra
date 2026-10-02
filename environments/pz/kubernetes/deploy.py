@@ -44,6 +44,27 @@ def require_disk_migration_terminal():
         raise RuntimeError("Data disk migration requires operator recovery; deployment is blocked") from None
     finally:
         os.close(descriptor)
+
+def require_game_update_terminal():
+    path = Path("/var/lib/pz-backup/journal.json")
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return
+    except OSError:
+        raise RuntimeError("Game maintenance journal is unreadable; deployment is blocked") from None
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or info.st_size > 8 * 1024 ** 2:
+            raise ValueError()
+        with os.fdopen(descriptor, "rb", closefd=False) as source:
+            document = json.load(source)
+        if not isinstance(document, dict) or document.get("phase") not in {"ready", "preparation_failed", "capture_failed"}:
+            raise ValueError()
+    except (OSError, ValueError, UnicodeError):
+        raise RuntimeError("Game maintenance requires operator recovery; deployment is blocked") from None
+    finally:
+        os.close(descriptor)
 '''
 
 # Recheck after taking the shared lock in the actual process that mutates the
@@ -51,6 +72,7 @@ def require_disk_migration_terminal():
 GUARDED_EXEC = DISK_MIGRATION_GUARD + '''
 import sys
 require_disk_migration_terminal()
+require_game_update_terminal()
 os.execvp(sys.argv[1], sys.argv[1:])
 '''
 
@@ -138,6 +160,7 @@ UPDATER_REMOTE = UPDATER_GUARD + r'''
 import sys
 try:
     require_disk_migration_terminal()
+    require_game_update_terminal()
     if sys.argv[1] == "pause":
         cron = updater_kubectl(["get", "cronjob", "panel-auto-update", "--ignore-not-found", "-o", "json"])
         if cron is not None and cron.get("spec", {}).get("suspend") is not True:
@@ -205,6 +228,7 @@ if mode == "launch":
         if properties().get("LoadState") == "not-found":
             try:
                 require_disk_migration_terminal()
+                require_game_update_terminal()
             except RuntimeError as error:
                 fail(str(error))
             marker = job / "launch-attempt"

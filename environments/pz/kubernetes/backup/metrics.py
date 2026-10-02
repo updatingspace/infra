@@ -19,7 +19,7 @@ RETAIN = Path('/var/lib/pz-backup-retain')
 FILESYSTEMS = {'data': Path('/srv/pz-storage/zomboid'), 'spool': Path('/srv/pz-backup-spool'), 'root': Path('/')}
 JOBS = {'capture': 'pz-backup.service', 'upload': 'pz-backup-upload.service',
         'cleanup': 'pz-backup-cleanup.service', 'retain': 'pz-backup-retain.service',
-        'migration': 'pz-disk-migration.service'}
+        'migration': 'pz-disk-migration.service', 'game_update': 'pz-game-update.service'}
 MAX_JSON = 1024 * 1024
 EVIDENCE_UID = 0
 
@@ -221,7 +221,7 @@ def render(now=None, services=None):
         'pz_backup_retention_incomplete': int(bool(deletion) and deletion.get('phase') != 'complete'),
         'pz_backup_migration_incomplete': int(bool(migration) and migration.get('phase') != 'complete'),
         'pz_backup_last_stage_timestamp_seconds': timestamp(journal.get('updated_at')),
-        'pz_backup_capture_failed': int(journal.get('phase') in {'preparation_failed', 'capture_failed'}),
+        'pz_backup_capture_failed': int(journal.get('phase') in {'preparation_failed', 'capture_failed', 'game_update_failed'}),
     })
     if receipt_valid:
         for metric, value in [('pz_backup_upload_seconds', receipt.get('upload_seconds')),

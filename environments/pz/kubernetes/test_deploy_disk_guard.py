@@ -18,6 +18,22 @@ spec.loader.exec_module(deploy)
 
 
 class DiskGuardTests(unittest.TestCase):
+    def test_unfinished_game_update_blocks_deployment(self):
+        namespace = {}
+        exec(deploy.DISK_MIGRATION_GUARD, namespace)
+        with tempfile.TemporaryDirectory() as temporary:
+            journal = Path(temporary) / 'journal.json'
+            info = SimpleNamespace(st_mode=stat.S_IFREG | 0o600, st_uid=0, st_size=100)
+            with patch.dict(namespace, Path=lambda _: journal), patch.object(os, 'fstat', return_value=info):
+                check = namespace['require_game_update_terminal']
+                check()
+                for phase in ('game_updating', 'game_update_failed', 'game_update_starting', 'staging', 'archiving'):
+                    journal.write_text(json.dumps({'phase': phase}))
+                    with self.subTest(phase=phase), self.assertRaisesRegex(RuntimeError, 'recovery'):
+                        check()
+                journal.write_text('{"phase":"ready"}')
+                check()
+
     def test_migration_preflight_error_is_reported_without_polling(self):
         reply = subprocess.CompletedProcess('ssh', 0, stdout=json.dumps({
             'status': 'blocked', 'error': 'Data disk migration requires operator recovery'}))

@@ -1,7 +1,8 @@
 # Переход к доставке из GitHub Actions
 
-Статус: исходники подготовлены в ветке `chore/pz-k3s-iac`; production workflow
-пока не настроен.
+Статус: Kubernetes, проверяемые S3 backups и обновление игры описаны в IaC;
+последние изменения — в ветке `feat/pz-game-auto-update`. Production workflow
+пока не настроен; GitHub Actions выполняет проверки.
 Сейчас оператор запускает `environments/pz/kubernetes/deploy.py` по SSH. Каталог
 на VM `/opt/pz-infrastructure` содержит небольшой рабочий bundle Terraform,
 проверенный provider mirror, state и приватные vars; он остаётся необходимым.
@@ -12,8 +13,9 @@
 1. Проверить diff ветки и остановить старую Swarm-доставку при слиянии: её
    workflow сохранён в `legacy/swarm/ci-cd.yml.disabled`. Не запускать старый
    `docker stack deploy` на PZ VM. Состояние Swarm-сервисов на других VM неизвестно.
-2. Сохранить проверенные защищённые копии всех семи state и настоящих tfvars.
-   Четыре state локальные: cloud, bootstrap, storage, Monium/IAM. Три — на VM:
+2. Сохранить проверенные защищённые копии всех state и настоящих tfvars.
+   Кроме локальных cloud, bootstrap, storage, Monium/IAM, появились отдельные
+   backup-cloud и game-updater state. Три Kubernetes state — на VM:
    platform, workloads, observability. Не объединять их и не выполнять apply
    с пустым state. Git не является хранилищем state или secrets.
 3. Выбрать state backend и блокировку. До отдельной проверенной миграции оставить
@@ -50,7 +52,9 @@ image policy и обновлять образы вместе с переносо
 
 ## Резервные копии
 
-Следующий инфраструктурный этап — [S3 и отдельные диски](../environments/pz/kubernetes/BACKUP-ROADMAP.md).
-Определить bucket/region/retention и бюджет диска до provisioning. Проверенный
-полный архив мира пока находится на той же VM и сохраняется до появления
-проверенной внешней копии и теста восстановления.
+Реализованы [проверяемые S3 backups](../environments/pz/kubernetes/backup/README.md)
+и отдельные файловые системы данных/spool. Перед обновлением игры создаётся
+свежий проверенный снимок через тот же coordinator. Доставка
+[game updater](../environments/pz/kubernetes/game-updater/README.md) имеет свой
+Terraform root. Все обслуживающие процессы используют общий maintenance lock;
+незавершённый journal блокирует новый apply до восстановления оператором.

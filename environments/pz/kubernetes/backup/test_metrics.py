@@ -24,6 +24,11 @@ class MetricsTests(unittest.TestCase):
         change=patch.object(m,'FILESYSTEMS',{});change.start();self.addCleanup(change.stop)
     def put(self,directory,name,data): (self.root/directory/name).write_text(json.dumps(data))
     def render(self,services=None): return dict(line.rsplit(' ',1) for line in m.render(NOW,services or {}).splitlines())
+    def test_game_update_failure_is_visible_to_existing_job_alert(self):
+        self.put('state', 'journal.json', {'phase': 'game_update_failed'})
+        data = self.render({'pz-game-update.service': {'LoadState': 'loaded', 'ActiveState': 'failed', 'Result': 'exit-code'}})
+        self.assertEqual(data['pz_backup_current_job_failed{job="game_update"}'], '1')
+        self.assertEqual(data['pz_backup_capture_failed'], '1')
     def test_absent_and_corrupt_journals_are_distinct(self):
         self.assertEqual(self.render()['pz_backup_state_file_present{source="capture"}'],'0')
         path=self.root/'state/journal.json'

@@ -140,6 +140,28 @@ locals {
   }
 }
 
+# Maintenance uses a separate label so game Services never select SteamCMD.
+resource "kubernetes_network_policy_v1" "game_update_internet" {
+  metadata {
+    name      = "game-update-public-internet"
+    namespace = "zomboid"
+  }
+  spec {
+    pod_selector {
+      match_labels = { "app.kubernetes.io/name" = "game-update" }
+    }
+    policy_types = ["Egress"]
+    egress {
+      to {
+        ip_block {
+          cidr   = "0.0.0.0/0"
+          except = local.non_public_ipv4
+        }
+      }
+    }
+  }
+}
+
 # The panel checks Steam Workshop versions; Caddy renews ACME certificates.
 resource "kubernetes_network_policy_v1" "public_web_egress" {
   for_each = local.web_egress

@@ -29,6 +29,17 @@ class MetricsTests(unittest.TestCase):
         data = self.render({'pz-game-update.service': {'LoadState': 'loaded', 'ActiveState': 'failed', 'Result': 'exit-code'}})
         self.assertEqual(data['pz_backup_current_job_failed{job="game_update"}'], '1')
         self.assertEqual(data['pz_backup_capture_failed'], '1')
+    def test_operator_cancellation_requires_verified_healthy_update(self):
+        record = {'phase': 'capture_failed', 'cancelled_by_operator': True,
+                  'game_update': {'verified': True}, 'game_ready_wait': {'result': 'ready'}}
+        self.put('state', 'journal.json', record)
+        data = self.render()
+        self.assertEqual(data['pz_backup_capture_cancelled'], '1')
+        self.assertEqual(data['pz_backup_capture_failed'], '0')
+        self.assertEqual(data['pz_backup_incomplete'], '0')
+        record['game_ready_wait']['result'] = 'timeout'
+        self.put('state', 'journal.json', record)
+        self.assertEqual(self.render()['pz_backup_capture_failed'], '1')
     def test_absent_and_corrupt_journals_are_distinct(self):
         self.assertEqual(self.render()['pz_backup_state_file_present{source="capture"}'],'0')
         path=self.root/'state/journal.json'

@@ -213,15 +213,20 @@ def render(now=None, services=None):
     commit = mapping(receipt.get('commit'))
     captured = timestamp(commit.get('captured_at'))
     receipt_valid = receipt.get('format') == 'pz-upload-receipt-v1' and captured > 0 and captured <= now
+    cancelled_capture = (journal.get('phase') == 'capture_failed'
+                         and journal.get('cancelled_by_operator') is True
+                         and mapping(journal.get('game_update')).get('verified') is True
+                         and mapping(journal.get('game_ready_wait')).get('result') == 'ready')
     metrics.update({
         'pz_backup_committed_present': int(receipt_valid),
         'pz_backup_last_committed_timestamp_seconds': captured if receipt_valid else 0,
         'pz_backup_age_seconds': max(0, now - captured) if receipt_valid else now,
-        'pz_backup_incomplete': int(bool(journal) and journal.get('phase') != 'ready'),
+        'pz_backup_incomplete': int(bool(journal) and journal.get('phase') != 'ready' and not cancelled_capture),
+        'pz_backup_capture_cancelled': int(cancelled_capture),
         'pz_backup_retention_incomplete': int(bool(deletion) and deletion.get('phase') != 'complete'),
         'pz_backup_migration_incomplete': int(bool(migration) and migration.get('phase') != 'complete'),
         'pz_backup_last_stage_timestamp_seconds': timestamp(journal.get('updated_at')),
-        'pz_backup_capture_failed': int(journal.get('phase') in {'preparation_failed', 'capture_failed', 'game_update_failed'}),
+        'pz_backup_capture_failed': int(journal.get('phase') in {'preparation_failed', 'capture_failed', 'game_update_failed'} and not cancelled_capture),
     })
     if receipt_valid:
         for metric, value in [('pz_backup_upload_seconds', receipt.get('upload_seconds')),

@@ -186,7 +186,7 @@ class LifecycleTests(unittest.TestCase):
         value.journal = {'snapshot_id': '20260930T010203Z-' + 'a' * 32, 'original': original()}
         return value
 
-    def test_state_snapshot_refuses_changed_base_bytes_before_stopping_game(self):
+    def test_changed_base_falls_back_to_full_snapshot_before_stopping_game(self):
         data = self.root / 'data'
         for component in c.BASE_COMPONENTS:
             path = data / component
@@ -197,12 +197,13 @@ class LifecycleTests(unittest.TestCase):
         coordinator = self.coordinator()
         coordinator.cfg.update(base_snapshot={'snapshot_id': '20261004T030122Z-' + 'a' * 32,
                                               'commit_sha256': 'b' * 64, 'components': expected},
-                               max_entries=100)
+                               max_entries=100, excluded_paths=[*c.BASE_COMPONENTS, 'zomboid/backups'])
         with patch.object(c, 'DATA', data):
-            coordinator.verify_base_components()
+            self.assertTrue(coordinator.verify_base_components())
             (data / c.BASE_COMPONENTS[0] / 'artifact').write_bytes(b'different')
-            with self.assertRaisesRegex(c.Refused, 'base_component_changed'):
-                coordinator.verify_base_components()
+            self.assertFalse(coordinator.verify_base_components())
+        self.assertIsNone(coordinator.active_base_snapshot)
+        self.assertEqual(coordinator.active_exclusions, ['zomboid/backups'])
 
     def with_collector(self, coordinator, replicas=1):
         state = {'kind': 'deployment', 'namespace': 'observability',
@@ -677,6 +678,9 @@ class LifecycleTests(unittest.TestCase):
         coordinator.cfg.update(max_entries=100, max_snapshot_bytes=100000,
                                server_name='survival42', infra_revision='b' * 40,
                                excluded_paths=['zomboid/backups'])
+        coordinator.cfg['base_snapshot'] = {'snapshot_id': '20261004T030122Z-' + 'a' * 32,
+                                            'commit_sha256': 'b' * 64, 'components': {}}
+        coordinator.active_base_snapshot = None  # Mismatch already selected a full fallback.
         proof = {'exit_code': 0, 'runtime_child_exit': 0, 'cgroup_empty': True}
         calls = []
         def command(args, timeout=60):
@@ -690,6 +694,8 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(records['data/world']['sha256'], hashlib.sha256(b'world state').hexdigest())
         self.assertEqual(records['data/world-link']['hardlink'], 'data/world')
         self.assertEqual(manifest['exit_evidence'], proof)
+        self.assertNotIn('snapshot_profile', manifest)
+        self.assertNotIn('base_snapshot', manifest)
         self.assertEqual(calls[0][1], 150)
         self.assertEqual(coordinator.journal['staging_format'], 'tar-v1')
         self.assertEqual(coordinator.journal['staged_tar']['sha256'], c.file_hash(partial / 'staging.tar'))

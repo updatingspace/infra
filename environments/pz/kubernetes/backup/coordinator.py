@@ -917,7 +917,7 @@ class Coordinator:
         return {'bytes': total, 'entries': len(records), 'required_spool_bytes': required}
 
     def data_inventory(self, hashes=True, deadline=None, identities=None):
-        exclusions = self.cfg.get('excluded_paths', [])
+        exclusions = getattr(self, 'active_exclusions', self.cfg.get('excluded_paths', []))
         if exclusions:
             require((DATA / 'zomboid/Saves').is_dir() and (DATA / 'zomboid/Server').is_dir(),
                     'primary_world_paths_required_before_backup_exclusion')
@@ -925,11 +925,19 @@ class Coordinator:
 
     def verify_base_components(self):
         base = self.cfg.get('base_snapshot')
+        self.active_base_snapshot = base
+        self.active_exclusions = self.cfg.get('excluded_paths', [])
         if base is None:
-            return
+            return False
         for path in BASE_COMPONENTS:
-            require(component_digest(DATA, path, max_entries=self.cfg['max_entries']) == base['components'][path],
-                    'base_component_changed')
+            if component_digest(DATA, path, max_entries=self.cfg['max_entries']) != base['components'][path]:
+                # An automatic Steam update can legitimately replace the pinned
+                # bytes. Preserve the new server in a full snapshot until a new
+                # immutable base has been published and pinned by the operator.
+                self.active_base_snapshot = None
+                self.active_exclusions = [p for p in self.active_exclusions if p not in BASE_COMPONENTS]
+                return False
+        return True
 
     def original_state(self):
         original = {}
@@ -1150,7 +1158,7 @@ class Coordinator:
             recovery = partial / 'recovery'
             recovery.mkdir(mode=0o700)
             self.phase('preparing_recovery')
-            self.verify_base_components()
+            self.journal['full_fallback'] = self.cfg.get('base_snapshot') is not None and not self.verify_base_components()
             command(['python3', self.cfg['recovery_helper'], '--output', str(recovery)], timeout=3600)
             index = read_json(recovery / 'index.json')
             require(index.get('complete') is True and index.get('images') and index.get('secrets'),
@@ -1220,11 +1228,12 @@ class Coordinator:
                 all_files.append(entry)
         manifest = {'format': FORMAT, 'snapshot_id': self.journal['snapshot_id'], 'captured_at': captured_at,
                     'server_name': self.cfg['server_name'], 'infra_revision': self.cfg['infra_revision'],
-                    'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
+                    'included': ['data/**', 'recovery/**'],
+                    'excluded': getattr(self, 'active_exclusions', self.cfg.get('excluded_paths', [])), 'files': all_files,
                     'original': self.journal['original'], 'exit_evidence': proof}
-        if self.cfg.get('base_snapshot') is not None:
+        if getattr(self, 'active_base_snapshot', self.cfg.get('base_snapshot')) is not None:
             manifest['snapshot_profile'] = 'state-with-base-v1'
-            manifest['base_snapshot'] = self.cfg['base_snapshot']
+            manifest['base_snapshot'] = self.active_base_snapshot
         check_future_manifest_size(manifest, deadline)
         self.phase('staging')
         staged_tar = create_two_pass_staging_tar(partial, manifest, deadline, data_ids, recovery_ids)

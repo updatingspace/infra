@@ -40,7 +40,13 @@ IDENTIFIER = re.compile(r'\d{8}T\d{6}Z-[0-9a-f]{32}\Z')
 TERMINAL = {'ready', 'preparation_failed', 'capture_failed'}
 RECOVERABLE = {'staging_verified', 'apps_restoring', 'apps_restored', 'archiving', 'ciphertext_verified', 'ready_finalizing'}
 PRESTOP = {'updater_suspended', 'preparing_recovery', 'preparation_restoring', 'collector_stopping', 'collector_stopped'}
-ALLOWED_EXCLUSIONS = {'zomboid/backups', 'panel/.k8s-panel-updater/backups'}
+BASE_COMPONENTS = ('pz-server/media', 'pz-server/steamapps/workshop/content',
+                   'pz-server/jre64', 'pz-server/linux64', 'pz-server/java')
+DISPOSABLE_EXCLUSIONS = {'zomboid/backups', 'zomboid/Logs', 'zomboid/server-console-docker.log',
+                         'zomboid/server-console.txt', 'zomboid/ItemTracker.log',
+                         'panel/.k8s-panel-updater/backups', 'panel/map-tiles-cache',
+                         'panel/mod-thumbnails', 'steam/depotcache', 'steam/logs', 'steam/appcache'}
+ALLOWED_EXCLUSIONS = set(BASE_COMPONENTS) | DISPOSABLE_EXCLUSIONS
 
 
 class Refused(Exception):
@@ -138,6 +144,17 @@ def configuration(path):
     excluded = cfg.get('excluded_paths', [])
     require(isinstance(excluded, list) and all(isinstance(p, str) and p in ALLOWED_EXCLUSIONS for p in excluded)
             and len(excluded) == len(set(excluded)), 'unapproved_exclusions_rejected')
+    base = cfg.get('base_snapshot')
+    if base is not None:
+        require(isinstance(base, dict) and set(base) == {'snapshot_id', 'commit_sha256', 'components'}
+                and isinstance(base['snapshot_id'], str) and IDENTIFIER.fullmatch(base['snapshot_id'])
+                and isinstance(base['commit_sha256'], str) and re.fullmatch(r'[0-9a-f]{64}', base['commit_sha256'])
+                and isinstance(base['components'], dict) and set(base['components']) == set(BASE_COMPONENTS)
+                and all(isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value)
+                        for value in base['components'].values())
+                and set(BASE_COMPONENTS).issubset(excluded), 'base_snapshot_contract_invalid')
+    else:
+        require(not set(BASE_COMPONENTS).intersection(excluded), 'base_required_for_binary_exclusions')
     trusted(Path(cfg['recovery_helper']))
     return cfg
 
@@ -238,6 +255,18 @@ def inventory(root, *, hashes=True, max_entries=2000000, excluded=(), deadline=N
         records.append(item)
         require(len(records) <= max_entries, 'inventory_entry_budget_exceeded')
     return sorted(records, key=lambda row: row['path'])
+
+
+def component_digest(root, relative, *, max_entries, deadline=None):
+    """Bind omitted immutable bytes to an already verified full snapshot."""
+    rows = inventory(root / relative, hashes=True, max_entries=max_entries, deadline=deadline)
+    prefix = 'data/' + relative + '/'
+    for row in rows:
+        row['path'] = prefix[:-1] if row['path'] == '.' else prefix + row['path']
+        if 'hardlink' in row:
+            row['hardlink'] = prefix + row['hardlink']
+    encoded = json.dumps(rows, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def estimate(records):
@@ -894,6 +923,14 @@ class Coordinator:
                     'primary_world_paths_required_before_backup_exclusion')
         return inventory(DATA, hashes=hashes, max_entries=self.cfg['max_entries'], excluded=exclusions, deadline=deadline, identities=identities)
 
+    def verify_base_components(self):
+        base = self.cfg.get('base_snapshot')
+        if base is None:
+            return
+        for path in BASE_COMPONENTS:
+            require(component_digest(DATA, path, max_entries=self.cfg['max_entries']) == base['components'][path],
+                    'base_component_changed')
+
     def original_state(self):
         original = {}
         for name, kind, namespace in [('zomboid', 'statefulset', 'zomboid'), ('panel', 'deployment', 'zomboid'),
@@ -1113,6 +1150,7 @@ class Coordinator:
             recovery = partial / 'recovery'
             recovery.mkdir(mode=0o700)
             self.phase('preparing_recovery')
+            self.verify_base_components()
             command(['python3', self.cfg['recovery_helper'], '--output', str(recovery)], timeout=3600)
             index = read_json(recovery / 'index.json')
             require(index.get('complete') is True and index.get('images') and index.get('secrets'),
@@ -1184,6 +1222,9 @@ class Coordinator:
                     'server_name': self.cfg['server_name'], 'infra_revision': self.cfg['infra_revision'],
                     'included': ['data/**', 'recovery/**'], 'excluded': self.cfg.get('excluded_paths', []), 'files': all_files,
                     'original': self.journal['original'], 'exit_evidence': proof}
+        if self.cfg.get('base_snapshot') is not None:
+            manifest['snapshot_profile'] = 'state-with-base-v1'
+            manifest['base_snapshot'] = self.cfg['base_snapshot']
         check_future_manifest_size(manifest, deadline)
         self.phase('staging')
         staged_tar = create_two_pass_staging_tar(partial, manifest, deadline, data_ids, recovery_ids)

@@ -35,6 +35,8 @@ FORBIDDEN = tuple(Path(path) for path in (
     "/srv/pz-storage", "/srv/pz-backup-spool", "/opt/pz-stack", "/var/lib/pz-volumes",
     "/var/lib/rancher", "/etc", "/usr", "/boot", "/dev", "/proc", "/sys",
 ))
+BASE_COMPONENTS = frozenset(('pz-server/media', 'pz-server/steamapps/workshop/content',
+                             'pz-server/jre64', 'pz-server/linux64', 'pz-server/java'))
 
 
 class RestoreError(RuntimeError):
@@ -111,6 +113,24 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         expected[name] = item
     require(all(root in expected and expected[root]["type"] == "dir" for root in ("data", "recovery")),
             "manifest_roots_missing")
+    profile = manifest.get("snapshot_profile")
+    require(profile in (None, "state-with-base-v1", "composed-state-with-base-v1"), "unsupported_snapshot_profile")
+    if profile in ("state-with-base-v1", "composed-state-with-base-v1"):
+        base = manifest.get("base_snapshot")
+        require(isinstance(base, dict) and set(base) == {"snapshot_id", "commit_sha256", "components"}
+                and isinstance(base["snapshot_id"], str) and remote.ID_PATTERN.fullmatch(base["snapshot_id"])
+                and isinstance(base["commit_sha256"], str) and remote.SHA_PATTERN.fullmatch(base["commit_sha256"])
+                and isinstance(base["components"], dict) and set(base["components"]) == BASE_COMPONENTS
+                and all(isinstance(value, str) and remote.SHA_PATTERN.fullmatch(value)
+                        for value in base["components"].values()), "invalid_base_snapshot_reference")
+        static_state = all("data/" + name in expected and expected["data/" + name]["type"] == "dir"
+                           for name in BASE_COMPONENTS)
+        require((not any("data/" + name in expected for name in BASE_COMPONENTS)
+                 if profile == "state-with-base-v1" else static_state)
+                and all(path in expected and expected[path]["type"] == "dir"
+                        for path in ("data/pz-server", "data/zomboid", "data/zomboid/Saves",
+                                     "data/zomboid/Server", "data/panel", "data/steam")),
+                "state_snapshot_missing_primary_data")
     for name, item in expected.items():
         for parent in PurePosixPath(name).parents:
             if str(parent) != ".":

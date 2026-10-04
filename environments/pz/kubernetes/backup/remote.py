@@ -55,6 +55,7 @@ class RemoteConfig:
     lock_path: str = "/var/lib/pz-backup-remote/remote.lock"
     multipart_threshold: int = 128 * 1024 * 1024
     multipart_part_size: int = 64 * 1024 * 1024
+    protected_snapshot: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.bucket):
@@ -69,6 +70,14 @@ class RemoteConfig:
             raise BackupError("S3 endpoint must use HTTPS")
         if self.multipart_threshold < 1 or not 5 * 1024 * 1024 <= self.multipart_part_size <= 5 * 1024**3:
             raise BackupError("Invalid multipart limits")
+        if self.protected_snapshot is not None:
+            entry = self.protected_snapshot
+            if (not isinstance(entry, dict) or set(entry) != {"snapshot_id", "commit_sha256"}
+                    or not isinstance(entry["snapshot_id"], str)
+                    or not ID_PATTERN.fullmatch(entry["snapshot_id"])
+                    or not isinstance(entry["commit_sha256"], str)
+                    or not SHA_PATTERN.fullmatch(entry["commit_sha256"])):
+                raise BackupError("Invalid protected snapshot identity")
 
     @property
     def object_prefix(self) -> str:
@@ -522,8 +531,13 @@ def _validate_journal(config: RemoteConfig, journal: dict[str, Any]) -> None:
     if journal.get("format") != JOURNAL_FORMAT or journal.get("scope") != config.scope or journal.get("phase") not in ("planned", "deleting", "complete"):
         raise BackupError("Deletion journal has an invalid scope or phase")
     keepers, deletions = journal.get("keepers"), journal.get("delete")
-    if not isinstance(keepers, dict) or len(keepers) != 5 or not isinstance(deletions, list):
+    expected_keepers = 5 + int(config.protected_snapshot is not None)
+    allowed_counts = {5, expected_keepers} if journal["phase"] == "complete" else {expected_keepers}
+    if not isinstance(keepers, dict) or len(keepers) not in allowed_counts or not isinstance(deletions, list):
         raise BackupError("Deletion journal has invalid keeper/deletion sets")
+    if (journal["phase"] != "complete" and config.protected_snapshot is not None
+            and keepers.get(config.protected_snapshot["snapshot_id"]) != config.protected_snapshot["commit_sha256"]):
+        raise BackupError("Deletion journal does not preserve protected snapshot")
     for snapshot_id, digest in keepers.items():
         _check_id(snapshot_id)
         if not isinstance(digest, str) or not SHA_PATTERN.fullmatch(digest):
@@ -569,18 +583,25 @@ def _retain_once(s3: Any, config: RemoteConfig, *, attestation_path: str | Path,
             if journal["phase"] == "complete":
                 journal = None
         commits, verified = _scan(s3, config, journal)
+        protected = config.protected_snapshot
+        if protected is not None:
+            entry = commits.get(protected["snapshot_id"])
+            if entry is None or commit_sha256(entry["commit"]) != protected["commit_sha256"]:
+                raise BackupError("Protected snapshot is missing or changed; retention is forbidden")
         restored = commits.get(attestation["snapshot_id"])
         if restored and commit_sha256(restored["commit"]) != attestation["commit_sha256"]:
             raise BackupError("Attested snapshot now has a different commit")
         if journal is None:
             newest = sorted(commits, key=lambda sid: (_time(commits[sid]["commit"]["captured_at"]), sid), reverse=True)
-            if len(newest) <= keep:
+            regular = [sid for sid in newest if protected is None or sid != protected["snapshot_id"]]
+            keepers = regular[:keep] + ([protected["snapshot_id"]] if protected is not None else [])
+            if len(regular) <= keep:
                 return {"enabled": True, "verified_snapshots": len(newest), "deleted_snapshots": 0,
-                        "keepers": newest}
+                        "keepers": keepers}
             journal = {"format": JOURNAL_FORMAT, "scope": config.scope, "phase": "planned",
-                       "created_at": utc_now(), "keepers": {sid: commit_sha256(commits[sid]["commit"]) for sid in newest[:keep]},
+                       "created_at": utc_now(), "keepers": {sid: commit_sha256(commits[sid]["commit"]) for sid in keepers},
                        "delete": []}
-            for sid in newest[keep:]:
+            for sid in regular[keep:]:
                 journal["delete"].append({"snapshot_id": sid, "objects": [
                     {**verified[_key(config, sid, filename)], "state": "pending"}
                     for filename in ("COMMITTED.json", "payload.enc", "manifest.enc")
@@ -626,14 +647,14 @@ def _retain_once(s3: Any, config: RemoteConfig, *, attestation_path: str | Path,
 
 def retain_snapshots(s3: Any, config: RemoteConfig, *, attestation_path: str | Path,
                      journal_path: str | Path, enabled: bool = False, keep: int = 5) -> dict[str, Any]:
-    """Safely resume any interrupted deletion, then retain the newest five."""
+    """Safely resume deletion, retaining five snapshots and an optional base."""
     deleted = 0
     for _ in range(8):
         result = _retain_once(s3, config, attestation_path=attestation_path,
                               journal_path=journal_path, enabled=enabled, keep=keep)
         deleted += result["deleted_snapshots"]
         result["deleted_snapshots"] = deleted
-        if result.get("verified_snapshots", 0) <= keep:
+        if result.get("verified_snapshots", 0) <= keep + int(config.protected_snapshot is not None):
             return result
         # Snapshots published since an interrupted cleanup may leave more than
         # five after resume. Re-plan against a fresh complete listing instead

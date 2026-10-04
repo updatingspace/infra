@@ -98,10 +98,11 @@
       "aggregation": "ALL",
       "warning": 0.5,
       "alarm": 0.9,
-      "window": "5m",
+      "window": "15m",
       "delay": "30s",
       "no_points": "NO_DATA",
       "no_series": "ALARM",
+      "maintenance_gap_note": "ALL15m requires sustained sampled mount loss; a short zero at the collector shutdown boundary cannot alarm while earlier mounted=1 samples remain. Missing selector remains ALARM.",
       "level": "CRITICAL",
       "notification_methods": [
         {

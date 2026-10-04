@@ -186,6 +186,24 @@ class LifecycleTests(unittest.TestCase):
         value.journal = {'snapshot_id': '20260930T010203Z-' + 'a' * 32, 'original': original()}
         return value
 
+    def test_state_snapshot_refuses_changed_base_bytes_before_stopping_game(self):
+        data = self.root / 'data'
+        for component in c.BASE_COMPONENTS:
+            path = data / component
+            path.mkdir(parents=True)
+            (path / 'artifact').write_bytes(component.encode())
+        expected = {part: c.component_digest(data, part, max_entries=100)
+                    for part in c.BASE_COMPONENTS}
+        coordinator = self.coordinator()
+        coordinator.cfg.update(base_snapshot={'snapshot_id': '20261004T030122Z-' + 'a' * 32,
+                                              'commit_sha256': 'b' * 64, 'components': expected},
+                               max_entries=100)
+        with patch.object(c, 'DATA', data):
+            coordinator.verify_base_components()
+            (data / c.BASE_COMPONENTS[0] / 'artifact').write_bytes(b'different')
+            with self.assertRaisesRegex(c.Refused, 'base_component_changed'):
+                coordinator.verify_base_components()
+
     def with_collector(self, coordinator, replicas=1):
         state = {'kind': 'deployment', 'namespace': 'observability',
                  'uid': 'collector-uid', 'spec': {'replicas': 0}}

@@ -102,6 +102,8 @@
     "pz-panel-unavailable": {
       "id": "mond4r1ecj79b4qh7g11_pz-panel-unavailable",
       "status": "configuration_verified",
+      "window": "15m",
+      "maintenance_gap_change": "2026-10-04: ALL15m window verified in Monium UI; missing-point and missing-series policies remain WARN and Telegram remains ALARM-only.",
       "notification_methods": [
         {
           "type": "escalation",

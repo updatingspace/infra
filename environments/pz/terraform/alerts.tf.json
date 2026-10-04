@@ -128,11 +128,12 @@
         "aggregation": "ALL",
         "warning": 0.5,
         "alarm": 0.9,
-        "window": "3m",
+        "window": "15m",
         "delay": "30s",
         "no_points": "WARN",
         "no_series": "WARN",
         "level": "INFO",
+        "maintenance_gap_note": "ALL15m keeps pre-stop successful HTTP checks in the evaluation window during the short planned backup stop. Missing points/series remain WARN; a sustained sampled outage still alarms.",
         "notification_methods": [
           {
             "type": "escalation",

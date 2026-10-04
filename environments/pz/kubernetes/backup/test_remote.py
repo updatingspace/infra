@@ -298,6 +298,36 @@ class RemoteTests(unittest.TestCase):
         self.assertEqual(set(result["keepers"]), {sid for sid, _ in snapshots[-5:]})
         self.assertEqual(len(self.s3.objects), 15)
 
+    def test_protected_full_snapshot_survives_five_newer_state_snapshots(self):
+        snapshots = self.many(7)
+        base_id, base_commit = snapshots[0]
+        self.config = dataclasses.replace(self.config, protected_snapshot={
+            "snapshot_id": base_id, "commit_sha256": remote.commit_sha256(base_commit)})
+        result = self.retain()
+        self.assertEqual(set(result["keepers"]), {base_id, *(sid for sid, _ in snapshots[-5:])})
+        self.assertEqual(result["verified_snapshots"], 6)
+        self.assertEqual(len(self.s3.objects), 18)
+
+    def test_changed_protected_snapshot_blocks_all_retention(self):
+        snapshots = self.many(7)
+        base_id, _ = snapshots[0]
+        self.config = dataclasses.replace(self.config, protected_snapshot={
+            "snapshot_id": base_id, "commit_sha256": "0" * 64})
+        with self.assertRaisesRegex(remote.BackupError, "Protected snapshot"):
+            self.retain()
+        self.assertFalse(any(call == "delete" for call, _ in self.s3.calls))
+
+    def test_protection_can_start_after_completed_five_keeper_journal(self):
+        snapshots = self.many(6)
+        self.retain()
+        base_id, base_commit = snapshots[1]
+        self.config = dataclasses.replace(self.config, protected_snapshot={
+            "snapshot_id": base_id, "commit_sha256": remote.commit_sha256(base_commit)})
+        self.upload(6)
+        result = self.retain()
+        self.assertIn(base_id, result["keepers"])
+        self.assertEqual(result["verified_snapshots"], 6)
+
     def test_listing_failure_never_deletes(self):
         self.many(6)
         self.s3.page_size = 4

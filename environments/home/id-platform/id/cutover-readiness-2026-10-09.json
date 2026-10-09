@@ -1,0 +1,60 @@
+{
+  "recorded_at": "2026-10-09T13:39:06.399906+00:00",
+  "public_cutover": false,
+  "source": {
+    "containers": 5,
+    "active_timers": 5,
+    "legacy_functions": 0,
+    "current_revisions_match_stage": true,
+    "gateway_paths": 81,
+    "gateway_operations": 131,
+    "maintenance_spec_prepared": true,
+    "cloud_mutations_applied": false,
+    "maximum_execution_timeout_seconds": 600,
+    "database_runtime_bindings": 1
+  },
+  "local_dependencies": {
+    "components_audited": [
+      "api",
+      "sessions",
+      "mutations",
+      "web",
+      "jobs"
+    ],
+    "yc_endpoint_keys_found": [],
+    "yc_credential_keys_found": [],
+    "monium_keys_present": false,
+    "yc_hostnames_found_in_trial_dump": [],
+    "web_backend_is_loopback": true
+  },
+  "timer_network_probe": {
+    "source": "actual recover-mail CronJob pod template",
+    "job": "id-timer-preflight",
+    "job_complete": true,
+    "readiness": 200,
+    "get_recover_mail": 405,
+    "get_recover_security_mail": 405,
+    "get_recover_verify_mail": 405,
+    "get_recover_export": 405,
+    "get_refresh_gravatars": 405,
+    "workers_invoked": false,
+    "temporary_job_removed": true
+  },
+  "offsite_images": {
+    "recorded_at": "2026-10-09T13:39:06.399906+00:00",
+    "verified_images": 5,
+    "verified_blobs": 34,
+    "platform": "linux/amd64",
+    "required_blob_closure_complete": true,
+    "ciphertext_sha256": "d0090b52dc6fd15e4556bf52e044bc18659f342f440a14e9cbc6a25270f9164c",
+    "plaintext_sha256": "eadb91507a37986b64369044eb8903d2641aec8f08e6cc221a07ea9455cb4a0e",
+    "encrypted_bytes": 430266160,
+    "decryption_succeeded": true,
+    "isolated_containerd_import": true,
+    "imported_references_match": true,
+    "registry_access_required": false,
+    "runtime_containers_started_in_drill": false,
+    "fresh_node_rebuild_tested": false
+  },
+  "preparation_and_backup_unit_tests_passed": 6
+}

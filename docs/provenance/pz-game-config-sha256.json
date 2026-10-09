@@ -1,0 +1,11 @@
+{
+  "environments/pz/kubernetes/game-config/README.md": "29844b18d498b508ff28f4680e17ecfa952a8bb175ed7ff28e56fc2cff2de365",
+  "environments/pz/kubernetes/game-config/configure.py": "96913460ed137d888dc8014c9f529fc495d964feb126f2c289c14587fbb87307",
+  "environments/pz/kubernetes/game-config/lua-base-sha256.json": "8f514ceebeb25cb96172193f23b470f798bafe950bd15f62d147bb410a003e3e",
+  "environments/pz/kubernetes/game-config/policy.py": "16e5cb9381404253e98c0683f01a8a475c2ed0af5e29b36750b23117aac78c16",
+  "environments/pz/kubernetes/game-config/survival42.ini.json": "31d5dcdf28b5ea0931fab502ddb758c1f499838d28c6b18c34cf283fbcd7e819",
+  "environments/pz/kubernetes/game-config/survival42_SandboxVars.lua": "e355144cfc1c2b6c30f599c9608d0a1431a6c6d172f64bcce9efcae21ccd9b99",
+  "environments/pz/kubernetes/game-config/survival42_spawnpoints.lua": "a80c5b205f7490507409056f39d9af32846b557c33edb1c9f491d948b4bd6a8d",
+  "environments/pz/kubernetes/game-config/survival42_spawnregions.lua": "5f9b4d72072eeb5327cd6beec360731da9ce3bc5c45c5cb59ae4fc0695f55070",
+  "environments/pz/kubernetes/game-config/test_configure.py": "81019d324b005413f50f2b554d4cb5c33e91276c9e93619a8c63dd954d4499e0"
+}

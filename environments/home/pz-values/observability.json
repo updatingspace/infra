@@ -1,0 +1,9 @@
+{
+  "kubeconfig_path": "/etc/rancher/k3s/k3s.yaml",
+  "monium_secret_name": null,
+  "collector_config_path": "../local-monitoring/collector.yaml",
+  "node_private_ip": "192.168.1.176",
+  "node_name": "updspace-home",
+  "collector_image": "docker.io/local/otel-collector:migration-0fd3483345a3",
+  "kubeconfig_context": "default"
+}

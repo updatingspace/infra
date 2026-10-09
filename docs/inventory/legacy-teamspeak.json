@@ -1,0 +1,14 @@
+{
+  "name": "teamspeak-docker-db-1",
+  "engine": "MariaDB 11.6.2",
+  "status": "legacy Docker; not migrated by IaC adoption",
+  "compose_source": "/home/updspace_m4tveevm/prj/teamspeak-docker/docker-compose.yml",
+  "volume_source": "/var/lib/docker/volumes/b1757a03c8dacbf4dea912a99821c8cd367ab905a945e7fba2f872630c6e8446/_data",
+  "published_ports": {},
+  "required_before_k3s_cutover": [
+    "identify consumers",
+    "consistent backup and trial restore",
+    "provide existing credentials as Secret",
+    "one writer only; stop old DB before starting restored StatefulSet"
+  ]
+}

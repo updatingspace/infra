@@ -1,0 +1,298 @@
+--- a/services/id-rust/crates/id-runtime/src/lib.rs
++++ b/services/id-rust/crates/id-runtime/src/lib.rs
+@@ -128,7 +128,7 @@
+ use std::{env, time::Duration};
+ use ydb::{
+     AccessTokenCredentials, AnonymousCredentials, Client, ClientBuilder, HasGrpcOptions,
+-    MetadataUrlCredentials, SessionPoolSettings,
++    MetadataUrlCredentials, SessionPoolSettings, StaticCredentials,
+ };
+ 
+ /// Finish in-flight HTTP requests when the process is asked to stop.
+@@ -149,8 +149,8 @@
+     let endpoint = env::var("YDB_ENDPOINT").context("YDB_ENDPOINT is required")?;
+     let database = env::var("YDB_DATABASE").context("YDB_DATABASE is required")?;
+     validate_endpoint(&endpoint, &database)?;
+-    let mut builder =
+-        ClientBuilder::new_from_connection_string(endpoint.clone())?.with_database(database);
++    let mut builder = ClientBuilder::new_from_connection_string(endpoint.clone())?
++        .with_database(database.clone());
+     match env::var("YDB_CREDENTIALS_MODE").as_deref() {
+         Ok("anonymous") => {
+             if !is_loopback(&endpoint)? {
+@@ -174,10 +174,19 @@
+             }
+             builder = builder.with_credentials(MetadataUrlCredentials::new());
+         }
+-        _ => bail!("YDB_CREDENTIALS_MODE must be explicitly anonymous, token or metadata"),
++        Ok("static") => {
++            builder = builder.with_credentials(static_credentials(
++                &endpoint,
++                &database,
++                env::var("YDB_USER").context("YDB_USER is required")?,
++                env::var("YDB_PASSWORD").context("YDB_PASSWORD is required")?,
++                env::var("YDB_CA_FILE").ok().as_deref(),
++            )?);
++        }
++        _ => bail!("YDB_CREDENTIALS_MODE must be explicitly anonymous, token, metadata or static"),
+     }
+     if let Ok(path) = env::var("YDB_CA_FILE") {
+-        builder = builder.load_certificate(path)?;
++        builder = load_ydb_ca(builder, &endpoint, &path)?;
+     }
+     // Bound discovery/connection too, not just subsequent query execution.
+     tokio::time::timeout(Duration::from_secs(15), async {
+@@ -195,6 +204,41 @@
+     .context("YDB connection failed")
+ }
+ 
++fn load_ydb_ca<T: HasGrpcOptions>(connection: T, endpoint: &str, path: &str) -> Result<T> {
++    let mut connection = connection.load_certificate(path)?;
++    let tls = connection
++        .grpc_opts_mut()
++        .tls_config
++        .take()
++        .context("missing YDB TLS config")?;
++    let endpoint = url::Url::parse(endpoint)?;
++    let host = endpoint.host_str().context("missing YDB TLS hostname")?;
++    // The SDK connects to resolved IPs; custom CA config must retain the DNS identity.
++    Ok(connection.with_tls_config(tls.as_ref().clone().domain_name(host.to_owned())))
++}
++
++fn static_credentials(
++    endpoint: &str,
++    database: &str,
++    user: String,
++    password: String,
++    ca_file: Option<&str>,
++) -> Result<StaticCredentials> {
++    if !endpoint.starts_with("grpcs://") && !is_loopback(endpoint)? {
++        bail!("static credentials require TLS outside loopback");
++    }
++    if user.is_empty() || password.is_empty() {
++        bail!("YDB_USER and YDB_PASSWORD must not be empty");
++    }
++    let mut credentials =
++        StaticCredentials::new(user, password, endpoint.parse()?, database.to_owned());
++    // Login uses a separate SDK connection and must trust the same CA as queries.
++    if let Some(path) = ca_file {
++        credentials = load_ydb_ca(credentials, endpoint, path)?;
++    }
++    Ok(credentials)
++}
++
+ pub fn validate_endpoint(endpoint: &str, database: &str) -> Result<()> {
+     let url = url::Url::parse(endpoint).context("invalid YDB endpoint")?;
+     if !matches!(url.scheme(), "grpc" | "grpcs")
+@@ -239,6 +283,33 @@
+     use super::*;
+ 
+     #[test]
++    fn static_auth_requires_tls_and_nonempty_credentials() {
++        for (endpoint, user, password, accepted) in [
++            ("grpc://ydb.updspace-data.svc:2136", "id", "password", false),
++            ("grpcs://ydb.updspace-data.svc:2135", "", "password", false),
++            ("grpcs://ydb.updspace-data.svc:2135", "id", "", false),
++            ("grpcs://ydb.updspace-data.svc:2135", "id", "password", true),
++            ("grpc://127.0.0.1:2136", "id", "password", true),
++        ] {
++            assert_eq!(
++                static_credentials(endpoint, "/local", user.into(), password.into(), None).is_ok(),
++                accepted,
++                "{endpoint}"
++            );
++        }
++        assert!(
++            static_credentials(
++                "grpcs://localhost:2135",
++                "/local",
++                "id".into(),
++                "password".into(),
++                Some("/nonexistent/updspace-ydb-ca.pem")
++            )
++            .is_err()
++        );
++    }
++
++    #[test]
+     fn rejects_incomplete_or_embedded_credential_endpoints() {
+         for endpoint in [
+             "localhost",
+--- a/services/id-rust/crates/id-runtime/src/media_delete.rs
++++ b/services/id-rust/crates/id-runtime/src/media_delete.rs
+@@ -14,6 +14,26 @@
+ pub(crate) const EMPTY_HASH: &str =
+     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+ const SIGNED_HEADERS: &str = "host;x-amz-content-sha256;x-amz-date";
++
++pub(crate) fn parse_s3_endpoint(endpoint: &str) -> Result<Url> {
++    let endpoint = Url::parse(endpoint).context("invalid S3 endpoint")?;
++    let loopback = matches!(
++        endpoint.host_str(),
++        Some("localhost" | "127.0.0.1" | "[::1]")
++    );
++    // The operator selects the endpoint; only loopback test servers may omit TLS.
++    ensure!(
++        (endpoint.scheme() == "https" || (loopback && endpoint.scheme() == "http"))
++            && endpoint.host_str().is_some()
++            && endpoint.path() == "/"
++            && endpoint.query().is_none()
++            && endpoint.fragment().is_none()
++            && endpoint.username().is_empty()
++            && endpoint.password().is_none(),
++        "S3 endpoint must be an HTTPS origin (HTTP is allowed only on loopback)"
++    );
++    Ok(endpoint)
++}
+ 
+ pub struct S3MediaDelete {
+     http: Client,
+@@ -46,19 +66,9 @@
+         access_key: String,
+         secret_key: String,
+     ) -> Result<Self> {
+-        let endpoint = Url::parse(endpoint).context("invalid S3 endpoint")?;
+-        let loopback = matches!(
+-            endpoint.host_str(),
+-            Some("localhost" | "127.0.0.1" | "[::1]")
+-        );
++        let endpoint = parse_s3_endpoint(endpoint)?;
+         ensure!(
+-            (endpoint.as_str() == PRODUCTION_ENDPOINT || (loopback && endpoint.scheme() == "http"))
+-                && endpoint.path() == "/"
+-                && endpoint.query().is_none()
+-                && endpoint.fragment().is_none()
+-                && endpoint.username().is_empty()
+-                && endpoint.password().is_none()
+-                && (3..=63).contains(&bucket.len())
++            (3..=63).contains(&bucket.len())
+                 && bucket.bytes().all(|byte| byte.is_ascii_lowercase()
+                     || byte.is_ascii_digit()
+                     || matches!(byte, b'-' | b'.'))
+@@ -303,7 +313,7 @@
+         }
+         assert!(
+             S3MediaDelete::new(
+-                "https://other.example/",
++                "http://other.example/",
+                 "id-media",
+                 "ru-central1",
+                 "key".into(),
+@@ -311,6 +321,46 @@
+             )
+             .is_err()
+         );
++        Ok(())
++    }
++
++    #[test]
++    fn accepts_operator_configured_s3_with_tls_and_rejects_ambiguous_origins() -> Result<()> {
++        for endpoint in [
++            PRODUCTION_ENDPOINT,
++            "https://s3.example.test/",
++            "https://s3.example.test:9443/",
++            "http://127.0.0.1:9000/",
++            "http://[::1]:9000/",
++        ] {
++            parse_s3_endpoint(endpoint)?;
++            S3MediaDelete::new(
++                endpoint,
++                "id-media",
++                "garage",
++                "key".into(),
++                "secret".into(),
++            )?;
++            crate::data_export_s3::S3Export::new(
++                endpoint,
++                "id-exports",
++                "garage",
++                "key".into(),
++                "secret".into(),
++            )?;
++        }
++        for endpoint in [
++            "http://s3.example.test/",
++            "http://192.168.1.176:3900/",
++            "http://localhost.example.test/",
++            "https://user:password@s3.example.test/",
++            "https://s3.example.test/bucket",
++            "https://s3.example.test/?query=1",
++            "https://s3.example.test/#fragment",
++            "file:///tmp/s3",
++        ] {
++            assert!(parse_s3_endpoint(endpoint).is_err(), "{endpoint}");
++        }
+         Ok(())
+     }
+ 
+--- a/services/id-rust/crates/id-runtime/src/media_url.rs
++++ b/services/id-rust/crates/id-runtime/src/media_url.rs
+@@ -7,7 +7,7 @@
+ use std::{env, fmt, sync::Arc};
+ use url::Url;
+ 
+-const PRODUCTION_ENDPOINT: &str = "https://storage.yandexcloud.net/";
++use crate::media_delete::{PRODUCTION_ENDPOINT, parse_s3_endpoint};
+ const AVATAR_URL_SECONDS: u32 = 3600;
+ 
+ #[derive(Clone)]
+@@ -67,22 +67,9 @@
+             env::var("MEDIA_STORAGE_DRIVER")?.as_str() == "s3",
+             "signed media requires S3 storage"
+         );
+-        let endpoint = Url::parse(
++        let endpoint = parse_s3_endpoint(
+             &env::var("S3_ENDPOINT_URL").unwrap_or_else(|_| PRODUCTION_ENDPOINT.into()),
+         )?;
+-        let loopback = matches!(
+-            endpoint.host_str(),
+-            Some("localhost" | "127.0.0.1" | "[::1]")
+-        );
+-        ensure!(
+-            (endpoint.as_str() == PRODUCTION_ENDPOINT || (loopback && endpoint.scheme() == "http"))
+-                && endpoint.path() == "/"
+-                && endpoint.query().is_none()
+-                && endpoint.fragment().is_none()
+-                && endpoint.username().is_empty()
+-                && endpoint.password().is_none(),
+-            "unsupported S3 endpoint for signed media"
+-        );
+         let bucket = env::var("S3_BUCKET_NAME").context("S3_BUCKET_NAME is required")?;
+         ensure!(
+             (3..=63).contains(&bucket.len())
+--- a/services/id-rust/crates/id-runtime/src/data_export_s3.rs
++++ b/services/id-rust/crates/id-runtime/src/data_export_s3.rs
+@@ -5,7 +5,9 @@
+ use crate::{
+     data_export::{ExportManifest, write_ndjson_with_avatar, write_ndjson_with_avatar_for_escrow},
+     data_export_operation::ExportClaim,
+-    media_delete::{EMPTY_HASH, PRODUCTION_ENDPOINT, SigningRequest, host_header, sign},
++    media_delete::{
++        EMPTY_HASH, PRODUCTION_ENDPOINT, SigningRequest, host_header, parse_s3_endpoint, sign,
++    },
+     media_url::MediaUrl,
+ };
+ use anyhow::{Context, Result, bail, ensure};
+@@ -109,19 +111,9 @@
+         access_key: String,
+         secret_key: String,
+     ) -> Result<Self> {
+-        let endpoint = Url::parse(endpoint).context("invalid export S3 endpoint")?;
+-        let loopback = matches!(
+-            endpoint.host_str(),
+-            Some("localhost" | "127.0.0.1" | "[::1]")
+-        );
+-        ensure!(
+-            (endpoint.as_str() == PRODUCTION_ENDPOINT || (loopback && endpoint.scheme() == "http"))
+-                && endpoint.path() == "/"
+-                && endpoint.query().is_none()
+-                && endpoint.fragment().is_none()
+-                && endpoint.username().is_empty()
+-                && endpoint.password().is_none()
+-                && (3..=63).contains(&bucket.len())
++        let endpoint = parse_s3_endpoint(endpoint)?;
++        ensure!(
++            (3..=63).contains(&bucket.len())
+                 && bucket.bytes().all(|b| b.is_ascii_lowercase()
+                     || b.is_ascii_digit()
+                     || matches!(b, b'-' | b'.'))

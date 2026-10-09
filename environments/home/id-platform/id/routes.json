@@ -1,0 +1,657 @@
+[
+  {
+    "path": "/api/v1/auth/password/reset/request",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/password/reset/request",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/password/reset/confirm",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/password/reset/confirm",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/me",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/internal/identity/me",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/magic-link/request",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/magic-link/consume",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/magic-link/consume",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/exchange",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/oauth/providers",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/me",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/form_token",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/login",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/login",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/change",
+    "method": "DELETE",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/email/change",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/email/change",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/change_password",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/change_password",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/email",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/email",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/jwt/from_session",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/jwt/from_session",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/refresh",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/refresh",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}",
+    "method": "DELETE",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/download",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/download",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/redeem",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/redeem",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/cancel",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/data/exports/{id}/cancel",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions",
+    "method": "GET",
+    "component": "sessions"
+  },
+  {
+    "path": "/api/v1/auth/sessions",
+    "method": "OPTIONS",
+    "component": "sessions"
+  },
+  {
+    "path": "/api/v1/auth/sessions/bulk",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions/bulk",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions/_bulk",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions/_bulk",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions/{sid}",
+    "method": "DELETE",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/sessions/{sid}",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/logout",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/logout",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/avatar",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/avatar",
+    "method": "DELETE",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/avatar",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/profile",
+    "method": "PATCH",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/profile",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/preferences",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/preferences",
+    "method": "PATCH",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/preferences",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/timezones",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/consents",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/consents",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/consents/revoke",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/consents/revoke",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/signup",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/signup",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/resend",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/resend",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/verification/request",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/verification/request",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/verification/confirm",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/email/verification/confirm",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/{proxy+}",
+    "method": "*",
+    "component": "api"
+  },
+  {
+    "path": "/oauth/jwks",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/.well-known/jwks.json",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/oauth/{proxy+}",
+    "method": "*",
+    "component": "mutations"
+  },
+  {
+    "path": "/.well-known/{proxy+}",
+    "method": "*",
+    "component": "api"
+  },
+  {
+    "path": "/health",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/healthz",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/readyz",
+    "method": "GET",
+    "component": "api"
+  },
+  {
+    "path": "/login",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/signup",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/authorize",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/account",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/forgot-password",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/reset-password",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/verify-email",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/_id/{file+}",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/data/export",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/data/export/cancel",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/{file+}",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/.well-known/openid-configuration",
+    "method": "GET",
+    "component": "sessions"
+  },
+  {
+    "path": "/oauth/authorize/prepare",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/authorize",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/authorize",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/authorize/approve",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/authorize/deny",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/token",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/revoke",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/userinfo",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/userinfo",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/oauth/consent",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/api/v1/auth/oauth/apps",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/oauth/apps",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/oauth/apps/revoke",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/oauth/apps/revoke",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/mfa/status",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/mfa/status",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/passkeys",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/passkeys",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/security",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/security",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/login-history",
+    "method": "GET",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/login-history",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/delete",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/delete",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/rename",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/rename",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/begin",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/begin",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/confirm",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/confirm",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/disable",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/totp/disable",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/recovery/regenerate",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/mfa/recovery/regenerate",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/begin",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/begin",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/complete",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/complete",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/login/begin",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/login/begin",
+    "method": "OPTIONS",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/login/complete",
+    "method": "POST",
+    "component": "api"
+  },
+  {
+    "path": "/api/v1/auth/passkeys/login/complete",
+    "method": "OPTIONS",
+    "component": "api"
+  }
+]

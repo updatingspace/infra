@@ -1,0 +1,10 @@
+storage.updspace.com {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
+  reverse_proxy garage.updspace-data.svc.cluster.local:3900
+  header -Server
+  header Cache-Control "private, no-store"
+}

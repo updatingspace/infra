@@ -1,0 +1,10 @@
+# This example is a review proposal, not an approved production configuration.
+folder_id           = "b1gidr45ifb2c25bco2d"
+provisioner_principal_id = "replacewithexactiamid"
+zone                = "ru-central1-d"
+environment         = "production"
+bucket_name         = "replace-with-reviewed-unique-pz-backup-name"
+bucket_capacity_gib = 300
+storage_class       = "COLD"
+# Optional, independently granted and escrowed KMS key; age remains mandatory.
+kms_key_id = null

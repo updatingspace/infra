@@ -1,0 +1,264 @@
+receivers:
+  prometheus/game:
+    config:
+      scrape_configs:
+      - job_name: zomboid
+        scrape_interval: 30s
+        scrape_timeout: 10s
+        static_configs:
+        - targets:
+          - zomboid.zomboid.svc.cluster.local:9090
+          labels:
+            instance: zomboid:9090
+  prometheus/backup:
+    config:
+      scrape_configs:
+      - job_name: pz-backup
+        scrape_interval: 60s
+        scrape_timeout: 10s
+        static_configs:
+        - targets:
+          - ${env:K8S_NODE_IP}:9109
+  prometheus/collector:
+    config:
+      scrape_configs:
+      - job_name: otel-collector
+        scrape_interval: 60s
+        static_configs:
+        - targets:
+          - 127.0.0.1:8888
+  host_metrics:
+    collection_interval: 60s
+    root_path: /hostfs
+    scrapers:
+      cpu: null
+      load: null
+      memory: null
+      paging: null
+      disk: {}
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+        exclude_fs_types:
+          fs_types:
+          - autofs
+          - binfmt_misc
+          - bpf
+          - cgroup2
+          - configfs
+          - debugfs
+          - devpts
+          - devtmpfs
+          - fusectl
+          - hugetlbfs
+          - mqueue
+          - nsfs
+          - overlay
+          - proc
+          - procfs
+          - pstore
+          - rpc_pipefs
+          - securityfs
+          - selinuxfs
+          - squashfs
+          - sysfs
+          - tracefs
+          - tmpfs
+          - cgroup
+          match_type: strict
+        exclude_mount_points:
+          mount_points:
+          - ^/(dev|proc|sys|run|var/lib/(docker|kubelet|rancher/k3s/agent/containerd))($|/)
+          match_type: regexp
+  http_check/panel:
+    collection_interval: 30s
+    targets:
+    - endpoint: http://panel.zomboid.svc.cluster.local:3001/api/health
+      method: GET
+      timeout: 5s
+  filelog/game:
+    include:
+    - /var/log/pz/server-console-docker.log
+    start_at: end
+    storage: file_storage
+    include_file_path: true
+    max_log_size: 256KiB
+    max_log_size_behavior: truncate
+    resource:
+      service.name: zomboid
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+  filelog/panel:
+    include:
+    - /var/log/panel/combined.log
+    start_at: end
+    storage: file_storage
+    include_file_path: true
+    max_log_size: 256KiB
+    max_log_size_behavior: truncate
+    resource:
+      service.name: pz-panel
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+  kubelet_stats:
+    collection_interval: 60s
+    auth_type: serviceAccount
+    endpoint: https://${env:K8S_NODE_IP}:10250
+    insecure_skip_verify: false
+    metric_groups:
+    - node
+    - pod
+    - container
+    - volume
+    metrics:
+      container.uptime:
+        enabled: true
+      k8s.pod.uptime:
+        enabled: true
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+    spike_limit_mib: 96
+  resource/common:
+    attributes:
+    - key: cluster
+      value: updspace-home
+      action: upsert
+    - key: host.name
+      value: updspace-home
+      action: upsert
+  resource/host:
+    attributes:
+    - key: service.name
+      value: pz-host
+      action: upsert
+  resource/panel:
+    attributes:
+    - key: service.name
+      value: pz-panel
+      action: upsert
+  resource/collector:
+    attributes:
+    - key: service.name
+      value: otel-collector
+      action: upsert
+  resource/backup:
+    attributes:
+    - key: service.name
+      value: pz-backup
+      action: upsert
+  transform/panel_identity:
+    error_mode: propagate
+    metric_statements:
+    - context: datapoint
+      statements:
+      - delete_key(attributes, "http.url")
+      - delete_key(attributes, "http.status_code")
+      - set(attributes["check.name"], "panel-http")
+  transform/log_redaction:
+    error_mode: propagate
+    log_statements:
+    - context: log
+      statements:
+      - set(severity_number, SEVERITY_NUMBER_INFO)
+      - set(severity_text, "INFO")
+      - set(severity_number, SEVERITY_NUMBER_WARN) where IsMatch(body, "(?i)\\bwarn(ing)?\\b")
+      - set(severity_text, "WARN") where severity_number == SEVERITY_NUMBER_WARN
+      - set(severity_number, SEVERITY_NUMBER_ERROR) where IsMatch(body, "(?i)\\b(error|fatal|exception)\\b")
+      - set(severity_text, "ERROR") where severity_number == SEVERITY_NUMBER_ERROR
+      - 'replace_pattern(body, "(?i)(password|passwd|token|api[_-]?key|secret|authorization)([=:
+        ]+).*", "$$1$$2[REDACTED]")'
+  batch/logs:
+    timeout: 5s
+    send_batch_size: 256
+    send_batch_max_size: 512
+  resource/kubernetes:
+    attributes:
+    - key: service.name
+      value: pz-kubernetes
+      action: upsert
+exporters:
+  prometheus_remote_write/local:
+    endpoint: http://prometheus:9090/api/v1/write
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlp_http/local_logs:
+    endpoint: http://loki:3100/otlp
+    sending_queue:
+      storage: file_storage
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol
+    create_directory: true
+    max_size: 134217728
+    compaction:
+      on_start: true
+      on_rebound: true
+      directory: /var/lib/otelcol/compaction
+      rebound_needed_threshold_mib: 64
+      rebound_trigger_threshold_mib: 16
+service:
+  extensions:
+  - health_check
+  - file_storage
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: normal
+      readers:
+      - pull:
+          exporter:
+            prometheus:
+              host: 0.0.0.0
+              port: 8888
+  pipelines:
+    metrics/host:
+      receivers:
+      - host_metrics
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/host
+      exporters:
+      - prometheus_remote_write/local
+    metrics/panel:
+      receivers:
+      - http_check/panel
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/panel
+      - transform/panel_identity
+      exporters:
+      - prometheus_remote_write/local
+    logs/pz:
+      receivers:
+      - filelog/game
+      - filelog/panel
+      processors:
+      - memory_limiter
+      - resource/common
+      - transform/log_redaction
+      - batch/logs
+      exporters:
+      - otlp_http/local_logs
+    metrics/kubernetes:
+      receivers:
+      - kubelet_stats
+      processors:
+      - memory_limiter
+      - resource/common
+      - resource/kubernetes
+      exporters:
+      - prometheus_remote_write/local

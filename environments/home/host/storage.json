@@ -1,0 +1,103 @@
+{
+  "k3s_version": "k3s version v1.36.4+k3s1 (4dedb15b)",
+  "mounts": [
+    {
+      "requested": "/srv/pz-storage/zomboid",
+      "findmnt": {
+        "filesystems": [
+          {
+            "target": "/srv/pz-storage/zomboid",
+            "source": "/dev/loop8",
+            "fstype": "ext4",
+            "size": "62.4G",
+            "uuid": "07466fa3-bd51-4036-be62-6f1c8c48547e",
+            "options": "rw,nosuid,nodev,noatime"
+          }
+        ]
+      }
+    },
+    {
+      "requested": "/srv/pz-backup-spool",
+      "findmnt": {
+        "filesystems": [
+          {
+            "target": "/srv/pz-backup-spool",
+            "source": "/dev/loop9",
+            "fstype": "ext4",
+            "size": "62.4G",
+            "uuid": "57bf6825-2399-425d-96b8-8c1516270afa",
+            "options": "rw,nosuid,nodev,noatime"
+          }
+        ]
+      }
+    },
+    {
+      "requested": "/srv/edge-caddy",
+      "findmnt": {
+        "filesystems": [
+          {
+            "target": "/srv/edge-caddy",
+            "source": "/dev/loop10",
+            "fstype": "ext4",
+            "size": "223.7M",
+            "uuid": "d693913c-6ba9-4cd5-94e0-680764073665",
+            "options": "rw,nosuid,nodev,noatime"
+          }
+        ]
+      }
+    },
+    {
+      "requested": "/srv/pz-storage/observability",
+      "findmnt": {
+        "filesystems": [
+          {
+            "target": "/",
+            "source": "/dev/mapper/ubuntu--vg-ubuntu--lv",
+            "fstype": "ext4",
+            "size": "436G",
+            "uuid": "01b23599-6df0-48a9-862c-ccd9de9a4121",
+            "options": "rw,relatime"
+          }
+        ]
+      }
+    }
+  ],
+  "symlinks": {
+    "/opt/pz-stack/data/caddy-config": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/edge/caddy-config"
+    },
+    "/opt/pz-stack/data/panel": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/zomboid/panel"
+    },
+    "/opt/pz-stack/data/steam": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/zomboid/steam"
+    },
+    "/opt/pz-stack/data/caddy-data": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/edge/caddy-data"
+    },
+    "/opt/pz-stack/data/otelcol": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/observability/otelcol"
+    },
+    "/opt/pz-stack/data/panel-logs": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/zomboid/panel-logs"
+    },
+    "/opt/pz-stack/data/zomboid": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/zomboid/zomboid"
+    },
+    "/opt/pz-stack/data/pz-server": {
+      "is_symlink": true,
+      "resolved": "/srv/pz-storage/zomboid/pz-server"
+    }
+  },
+  "fstab_pz_lines": [
+    "/srv/pz-volumes/data.ext4 /srv/pz-storage/zomboid ext4 loop,nodev,nosuid,noatime 0 0",
+    "/srv/pz-volumes/spool.ext4 /srv/pz-backup-spool ext4 loop,nodev,nosuid,noatime 0 0"
+  ]
+}

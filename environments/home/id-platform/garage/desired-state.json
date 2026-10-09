@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "region": "garage",
+  "replication_factor": 1,
+  "layout": {
+    "version": 1,
+    "node_id_prefix": "f4d2e55cbba93dd6",
+    "zone": "dc1",
+    "capacity_gib": 436,
+    "capacity_is_not_filesystem_quota": true
+  },
+  "principals": {
+    "updspace-id": {
+      "credential_file": "/opt/updspace-data/garage/id-credentials.json",
+      "buckets": [
+        "updspace-id-media-ab88348a",
+        "updspace-id-exports-e3dd0415"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "owner": false
+    },
+    "updspace-portal": {
+      "credential_file": "/opt/updspace-data/garage/portal-credentials.json",
+      "buckets": [
+        "updspace-portal-prod-media-ab88348a"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "owner": false
+    }
+  },
+  "bucket_settings_file": "bucket-settings.json",
+  "secrets_outside_git": [
+    "rpc-secret",
+    "admin-token",
+    "id-credentials.json",
+    "portal-credentials.json"
+  ],
+  "reconcile_note": "Existing live layout, keys, buckets and settings are verified. Do not create replacement keys or reassign layout on adoption; import current state first."
+}

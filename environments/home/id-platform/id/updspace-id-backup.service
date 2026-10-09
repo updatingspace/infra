@@ -1,0 +1,9 @@
+[Unit]
+Description=Encrypted consistent backup of local UpdSpace ID
+After=k3s.service network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/opt/updspace-id/backup.py
+TimeoutStartSec=1800

@@ -1,0 +1,166 @@
+{
+  admin off
+  auto_https off
+  servers {
+    trusted_proxies static 10.42.0.0/16 127.0.0.1/32
+    trusted_proxies_strict
+  }
+}
+:8089 {
+  route {
+    @r0 {
+      method GET
+      path /.well-known/jwks.json /api/v1/auth/form_token /api/v1/auth/magic-link/consume /api/v1/auth/me /api/v1/auth/oauth/providers /api/v1/internal/identity/me /api/v1/me /health /healthz /oauth/jwks /readyz
+    }
+    handle @r0 {
+      reverse_proxy 127.0.0.1:8081 {
+      }
+    }
+    @r1 {
+      method OPTIONS
+      path /api/v1/auth/email/resend /api/v1/auth/email/verification/confirm /api/v1/auth/email/verification/request /api/v1/auth/login /api/v1/auth/mfa/recovery/regenerate /api/v1/auth/mfa/totp/begin /api/v1/auth/mfa/totp/confirm /api/v1/auth/mfa/totp/disable /api/v1/auth/passkeys/begin /api/v1/auth/passkeys/complete /api/v1/auth/passkeys/delete /api/v1/auth/passkeys/login/begin /api/v1/auth/passkeys/login/complete /api/v1/auth/passkeys/rename /api/v1/auth/password/reset/confirm /api/v1/auth/password/reset/request /api/v1/auth/signup
+    }
+    handle @r1 {
+      reverse_proxy 127.0.0.1:8081 {
+      }
+    }
+    @r2 {
+      method POST
+      path /api/v1/auth/email/resend /api/v1/auth/email/verification/confirm /api/v1/auth/email/verification/request /api/v1/auth/exchange /api/v1/auth/login /api/v1/auth/magic-link/consume /api/v1/auth/magic-link/request /api/v1/auth/mfa/recovery/regenerate /api/v1/auth/mfa/totp/begin /api/v1/auth/mfa/totp/confirm /api/v1/auth/mfa/totp/disable /api/v1/auth/passkeys/begin /api/v1/auth/passkeys/complete /api/v1/auth/passkeys/delete /api/v1/auth/passkeys/login/begin /api/v1/auth/passkeys/login/complete /api/v1/auth/passkeys/rename /api/v1/auth/password/reset/confirm /api/v1/auth/password/reset/request /api/v1/auth/signup
+    }
+    handle @r2 {
+      reverse_proxy 127.0.0.1:8081 {
+      }
+    }
+    @r3 {
+      method DELETE
+      path /api/v1/auth/avatar /api/v1/auth/email/change
+    }
+    handle @r3 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r4 {
+      method GET
+      path /api/v1/auth/consents /api/v1/auth/email /api/v1/auth/login-history /api/v1/auth/mfa/status /api/v1/auth/oauth/apps /api/v1/auth/passkeys /api/v1/auth/preferences /api/v1/auth/security /api/v1/auth/timezones /oauth/authorize /oauth/authorize/prepare /oauth/userinfo
+    }
+    handle @r4 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r5 {
+      method OPTIONS
+      path /api/v1/auth/avatar /api/v1/auth/change_password /api/v1/auth/consents /api/v1/auth/consents/revoke /api/v1/auth/data/exports /api/v1/auth/email /api/v1/auth/email/change /api/v1/auth/jwt/from_session /api/v1/auth/login-history /api/v1/auth/logout /api/v1/auth/mfa/status /api/v1/auth/oauth/apps /api/v1/auth/oauth/apps/revoke /api/v1/auth/passkeys /api/v1/auth/preferences /api/v1/auth/profile /api/v1/auth/refresh /api/v1/auth/security /api/v1/auth/sessions/_bulk /api/v1/auth/sessions/bulk
+    }
+    handle @r5 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r6 {
+      method PATCH
+      path /api/v1/auth/preferences /api/v1/auth/profile
+    }
+    handle @r6 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r7 {
+      method POST
+      path /api/v1/auth/avatar /api/v1/auth/change_password /api/v1/auth/consents/revoke /api/v1/auth/data/exports /api/v1/auth/email/change /api/v1/auth/jwt/from_session /api/v1/auth/logout /api/v1/auth/oauth/apps/revoke /api/v1/auth/refresh /api/v1/auth/sessions/_bulk /api/v1/auth/sessions/bulk /oauth/authorize /oauth/authorize/approve /oauth/authorize/deny /oauth/revoke /oauth/token /oauth/userinfo
+    }
+    handle @r7 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r8 {
+      method GET
+      path /.well-known/openid-configuration /api/v1/auth/sessions
+    }
+    handle @r8 {
+      reverse_proxy 127.0.0.1:8082 {
+      }
+    }
+    @r9 {
+      method OPTIONS
+      path /api/v1/auth/sessions
+    }
+    handle @r9 {
+      reverse_proxy 127.0.0.1:8082 {
+      }
+    }
+    @r10 {
+      method GET
+      path / /account /authorize /data/export /data/export/cancel /forgot-password /login /oauth/consent /reset-password /signup /verify-email
+    }
+    handle @r10 {
+      reverse_proxy 127.0.0.1:3000 {
+        header_down Content-Security-Policy "https://storage[.]yandexcloud[.]net" "https://storage.updspace.com"
+      }
+    }
+    @r11 {
+      method DELETE
+      path_regexp r11 "^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/sessions/[^/]+)$"
+    }
+    handle @r11 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r12 {
+      method GET
+      path_regexp r12 "^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/data/exports/[^/]+/download)$"
+    }
+    handle @r12 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r13 {
+      method OPTIONS
+      path_regexp r13 "^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/data/exports/[^/]+/cancel|/api/v1/auth/data/exports/[^/]+/download|/api/v1/auth/data/exports/[^/]+/redeem|/api/v1/auth/sessions/[^/]+)$"
+    }
+    handle @r13 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r14 {
+      method POST
+      path_regexp r14 "^(?:/api/v1/auth/data/exports/[^/]+/cancel|/api/v1/auth/data/exports/[^/]+/redeem)$"
+    }
+    handle @r14 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r15 {
+      path_regexp r15 "^(?:/\\.well\\-known/.+|/api/v1/.+)$"
+    }
+    handle @r15 {
+      reverse_proxy 127.0.0.1:8081 {
+      }
+    }
+    @r16 {
+      path_regexp r16 "^(?:/oauth/.+)$"
+    }
+    handle @r16 {
+      reverse_proxy 127.0.0.1:8083 {
+      }
+    }
+    @r17 {
+      method GET
+      path_regexp r17 "^(?:/_id/.+)$"
+    }
+    handle @r17 {
+      reverse_proxy 127.0.0.1:3000 {
+        header_down Content-Security-Policy "https://storage[.]yandexcloud[.]net" "https://storage.updspace.com"
+      }
+    }
+    @r18 {
+      method GET
+      path_regexp r18 "^(?:/.+)$"
+    }
+    handle @r18 {
+      reverse_proxy 127.0.0.1:3000 {
+        header_down Content-Security-Policy "https://storage[.]yandexcloud[.]net" "https://storage.updspace.com"
+      }
+    }
+    respond "Not found" 404
+  }
+}

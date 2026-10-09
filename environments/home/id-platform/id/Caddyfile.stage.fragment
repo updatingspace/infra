@@ -1,0 +1,14 @@
+# Trial snapshot: public DNS still points at the cloud source.
+id.updspace.com {
+  tls /etc/id-origin-tls/tls.crt /etc/id-origin-tls/tls.key
+  encode zstd gzip
+  @trial_allowed remote_ip 127.0.0.1 ::1 192.168.1.0/24 10.42.0.0/16
+  handle @trial_allowed {
+    reverse_proxy id.updspace-id.svc.cluster.local:8089
+  }
+  handle {
+    respond "ID migration stage is private" 503
+  }
+  header -Server
+  header X-ID-Migration-Stage "trial"
+}

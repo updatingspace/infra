@@ -1,0 +1,6684 @@
+{
+  "captured_at": "2026-10-09T10:44:07.825825+00:00",
+  "source_database": "updspace-id",
+  "consistent_snapshot": false,
+  "contains_user_rows": false,
+  "reported_total_bytes": 588140,
+  "tables": [
+    {
+      "path": "account_emailaddress",
+      "size": 2748,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "verified",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "primary",
+          "type": {
+            "type_id": "BOOL"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "account_emailaddress_email_03be32b2",
+          "index_columns": [
+            "email"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1257"
+        },
+        {
+          "name": "account_emailaddress_user_id_2c513194",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "356"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "13",
+        "store_size": "2748",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:06.930Z",
+        "modification_time": "2026-10-07T13:49:35.942Z"
+      }
+    },
+    {
+      "path": "account_emailconfirmation",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "email_address_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "created",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "sent",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "account_emailconfirmation_email_address_id_5b7f8c58",
+          "index_columns": [
+            "email_address_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:05.440Z",
+        "modification_time": "2026-10-05T22:28:38.725Z"
+      }
+    },
+    {
+      "path": "accounts_accountdeletionrequest",
+      "size": 1341,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "requested_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "executed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "reason",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_accountdeletionrequest_user_id_6a166c52",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "246"
+        },
+        {
+          "name": "acct_delete_status_idx",
+          "index_columns": [
+            "status",
+            "requested_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "444"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "6",
+        "store_size": "1341",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:08.150Z",
+        "modification_time": "2026-10-05T16:33:42.120Z"
+      }
+    },
+    {
+      "path": "accounts_accountemaillookup",
+      "size": 2212,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "email_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "user_id"
+      ],
+      "indexes": [
+        {
+          "name": "acct_email_key_idx",
+          "index_columns": [
+            "email_key"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1106"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "18",
+        "store_size": "2212",
+        "partitions": "1",
+        "creation_time": "2026-10-04T23:32:19.750Z",
+        "modification_time": "2026-10-07T13:49:24.065Z"
+      }
+    },
+    {
+      "path": "accounts_accountevent",
+      "size": 12788,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "INT32"
+              }
+            }
+          }
+        },
+        {
+          "name": "action",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "meta",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_accountevent_user_id_ec4a3aac",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1307"
+        },
+        {
+          "name": "acct_event_action_idx",
+          "index_columns": [
+            "action",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "3055"
+        },
+        {
+          "name": "acct_event_user_idx",
+          "index_columns": [
+            "user_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1632"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "51",
+        "store_size": "12788",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:08.440Z",
+        "modification_time": "2026-10-07T21:22:13.748Z"
+      }
+    },
+    {
+      "path": "accounts_accountidentity",
+      "size": 1445,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "identity_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UUID"
+              }
+            }
+          }
+        },
+        {
+          "name": "public_subject",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "user_id"
+      ],
+      "indexes": [
+        {
+          "name": "account_identity_reverse_idx",
+          "index_columns": [
+            "identity_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "533"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "19",
+        "store_size": "1445",
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:43:36.170Z",
+        "modification_time": "2026-10-07T13:49:24.085Z"
+      }
+    },
+    {
+      "path": "accounts_dataexportrequest",
+      "size": 1669,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "requested_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "completed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "format",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "error",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_dataexportrequest_user_id_5475c7b0",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "262"
+        },
+        {
+          "name": "acct_export_status_idx",
+          "index_columns": [
+            "status",
+            "requested_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "219"
+        },
+        {
+          "name": "acct_export_user_idx",
+          "index_columns": [
+            "user_id",
+            "requested_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "312"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "8",
+        "store_size": "1669",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:08.640Z",
+        "modification_time": "2026-10-05T11:28:28.106Z"
+      }
+    },
+    {
+      "path": "accounts_loginevent",
+      "size": 117701,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "ip_address",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "ip_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_agent",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "device_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "is_new_device",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "reason",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "meta",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_loginevent_user_id_0b0fdf50",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "5221"
+        },
+        {
+          "name": "acct_login_status_idx",
+          "index_columns": [
+            "status",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "9690"
+        },
+        {
+          "name": "acct_login_user_idx",
+          "index_columns": [
+            "user_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "6576"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "289",
+        "store_size": "117701",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:08.880Z",
+        "modification_time": "2026-10-08T12:44:53.613Z"
+      }
+    },
+    {
+      "path": "accounts_newdevicemailoutbox",
+      "size": 1183,
+      "columns": [
+        {
+          "name": "event_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "sent_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "event_id"
+      ],
+      "indexes": [
+        {
+          "name": "acct_device_mail_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "484"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "7",
+        "store_size": "1183",
+        "partitions": "1",
+        "creation_time": "2026-10-04T23:32:20.510Z",
+        "modification_time": "2026-10-07T13:50:54.559Z"
+      }
+    },
+    {
+      "path": "accounts_userconsent",
+      "size": 3074,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "kind",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "version",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "granted_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "revoked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "source",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "meta",
+          "type": {
+            "type_id": "JSON"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_userconsent_user_id_6d8d998a",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "417"
+        },
+        {
+          "name": "acct_consent_kind_idx",
+          "index_columns": [
+            "kind",
+            "granted_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "819"
+        },
+        {
+          "name": "acct_consent_user_kind_idx",
+          "index_columns": [
+            "user_id",
+            "kind"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "819"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "11",
+        "store_size": "3074",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:09.160Z",
+        "modification_time": "2026-10-07T13:49:24.541Z"
+      }
+    },
+    {
+      "path": "accounts_userdevice",
+      "size": 6325,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "device_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_agent",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "first_seen",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "last_seen",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "last_ip",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "accounts_userdevice_user_id_2e91dbfd",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "414"
+        },
+        {
+          "name": "acct_device_user_last_idx",
+          "index_columns": [
+            "user_id",
+            "last_seen"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "736"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "22",
+        "store_size": "6325",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:09.460Z",
+        "modification_time": "2026-10-08T12:44:53.614Z"
+      }
+    },
+    {
+      "path": "accounts_userpreferences",
+      "size": 1993,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "language",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "timezone",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "marketing_opt_in",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "marketing_opt_in_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "marketing_opt_out_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "privacy_scope_defaults",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "acct_prefs_user_idx",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "341"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "10",
+        "store_size": "1993",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:09.720Z",
+        "modification_time": "2026-10-07T21:42:23.398Z"
+      }
+    },
+    {
+      "path": "accounts_userprofile",
+      "size": 1483,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "avatar",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "STRING"
+              }
+            }
+          }
+        },
+        {
+          "name": "avatar_source",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "gravatar_enabled",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "gravatar_checked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "phone_number",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "phone_verified",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "birth_date",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATE"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "acct_profile_user_idx",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "322"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "13",
+        "store_size": "1483",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:09.950Z",
+        "modification_time": "2026-10-06T18:17:42.215Z"
+      }
+    },
+    {
+      "path": "auth_group",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:04.440Z"
+      }
+    },
+    {
+      "path": "auth_group_permissions",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "group_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "permission_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "auth_group_permissions_group_id_b120cbf9",
+          "index_columns": [
+            "group_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "auth_group_permissions_permission_id_84c5c92e",
+          "index_columns": [
+            "permission_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:43:37.090Z"
+      }
+    },
+    {
+      "path": "auth_permission",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "content_type_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "codename",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "auth_permission_content_type_id_2f476e4b",
+          "index_columns": [
+            "content_type_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:11.380Z"
+      }
+    },
+    {
+      "path": "auth_user",
+      "size": 4820,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "password",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "last_login",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "is_superuser",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "username",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "first_name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "last_name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "is_staff",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "is_active",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "date_joined",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "rows_estimate": "21",
+        "store_size": "4820",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:04.720Z",
+        "modification_time": "2026-10-08T12:44:53.613Z"
+      }
+    },
+    {
+      "path": "auth_user_groups",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "group_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "auth_user_groups_group_id_97559544",
+          "index_columns": [
+            "group_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "auth_user_groups_user_id_6a12ed8b",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:43:36.460Z"
+      }
+    },
+    {
+      "path": "auth_user_user_permissions",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "permission_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "auth_user_user_permissions_permission_id_1fbb5f2c",
+          "index_columns": [
+            "permission_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "auth_user_user_permissions_user_id_a95ead1b",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:43:37.410Z"
+      }
+    },
+    {
+      "path": "core_usersessionmeta",
+      "size": 99044,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "session_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "session_token",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "user_agent",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "ip",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "first_seen",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "last_seen",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "revoked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "revoked_reason",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "core_usersessionmeta_session_key_2f41cf47",
+          "index_columns": [
+            "session_key"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "17528"
+        },
+        {
+          "name": "core_usersessionmeta_session_token_251d7bcc",
+          "index_columns": [
+            "session_token"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "14457"
+        },
+        {
+          "name": "core_usersessionmeta_user_id_9dceac03",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "5088"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "298",
+        "store_size": "99044",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:11.740Z",
+        "modification_time": "2026-10-08T15:01:38.877Z"
+      }
+    },
+    {
+      "path": "core_usersessiontoken",
+      "size": 86731,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "session_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "refresh_jti",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "revoked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "core_usersessiontoken_refresh_jti_d7b5df37",
+          "index_columns": [
+            "refresh_jti"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "16313"
+        },
+        {
+          "name": "core_usersessiontoken_session_key_b71d2665",
+          "index_columns": [
+            "session_key"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "24017"
+        },
+        {
+          "name": "core_usersessiontoken_user_id_2e52e0f5",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "5639"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "369",
+        "store_size": "86731",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:12.050Z",
+        "modification_time": "2026-10-08T12:45:05.130Z"
+      }
+    },
+    {
+      "path": "django_admin_log",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "action_time",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "content_type_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "INT32"
+              }
+            }
+          }
+        },
+        {
+          "name": "object_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "object_repr",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "action_flag",
+          "type": {
+            "type_id": "UINT16"
+          }
+        },
+        {
+          "name": "change_message",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "django_admin_log_content_type_id_c4bce8eb",
+          "index_columns": [
+            "content_type_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "django_admin_log_user_id_c564eba6",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:10.180Z"
+      }
+    },
+    {
+      "path": "django_content_type",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "app_label",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "model",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:04.960Z"
+      }
+    },
+    {
+      "path": "django_session",
+      "size": 35528,
+      "columns": [
+        {
+          "name": "session_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "session_data",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expire_date",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "session_key"
+      ],
+      "indexes": [
+        {
+          "name": "django_session_expire_date_a5c62663",
+          "index_columns": [
+            "expire_date"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "5166"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "75",
+        "store_size": "35528",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:05.560Z",
+        "modification_time": "2026-10-08T12:45:05.129Z"
+      }
+    },
+    {
+      "path": "django_site",
+      "size": 74,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "domain",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "rows_estimate": "1",
+        "store_size": "74",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:05.770Z"
+      }
+    },
+    {
+      "path": "id_data_export_escrow",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "encrypted_email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "release_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "object_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "manifest",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "notice_state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "delivery_state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "sealed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "consumed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_export_escrow_expiry_idx",
+          "index_columns": [
+            "state",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "id_export_escrow_owner_idx",
+          "index_columns": [
+            "user_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "id_export_escrow_release_idx",
+          "index_columns": [
+            "state",
+            "release_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-07T13:35:46.580Z"
+      }
+    },
+    {
+      "path": "id_data_export_mail",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "export_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "kind",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "sent_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_export_mail_due_idx",
+          "index_columns": [
+            "state",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-07T13:35:47.500Z"
+      }
+    },
+    {
+      "path": "id_data_export_operation",
+      "size": 2590,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "object_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "manifest",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "completed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_data_export_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "451"
+        },
+        {
+          "name": "id_data_export_expiry_idx",
+          "index_columns": [
+            "status",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "816"
+        },
+        {
+          "name": "id_data_export_owner_idx",
+          "index_columns": [
+            "user_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "688"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "5",
+        "store_size": "2590",
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:08.180Z",
+        "modification_time": "2026-10-08T03:10:21.722Z"
+      }
+    },
+    {
+      "path": "id_deletion_global_progress",
+      "size": 152,
+      "columns": [
+        {
+          "name": "operation_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "uuid_done",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "operation_id"
+      ],
+      "indexes": [
+        {
+          "name": "id_deletion_global_due_idx",
+          "index_columns": [
+            "uuid_done"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "36"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "1",
+        "store_size": "152",
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:24:34.360Z",
+        "modification_time": "2026-10-05T16:41:17.354Z"
+      }
+    },
+    {
+      "path": "id_deletion_profile_progress",
+      "size": 152,
+      "columns": [
+        {
+          "name": "operation_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "profile_done",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "operation_id"
+      ],
+      "indexes": [
+        {
+          "name": "id_deletion_profile_due_idx",
+          "index_columns": [
+            "profile_done"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "36"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "1",
+        "store_size": "152",
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:31.910Z",
+        "modification_time": "2026-10-05T16:37:39.883Z"
+      }
+    },
+    {
+      "path": "id_deletion_progress",
+      "size": 152,
+      "columns": [
+        {
+          "name": "operation_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "avatar_done",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "operation_id"
+      ],
+      "indexes": [
+        {
+          "name": "id_deletion_avatar_due_idx",
+          "index_columns": [
+            "avatar_done"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "36"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "1",
+        "store_size": "152",
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:30.710Z",
+        "modification_time": "2026-10-05T16:33:55.428Z"
+      }
+    },
+    {
+      "path": "id_email_change",
+      "size": 0,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "intent_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "old_email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "new_email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "address_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "user_id"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-06T06:35:53.200Z"
+      }
+    },
+    {
+      "path": "id_email_claim",
+      "size": 0,
+      "columns": [
+        {
+          "name": "email_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "intent_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "email_key"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-06T06:35:53.430Z"
+      }
+    },
+    {
+      "path": "id_email_verification",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "consumed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_email_verification_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "id_email_verification_expiry_idx",
+          "index_columns": [
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:06.730Z",
+        "modification_time": "2026-10-08T13:49:25.066Z"
+      }
+    },
+    {
+      "path": "id_legacy_cutover_seal",
+      "size": 0,
+      "columns": [
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "sealed_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "name"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:30.670Z"
+      }
+    },
+    {
+      "path": "id_magic_link_mail",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "tenant_slug",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "redirect_to",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_magic_link_mail_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-06T14:46:39.360Z"
+      }
+    },
+    {
+      "path": "id_passkey_credential",
+      "size": 388,
+      "columns": [
+        {
+          "name": "digest",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "authenticator_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "account_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        }
+      ],
+      "primary_key": [
+        "digest"
+      ],
+      "table_stats": {
+        "rows_estimate": "4",
+        "store_size": "388",
+        "partitions": "1",
+        "creation_time": "2026-10-04T23:33:57.440Z",
+        "modification_time": "2026-10-08T13:21:05.523Z"
+      }
+    },
+    {
+      "path": "id_password_mail",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "sent_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_password_mail_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-05T10:39:13.060Z"
+      }
+    },
+    {
+      "path": "id_password_reset",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "password_version",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "consumed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_password_reset_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "id_password_reset_expiry_idx",
+          "index_columns": [
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-05T11:03:05.570Z"
+      }
+    },
+    {
+      "path": "id_schema_migrations",
+      "size": 530,
+      "columns": [
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "checksum",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "applied_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "name"
+      ],
+      "table_stats": {
+        "rows_estimate": "4",
+        "store_size": "530",
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:46:02.360Z",
+        "modification_time": "2026-10-04T23:32:33.263Z"
+      }
+    },
+    {
+      "path": "id_security_mail",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "kind",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "next_attempt_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "lease_until",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "claim_token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "sent_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "id_security_mail_due_idx",
+          "index_columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-10-06T03:41:46.570Z"
+      }
+    },
+    {
+      "path": "id_shared_cache",
+      "size": 0,
+      "columns": [
+        {
+          "name": "cache_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "value",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "STRING"
+              }
+            }
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UINT64"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "cache_key"
+      ],
+      "ttl_settings": {
+        "value_since_unix_epoch": {
+          "column_name": "expires_at",
+          "column_unit": "UNIT_SECONDS"
+        }
+      },
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-09-22T17:09:46.260Z",
+        "modification_time": "2026-10-08T13:28:37.821Z"
+      }
+    },
+    {
+      "path": "idp_oidcauthorizationcode",
+      "size": 15673,
+      "columns": [
+        {
+          "name": "code",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "redirect_uri",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "scope",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "nonce",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "code_challenge",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "code_challenge_method",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "code"
+      ],
+      "indexes": [
+        {
+          "name": "idp_oidcauthorizationcode_client_id_287b65ac",
+          "index_columns": [
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "2234"
+        },
+        {
+          "name": "idp_oidcauthorizationcode_user_id_d521a83a",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "2180"
+        },
+        {
+          "name": "oidc_code_client_idx",
+          "index_columns": [
+            "client_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "2486"
+        },
+        {
+          "name": "oidc_code_user_idx",
+          "index_columns": [
+            "user_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "2267"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "33",
+        "store_size": "15673",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:12.290Z",
+        "modification_time": "2026-10-07T21:38:20.347Z"
+      }
+    },
+    {
+      "path": "idp_oidcauthorizationrequest",
+      "size": 0,
+      "columns": [
+        {
+          "name": "request_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "redirect_uri",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "scope",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "nonce",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "code_challenge",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "code_challenge_method",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "prompt",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "request_id"
+      ],
+      "indexes": [
+        {
+          "name": "idp_oidcauthorizationrequest_client_id_5f12d730",
+          "index_columns": [
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "idp_oidcauthorizationrequest_user_id_f044e431",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "oidc_req_client_idx",
+          "index_columns": [
+            "client_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "oidc_req_user_idx",
+          "index_columns": [
+            "user_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:12.520Z",
+        "modification_time": "2026-10-07T16:32:53.917Z"
+      }
+    },
+    {
+      "path": "idp_oidcclient",
+      "size": 1361,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "client_secret_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "description",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "logo_url",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "redirect_uris",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "allowed_scopes",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "grant_types",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "response_types",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "is_public",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "is_first_party",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "oidc_client_id_idx",
+          "index_columns": [
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "99"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "3",
+        "store_size": "1361",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:05.180Z",
+        "modification_time": "2026-10-06T07:49:02.697Z"
+      }
+    },
+    {
+      "path": "idp_oidcconsent",
+      "size": 218,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "scopes",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "last_used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "idp_oidcconsent_client_id_ce72ed09",
+          "index_columns": [
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "43"
+        },
+        {
+          "name": "idp_oidcconsent_user_id_f6d0a0ba",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "39"
+        },
+        {
+          "name": "oidc_consent_user_idx",
+          "index_columns": [
+            "user_id",
+            "updated_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "44"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "1",
+        "store_size": "218",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:12.730Z",
+        "modification_time": "2026-10-06T07:48:30.130Z"
+      }
+    },
+    {
+      "path": "idp_oidctoken",
+      "size": 11674,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "access_jti",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "id_jti",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "refresh_token_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "scope",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "access_expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "refresh_expires_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "revoked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "subject",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "refresh_family_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        },
+        {
+          "name": "rotated_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "idp_oidctoken_access_jti_c38ad039",
+          "index_columns": [
+            "access_jti"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1541"
+        },
+        {
+          "name": "idp_oidctoken_client_id_40cdbcf0",
+          "index_columns": [
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "608"
+        },
+        {
+          "name": "idp_oidctoken_user_id_21b9928f",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "512"
+        },
+        {
+          "name": "oidc_token_access_idx",
+          "index_columns": [
+            "access_jti"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "1541"
+        },
+        {
+          "name": "oidc_token_family_idx",
+          "index_columns": [
+            "refresh_family_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "640"
+        },
+        {
+          "name": "oidc_token_refresh_hash_idx",
+          "index_columns": [
+            "refresh_token_hash"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "672"
+        },
+        {
+          "name": "oidc_token_refresh_idx",
+          "index_columns": [
+            "refresh_expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "512"
+        },
+        {
+          "name": "oidc_token_user_client_idx",
+          "index_columns": [
+            "user_id",
+            "client_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "812"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "27",
+        "store_size": "11674",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:12.980Z",
+        "modification_time": "2026-10-07T21:38:20.347Z"
+      }
+    },
+    {
+      "path": "mfa_authenticator",
+      "size": 6442,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "type",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "data",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "last_used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "mfa_authenticator_user_id_0c3a50c0",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "131"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "5",
+        "store_size": "6442",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:13.280Z",
+        "modification_time": "2026-10-07T21:22:13.718Z"
+      }
+    },
+    {
+      "path": "socialaccount_socialaccount",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "provider",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "uid",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "last_login",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "date_joined",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "extra_data",
+          "type": {
+            "type_id": "JSON"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "social_provider_subject_idx",
+          "index_columns": [
+            "provider",
+            "uid"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "socialaccount_socialaccount_user_id_8146e70c",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:13.470Z"
+      }
+    },
+    {
+      "path": "socialaccount_socialapp",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "provider",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "provider_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "client_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "secret",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "settings",
+          "type": {
+            "type_id": "JSON"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:06.010Z"
+      }
+    },
+    {
+      "path": "socialaccount_socialapp_sites",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "socialapp_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "site_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "socialaccount_socialapp_sites_site_id_2579dee5",
+          "index_columns": [
+            "site_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "socialaccount_socialapp_sites_socialapp_id_97fb6e7d",
+          "index_columns": [
+            "socialapp_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-09-23T01:43:36.770Z"
+      }
+    },
+    {
+      "path": "socialaccount_socialtoken",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT32"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "2147483647",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "app_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "INT32"
+              }
+            }
+          }
+        },
+        {
+          "name": "account_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "token_secret",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "socialaccount_socialtoken_account_id_951f210e",
+          "index_columns": [
+            "account_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "socialaccount_socialtoken_app_id_636a42d7",
+          "index_columns": [
+            "app_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:07.110Z"
+      }
+    },
+    {
+      "path": "token_blacklist_blacklistedtoken",
+      "size": 5960,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "token_id",
+          "type": {
+            "type_id": "INT64"
+          }
+        },
+        {
+          "name": "blacklisted_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "rows_estimate": "211",
+        "store_size": "5960",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:08.330Z",
+        "modification_time": "2026-10-08T12:45:04.768Z"
+      }
+    },
+    {
+      "path": "token_blacklist_outstandingtoken",
+      "size": 121414,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "INT32"
+              }
+            }
+          }
+        },
+        {
+          "name": "jti",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "token_blacklist_outstandingtoken_user_id_83bc629a",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "5639"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "293",
+        "store_size": "121414",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:13.680Z",
+        "modification_time": "2026-10-08T12:44:53.615Z"
+      }
+    },
+    {
+      "path": "usersessions_usersession",
+      "size": 38746,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "ip",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "last_seen_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "session_key",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_agent",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "data",
+          "type": {
+            "type_id": "JSON"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usersessions_usersession_user_id_af5e0a6d",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "4360"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "232",
+        "store_size": "38746",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:05.120Z",
+        "modification_time": "2026-10-08T15:01:38.879Z"
+      }
+    },
+    {
+      "path": "usid_activation_token",
+      "size": 0,
+      "columns": [
+        {
+          "name": "token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "token"
+      ],
+      "indexes": [
+        {
+          "name": "usid_activation_exp_idx",
+          "index_columns": [
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_activation_tenant_exp_idx",
+          "index_columns": [
+            "tenant_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_activation_token_tenant_id_4ddf48cf",
+          "index_columns": [
+            "tenant_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_activation_token_user_id_b77743e0",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:13.910Z"
+      }
+    },
+    {
+      "path": "usid_application",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "tenant_slug",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "payload_json",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "reviewed_by_user_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UUID"
+              }
+            }
+          }
+        },
+        {
+          "name": "reviewed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_app_status_created_idx",
+          "index_columns": [
+            "status",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_app_tenant_status_idx",
+          "index_columns": [
+            "tenant_slug",
+            "status"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_application_tenant_slug_62a7144d",
+          "index_columns": [
+            "tenant_slug"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:06.260Z"
+      }
+    },
+    {
+      "path": "usid_audit_log",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "actor_user_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UUID"
+              }
+            }
+          }
+        },
+        {
+          "name": "action",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "target_type",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "target_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UUID"
+              }
+            }
+          }
+        },
+        {
+          "name": "meta_json",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_audit_action_created_idx",
+          "index_columns": [
+            "action",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_audit_log_actor_user_id_80061caf",
+          "index_columns": [
+            "actor_user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_audit_log_tenant_id_9cf969bc",
+          "index_columns": [
+            "tenant_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_audit_tenant_created_idx",
+          "index_columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:14.160Z"
+      }
+    },
+    {
+      "path": "usid_external_identity",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "provider",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "subject",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "tokens_json",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "JSON"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "last_used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_ext_provider_idx",
+          "index_columns": [
+            "provider"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_ext_provider_subject_idx",
+          "index_columns": [
+            "provider",
+            "subject"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_external_identity_user_id_b18cc632",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:14.400Z"
+      }
+    },
+    {
+      "path": "usid_magic_link_token",
+      "size": 0,
+      "columns": [
+        {
+          "name": "token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "ip_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "ua_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "skip_context_validation",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "token"
+      ],
+      "indexes": [
+        {
+          "name": "usid_magic_exp_idx",
+          "index_columns": [
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_magic_link_token_user_id_8b620e5b",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:14.930Z"
+      }
+    },
+    {
+      "path": "usid_migration_map",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "old_system",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "old_user_id",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_migration_map_user_id_6f3182ee",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:03.350Z"
+      }
+    },
+    {
+      "path": "usid_oauth_state",
+      "size": 0,
+      "columns": [
+        {
+          "name": "state",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "nonce",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "provider",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "purpose",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UUID"
+              }
+            }
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "redirect_uri",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "used_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "state"
+      ],
+      "indexes": [
+        {
+          "name": "usid_oauth_idx",
+          "index_columns": [
+            "provider",
+            "purpose",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_oauth_state_tenant_id_c08ea0c8",
+          "index_columns": [
+            "tenant_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_oauth_state_user_id_7737c424",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:03.550Z"
+      }
+    },
+    {
+      "path": "usid_outbox",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "event_type",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "payload_json",
+          "type": {
+            "type_id": "JSON"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "processed_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "attempts",
+          "type": {
+            "type_id": "INT32"
+          }
+        },
+        {
+          "name": "last_error",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_outbox_processed_idx",
+          "index_columns": [
+            "processed_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_outbox_tenant_created_idx",
+          "index_columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_outbox_tenant_id_8390a113",
+          "index_columns": [
+            "tenant_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_outbox_type_created_idx",
+          "index_columns": [
+            "event_type",
+            "created_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:03.750Z"
+      }
+    },
+    {
+      "path": "usid_session",
+      "size": 0,
+      "columns": [
+        {
+          "name": "token",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "revoked_at",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "DATETIME"
+              }
+            }
+          }
+        },
+        {
+          "name": "ip_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "ua_hash",
+          "type": {
+            "type_id": "UTF8"
+          }
+        }
+      ],
+      "primary_key": [
+        "token"
+      ],
+      "indexes": [
+        {
+          "name": "usid_session_exp_idx",
+          "index_columns": [
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_session_user_exp_idx",
+          "index_columns": [
+            "user_id",
+            "expires_at"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_session_user_id_a002388e",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:14.660Z"
+      }
+    },
+    {
+      "path": "usid_tenant",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "slug",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:06.520Z",
+        "modification_time": "2026-10-06T01:37:04.577Z"
+      }
+    },
+    {
+      "path": "usid_tenant_membership",
+      "size": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": {
+            "type_id": "INT64"
+          },
+          "from_sequence": {
+            "name": "_serial_column_id",
+            "min_value": "1",
+            "max_value": "9223372036854775807",
+            "start_value": "1",
+            "cache": "1",
+            "increment": "1",
+            "cycle": false,
+            "data_type": {
+              "type_id": "INT64"
+            }
+          }
+        },
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "base_role",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        },
+        {
+          "name": "source",
+          "type": {
+            "optional_type": {
+              "item": {
+                "type_id": "UTF8"
+              }
+            }
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_memb_tenant_status_idx",
+          "index_columns": [
+            "tenant_id",
+            "status"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_tenant_membership_tenant_id_86edd11f",
+          "index_columns": [
+            "tenant_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        },
+        {
+          "name": "usid_tenant_membership_user_id_fee82992",
+          "index_columns": [
+            "user_id"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY"
+        }
+      ],
+      "table_stats": {
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:23:03.940Z",
+        "modification_time": "2026-10-06T01:37:04.133Z"
+      }
+    },
+    {
+      "path": "usid_user",
+      "size": 2529,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": {
+            "type_id": "UUID"
+          }
+        },
+        {
+          "name": "username",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "display_name",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "email",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "email_verified",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "type_id": "UTF8"
+          }
+        },
+        {
+          "name": "system_admin",
+          "type": {
+            "type_id": "BOOL"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": {
+            "type_id": "DATETIME"
+          }
+        }
+      ],
+      "primary_key": [
+        "user_id"
+      ],
+      "indexes": [
+        {
+          "name": "usid_user_email_idx",
+          "index_columns": [
+            "email"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "656"
+        },
+        {
+          "name": "usid_user_status_idx",
+          "index_columns": [
+            "status"
+          ],
+          "global_index": {
+            "settings": {
+              "partitioning_settings": {
+                "partitioning_by_size": "ENABLED",
+                "partition_size_mb": "2048",
+                "partitioning_by_load": "DISABLED",
+                "min_partitions_count": "1"
+              }
+            }
+          },
+          "status": "STATUS_READY",
+          "size_bytes": "358"
+        }
+      ],
+      "table_stats": {
+        "rows_estimate": "7",
+        "store_size": "2529",
+        "partitions": "1",
+        "creation_time": "2026-07-03T15:22:06.720Z",
+        "modification_time": "2026-10-07T13:49:35.942Z"
+      }
+    }
+  ]
+}

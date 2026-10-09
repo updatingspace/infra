@@ -1,0 +1,37 @@
+{
+  "sdk": {
+    "public_direct_tls": true,
+    "bytes": 10485760,
+    "sha256": "b6ee22c7930537b289adb7b1e8f33ec9b9e318117fe089148eca04b98be92e05",
+    "sdk_put_get": true,
+    "presigned_get": true,
+    "seconds": 1.58
+  },
+  "presigned_cors": {
+    "public_direct_tls": true,
+    "bytes": 10485760,
+    "sha256": "e3dd108936280570ad5d800be98946bce924881f7e814a6b445ff2ee5ba88b36",
+    "presigned_put_get": true,
+    "cors_preflight_and_responses": true,
+    "origin": "https://portal.updspace.com"
+  },
+  "portal_browser": {
+    "test": "isolated Chromium, current public Portal page, synthetic 10 MiB object",
+    "checkedAt": "2026-10-09T12:19:49.793Z",
+    "portalStatus": 200,
+    "portalCspPresent": false,
+    "transfer": {
+      "origin": "https://portal.updspace.com",
+      "uploadStatus": 200,
+      "downloadStatus": 200,
+      "uploadedBytes": 10485760,
+      "downloadedBytes": 10485760,
+      "expectedSha256": "44f9296993796e201208c6c245b9515d36b62c87d0be4459ff347bfa054cd527",
+      "downloadedSha256": "44f9296993796e201208c6c245b9515d36b62c87d0be4459ff347bfa054cd527",
+      "etagVisible": true,
+      "seconds": 1.66560000000149
+    },
+    "result": "passed",
+    "cleanupStatus": 204
+  }
+}

@@ -1,0 +1,415 @@
+[
+  {
+    "namespace": "edge",
+    "kind": "Deployment",
+    "name": "caddy",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "caddy",
+        "image": "docker.io/local/caddy:migration-5f5c8640aae01df9",
+        "resources": {
+          "limits": {
+            "cpu": "200m",
+            "ephemeral-storage": "128Mi",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "64Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "kube-system",
+    "kind": "Deployment",
+    "name": "coredns",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "coredns",
+        "image": "rancher/mirrored-coredns-coredns:1.14.6",
+        "resources": {
+          "limits": {
+            "memory": "170Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "memory": "70Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "kube-system",
+    "kind": "Deployment",
+    "name": "metrics-server",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "metrics-server",
+        "image": "rancher/mirrored-metrics-server:v0.9.0",
+        "resources": {
+          "requests": {
+            "cpu": "100m",
+            "memory": "70Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "observability",
+    "kind": "Deployment",
+    "name": "alertmanager",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "alertmanager",
+        "image": "docker.io/prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a",
+        "resources": {
+          "limits": {
+            "cpu": "100m",
+            "ephemeral-storage": "512Mi",
+            "memory": "128Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "observability",
+    "kind": "Deployment",
+    "name": "grafana",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "grafana",
+        "image": "docker.io/grafana/grafana:13.2.3@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572",
+        "resources": {
+          "limits": {
+            "cpu": "200m",
+            "ephemeral-storage": "512Mi",
+            "memory": "768Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "observability",
+    "kind": "Deployment",
+    "name": "loki",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "loki",
+        "image": "docker.io/grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+        "resources": {
+          "limits": {
+            "cpu": "300m",
+            "ephemeral-storage": "512Mi",
+            "memory": "1Gi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "observability",
+    "kind": "Deployment",
+    "name": "otel-collector",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "otel-collector",
+        "image": "docker.io/local/otel-collector:migration-0fd3483345a3",
+        "resources": {
+          "limits": {
+            "cpu": "200m",
+            "ephemeral-storage": "512Mi",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "ephemeral-storage": "128Mi",
+            "memory": "256Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "observability",
+    "kind": "Deployment",
+    "name": "prometheus",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "prometheus",
+        "image": "docker.io/prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+        "resources": {
+          "limits": {
+            "cpu": "300m",
+            "ephemeral-storage": "512Mi",
+            "memory": "1Gi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "updspace-id",
+    "kind": "Deployment",
+    "name": "id",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "api",
+        "image": "docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "1Gi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "memory": "128Mi"
+          }
+        }
+      },
+      {
+        "name": "sessions",
+        "image": "docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "1Gi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "memory": "128Mi"
+          }
+        }
+      },
+      {
+        "name": "mutations",
+        "image": "docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "1Gi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "memory": "128Mi"
+          }
+        }
+      },
+      {
+        "name": "web",
+        "image": "docker.io/updspace/id-web@sha256:08db40c0579fc76019124918b504dd7352956c0599fc18bb94d77f2c52e8bd12",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "memory": "128Mi"
+          }
+        }
+      },
+      {
+        "name": "jobs",
+        "image": "docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "memory": "128Mi"
+          }
+        }
+      },
+      {
+        "name": "router",
+        "image": "docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "memory": "128Mi"
+          },
+          "requests": {
+            "cpu": "10m",
+            "memory": "32Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "uptime-kuma",
+    "kind": "Deployment",
+    "name": "uptime-kuma",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "uptime-kuma",
+        "image": "docker.io/louislam/uptime-kuma:2.5.5-slim-rootless@sha256:a292237a108fa8843d09bb4066e738f02e913ef893542740f80c26556601ab77",
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "ephemeral-storage": "256Mi",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "50m",
+            "ephemeral-storage": "64Mi",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "zomboid",
+    "kind": "Deployment",
+    "name": "panel",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "panel",
+        "image": "ghcr.io/fpsacha/zomboid-panel:1.4.2@sha256:3ef8c756795afb7627955bf4c45f0684d09b0c88bbf8c20cb5fe08b4fd920150",
+        "resources": {
+          "limits": {
+            "cpu": "300m",
+            "ephemeral-storage": "512Mi",
+            "memory": "768Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "ephemeral-storage": "128Mi",
+            "memory": "256Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "updspace-data",
+    "kind": "StatefulSet",
+    "name": "garage",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "garage",
+        "image": "docker.io/dxflrs/garage:v2.4.1@sha256:0d7c74fc8ca6fef68a5a941c0e7558c8b1e92ba3588fa7505400e1350456c796",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "memory": "128Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "updspace-data",
+    "kind": "StatefulSet",
+    "name": "id-ydb",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "ydb",
+        "image": "docker.io/ydbplatform/local-ydb@sha256:9e46fd45875551a75bcf34d0bb9ca0baa1d8763a4ccf2070af45f4467c4b7402",
+        "resources": {
+          "limits": {
+            "cpu": "2",
+            "memory": "4Gi"
+          },
+          "requests": {
+            "cpu": "500m",
+            "memory": "1Gi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "updspace-data",
+    "kind": "StatefulSet",
+    "name": "postgres",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "postgres",
+        "image": "docker.io/library/postgres:18.6-bookworm@sha256:afc7e2d441324c0388fa80c3d24f733b4194a4eb7f47dd8ee2b08eb1a24a647c",
+        "resources": {
+          "limits": {
+            "cpu": "2",
+            "memory": "2Gi"
+          },
+          "requests": {
+            "cpu": "250m",
+            "memory": "512Mi"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "namespace": "zomboid",
+    "kind": "StatefulSet",
+    "name": "zomboid",
+    "replicas": 1,
+    "containers": [
+      {
+        "name": "zomboid",
+        "image": "docker.io/local/pz-server:migration-da299e42ba5af2f1",
+        "resources": {
+          "limits": {
+            "cpu": "2200m",
+            "ephemeral-storage": "3Gi",
+            "memory": "10Gi"
+          },
+          "requests": {
+            "cpu": "1500m",
+            "ephemeral-storage": "1536Mi",
+            "memory": "8Gi"
+          }
+        }
+      }
+    ]
+  }
+]

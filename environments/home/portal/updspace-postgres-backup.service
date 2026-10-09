@@ -1,0 +1,15 @@
+[Unit]
+Description=Back up shared UpdSpace PostgreSQL
+After=k3s.service
+Requires=k3s.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/bin/bash /opt/updspace-data/backup-postgres.sh
+TimeoutStartSec=600
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+

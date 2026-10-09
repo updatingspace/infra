@@ -1,34 +1,60 @@
-name: CI-CD Pipeline
+name: Infrastructure checks
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   pull_request:
-    branches:
-      - master
+    branches: [master]
   workflow_dispatch:
 
-jobs:
-  deploy:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+permissions:
+  contents: read
 
-      - name: Deploy to Docker Swarm via SSH
-        uses: appleboy/ssh-action@v0.1.7
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            if [ ! -d infra ]; then
-              git clone git@github.com:${{ github.repository_owner }}/infra.git && cd infra
-            else
-              cd infra && git pull origin master
-            fi
-            
-            docker stack deploy -c stack.yml infra
-            docker image prune -af --filter "until=72h"
+          python-version: '3.13'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Install real archive and restore test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age zstd rsync acl openjdk-17-jdk-headless
+          python -m pip install -r requirements.txt -r environments/pz/kubernetes/backup/requirements.txt
+      - name: Unit and real archive roundtrip tests
+        run: python scripts/validate.py
+      - name: Render access configuration
+        run: python scripts/render.py > /tmp/updspace-access.json
+      - name: Check generated monitoring manifests
+        run: |
+          python environments/home/monitoring/build.py
+          git diff --exit-code -- environments/home/monitoring
+      - name: Check whitespace
+        run: git diff --check
+
+  terraform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [platform, workloads, observability, backup-cloud]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.14.7'
+          terraform_wrapper: false
+      - name: Validate and test with mock providers
+        working-directory: environments/pz/kubernetes/${{ matrix.component }}
+        run: |
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform fmt -check
+          terraform validate
+          terraform test

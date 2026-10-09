@@ -1,0 +1,25 @@
+[Unit]
+Description=Retain five PZ snapshots after an attested restore drill
+After=network-online.target pz-backup-upload.service
+ConditionPathExists=/etc/pz-backup/retention-enabled
+ConditionPathExists=/var/lib/pz-backup-retain/restore-attestation.json
+[Service]
+Type=oneshot
+User=pz-backup-retain
+Group=pz-backup-remote
+UMask=0077
+ExecStart=/opt/pz-backup-venv/bin/python3 /opt/pz-backup/remote.py --config /etc/pz-backup/remote-retain.json --credentials-file /etc/pz-backup/retain.credentials.json retain --enable-retention --attestation /var/lib/pz-backup-retain/restore-attestation.json --journal /var/lib/pz-backup-retain/deletion-journal.json
+StateDirectory=pz-backup-retain
+StateDirectoryMode=0700
+TimeoutStartSec=infinity
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pz-backup-retain /var/lib/pz-backup-remote
+InaccessiblePaths=/etc/rancher /srv/pz-storage /srv/pz-backup-spool /var/lib/pz-volumes /root
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX

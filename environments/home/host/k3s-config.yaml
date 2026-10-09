@@ -1,0 +1,23 @@
+node-name: updspace-home
+node-ip: 192.168.1.176
+advertise-address: 192.168.1.176
+bind-address: 192.168.1.176
+tls-san:
+  - 127.0.0.1
+  - 192.168.1.176
+write-kubeconfig-mode: '0600'
+secrets-encryption: true
+disable:
+  - traefik
+  - local-storage
+cluster-cidr: 10.42.0.0/16
+service-cidr: 10.43.0.0/16
+flannel-backend: host-gw
+kubelet-arg:
+  - address=192.168.1.176
+  - system-reserved=cpu=250m,memory=768Mi,ephemeral-storage=2Gi
+  - kube-reserved=cpu=500m,memory=1792Mi,ephemeral-storage=3Gi
+  - eviction-hard=memory.available<512Mi,nodefs.available<10%,imagefs.available<10%,nodefs.inodesFree<5%
+  - container-log-max-size=10Mi
+  - container-log-max-files=3
+  - pod-max-pids=2048

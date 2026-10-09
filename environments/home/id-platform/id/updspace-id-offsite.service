@@ -1,0 +1,8 @@
+[Unit]
+Description=Copy encrypted ID backups from the VM
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=%h/.local/share/updspace-backups/id/sync-backups.py
+TimeoutStartSec=900

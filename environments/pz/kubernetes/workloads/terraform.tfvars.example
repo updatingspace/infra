@@ -1,0 +1,10 @@
+kubeconfig_path    = "/etc/rancher/k3s/k3s.yaml"
+kubeconfig_context = "default"
+node_name          = "compute-vm-2-6-60-ssd-1785610759198"
+storage_root       = "/opt/pz-stack/data"
+
+# Use exact names exported from Docker and imported into k3s/containerd.
+# Unique immutable tags are acceptable for local images without RepoDigests.
+game_image  = "docker.io/local/pz-server:migration-REPLACE"
+panel_image = "docker.io/local/pz-panel:migration-REPLACE"
+caddy_image = "docker.io/library/caddy:migration-REPLACE"

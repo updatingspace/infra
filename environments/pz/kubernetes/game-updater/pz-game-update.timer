@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Project Zomboid public Steam build hourly
+
+[Timer]
+OnBootSec=15min
+OnUnitInactiveSec=1h
+RandomizedDelaySec=120
+Unit=pz-game-update.service
+
+[Install]
+WantedBy=timers.target

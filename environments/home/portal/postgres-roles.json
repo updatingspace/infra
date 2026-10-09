@@ -1,0 +1,14 @@
+{
+  "database": "updspace",
+  "roles": [
+    "id",
+    "portal_bff",
+    "portal_access",
+    "portal_core",
+    "portal_activity",
+    "portal_events",
+    "portal_voting",
+    "portal_gamification",
+    "portal_featureflags"
+  ]
+}

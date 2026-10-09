@@ -1,0 +1,41 @@
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] OpenSSH                    ALLOW IN    Anywhere
+[ 2] 80/tcp                     ALLOW IN    Anywhere
+[ 3] 443/tcp                    ALLOW IN    Anywhere
+[ 4] 9987                       ALLOW IN    Anywhere
+[ 5] 10011                      ALLOW IN    Anywhere
+[ 6] 30033                      ALLOW IN    Anywhere
+[ 7] 9987/udp                   ALLOW IN    Anywhere
+[ 8] 10011/tcp                  ALLOW IN    Anywhere
+[ 9] 30033/tcp                  ALLOW IN    Anywhere
+[10] 2377/tcp                   ALLOW IN    Anywhere
+[11] 7946/tcp                   ALLOW IN    Anywhere
+[12] 7946/udp                   ALLOW IN    Anywhere
+[13] 4789/udp                   ALLOW IN    Anywhere
+[14] 8080/tcp                   ALLOW IN    Anywhere
+[15] 16261/udp                  ALLOW IN    Anywhere                   # PZ game
+[16] 16262/udp                  ALLOW IN    Anywhere                   # PZ direct
+[17] 30030/tcp                  ALLOW IN    192.168.1.0/24             # PZ Grafana LAN
+[18] 192.168.1.176 6443/tcp     ALLOW IN    10.42.0.0/16               # PZ cluster host access
+[19] 192.168.1.176 10250/tcp    ALLOW IN    10.42.0.0/16               # PZ cluster host access
+[20] 192.168.1.176 9109/tcp     ALLOW IN    10.42.0.0/16               # PZ cluster host access
+[21] 30031/tcp                  ALLOW IN    192.168.1.0/24             # Uptime Kuma LAN
+[22] OpenSSH (v6)               ALLOW IN    Anywhere (v6)
+[23] 80/tcp (v6)                ALLOW IN    Anywhere (v6)
+[24] 443/tcp (v6)               ALLOW IN    Anywhere (v6)
+[25] 9987 (v6)                  ALLOW IN    Anywhere (v6)
+[26] 10011 (v6)                 ALLOW IN    Anywhere (v6)
+[27] 30033 (v6)                 ALLOW IN    Anywhere (v6)
+[28] 9987/udp (v6)              ALLOW IN    Anywhere (v6)
+[29] 10011/tcp (v6)             ALLOW IN    Anywhere (v6)
+[30] 30033/tcp (v6)             ALLOW IN    Anywhere (v6)
+[31] 2377/tcp (v6)              ALLOW IN    Anywhere (v6)
+[32] 7946/tcp (v6)              ALLOW IN    Anywhere (v6)
+[33] 7946/udp (v6)              ALLOW IN    Anywhere (v6)
+[34] 4789/udp (v6)              ALLOW IN    Anywhere (v6)
+[35] 8080/tcp (v6)              ALLOW IN    Anywhere (v6)
+[36] 16261/udp (v6)             ALLOW IN    Anywhere (v6)              # PZ game
+[37] 16262/udp (v6)             ALLOW IN    Anywhere (v6)              # PZ direct

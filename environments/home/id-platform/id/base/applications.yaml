@@ -1,0 +1,847 @@
+# Staged deployment: scale only after secrets and restored YDB are verified.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: updspace-id
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: id-router
+  namespace: updspace-id
+data:
+  Caddyfile: "{\n  admin off\n  auto_https off\n  servers {\n    trusted_proxies static\
+    \ 10.42.0.0/16 127.0.0.1/32\n    trusted_proxies_strict\n  }\n}\n:8089 {\n  route\
+    \ {\n    @r0 {\n      method GET\n      path /.well-known/jwks.json /api/v1/auth/form_token\
+    \ /api/v1/auth/magic-link/consume /api/v1/auth/me /api/v1/auth/oauth/providers\
+    \ /api/v1/internal/identity/me /api/v1/me /health /healthz /oauth/jwks /readyz\n\
+    \    }\n    handle @r0 {\n      reverse_proxy 127.0.0.1:8081 {\n      }\n    }\n\
+    \    @r1 {\n      method OPTIONS\n      path /api/v1/auth/email/resend /api/v1/auth/email/verification/confirm\
+    \ /api/v1/auth/email/verification/request /api/v1/auth/login /api/v1/auth/mfa/recovery/regenerate\
+    \ /api/v1/auth/mfa/totp/begin /api/v1/auth/mfa/totp/confirm /api/v1/auth/mfa/totp/disable\
+    \ /api/v1/auth/passkeys/begin /api/v1/auth/passkeys/complete /api/v1/auth/passkeys/delete\
+    \ /api/v1/auth/passkeys/login/begin /api/v1/auth/passkeys/login/complete /api/v1/auth/passkeys/rename\
+    \ /api/v1/auth/password/reset/confirm /api/v1/auth/password/reset/request /api/v1/auth/signup\n\
+    \    }\n    handle @r1 {\n      reverse_proxy 127.0.0.1:8081 {\n      }\n    }\n\
+    \    @r2 {\n      method POST\n      path /api/v1/auth/email/resend /api/v1/auth/email/verification/confirm\
+    \ /api/v1/auth/email/verification/request /api/v1/auth/exchange /api/v1/auth/login\
+    \ /api/v1/auth/magic-link/consume /api/v1/auth/magic-link/request /api/v1/auth/mfa/recovery/regenerate\
+    \ /api/v1/auth/mfa/totp/begin /api/v1/auth/mfa/totp/confirm /api/v1/auth/mfa/totp/disable\
+    \ /api/v1/auth/passkeys/begin /api/v1/auth/passkeys/complete /api/v1/auth/passkeys/delete\
+    \ /api/v1/auth/passkeys/login/begin /api/v1/auth/passkeys/login/complete /api/v1/auth/passkeys/rename\
+    \ /api/v1/auth/password/reset/confirm /api/v1/auth/password/reset/request /api/v1/auth/signup\n\
+    \    }\n    handle @r2 {\n      reverse_proxy 127.0.0.1:8081 {\n      }\n    }\n\
+    \    @r3 {\n      method DELETE\n      path /api/v1/auth/avatar /api/v1/auth/email/change\n\
+    \    }\n    handle @r3 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n    }\n\
+    \    @r4 {\n      method GET\n      path /api/v1/auth/consents /api/v1/auth/email\
+    \ /api/v1/auth/login-history /api/v1/auth/mfa/status /api/v1/auth/oauth/apps /api/v1/auth/passkeys\
+    \ /api/v1/auth/preferences /api/v1/auth/security /api/v1/auth/timezones /oauth/authorize\
+    \ /oauth/authorize/prepare /oauth/userinfo\n    }\n    handle @r4 {\n      reverse_proxy\
+    \ 127.0.0.1:8083 {\n      }\n    }\n    @r5 {\n      method OPTIONS\n      path\
+    \ /api/v1/auth/avatar /api/v1/auth/change_password /api/v1/auth/consents /api/v1/auth/consents/revoke\
+    \ /api/v1/auth/data/exports /api/v1/auth/email /api/v1/auth/email/change /api/v1/auth/jwt/from_session\
+    \ /api/v1/auth/login-history /api/v1/auth/logout /api/v1/auth/mfa/status /api/v1/auth/oauth/apps\
+    \ /api/v1/auth/oauth/apps/revoke /api/v1/auth/passkeys /api/v1/auth/preferences\
+    \ /api/v1/auth/profile /api/v1/auth/refresh /api/v1/auth/security /api/v1/auth/sessions/_bulk\
+    \ /api/v1/auth/sessions/bulk\n    }\n    handle @r5 {\n      reverse_proxy 127.0.0.1:8083\
+    \ {\n      }\n    }\n    @r6 {\n      method PATCH\n      path /api/v1/auth/preferences\
+    \ /api/v1/auth/profile\n    }\n    handle @r6 {\n      reverse_proxy 127.0.0.1:8083\
+    \ {\n      }\n    }\n    @r7 {\n      method POST\n      path /api/v1/auth/avatar\
+    \ /api/v1/auth/change_password /api/v1/auth/consents/revoke /api/v1/auth/data/exports\
+    \ /api/v1/auth/email/change /api/v1/auth/jwt/from_session /api/v1/auth/logout\
+    \ /api/v1/auth/oauth/apps/revoke /api/v1/auth/refresh /api/v1/auth/sessions/_bulk\
+    \ /api/v1/auth/sessions/bulk /oauth/authorize /oauth/authorize/approve /oauth/authorize/deny\
+    \ /oauth/revoke /oauth/token /oauth/userinfo\n    }\n    handle @r7 {\n      reverse_proxy\
+    \ 127.0.0.1:8083 {\n      }\n    }\n    @r8 {\n      method GET\n      path /.well-known/openid-configuration\
+    \ /api/v1/auth/sessions\n    }\n    handle @r8 {\n      reverse_proxy 127.0.0.1:8082\
+    \ {\n      }\n    }\n    @r9 {\n      method OPTIONS\n      path /api/v1/auth/sessions\n\
+    \    }\n    handle @r9 {\n      reverse_proxy 127.0.0.1:8082 {\n      }\n    }\n\
+    \    @r10 {\n      method GET\n      path / /account /authorize /data/export /data/export/cancel\
+    \ /forgot-password /login /oauth/consent /reset-password /signup /verify-email\n\
+    \    }\n    handle @r10 {\n      reverse_proxy 127.0.0.1:3000 {\n        header_down\
+    \ Content-Security-Policy \"https://storage[.]yandexcloud[.]net\" \"https://storage.updspace.com\"\
+    \n      }\n    }\n    @r11 {\n      method DELETE\n      path_regexp r11 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/sessions/[^/]+)$\"\
+    \n    }\n    handle @r11 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \
+    \  }\n    @r12 {\n      method GET\n      path_regexp r12 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/data/exports/[^/]+/download)$\"\
+    \n    }\n    handle @r12 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \
+    \  }\n    @r13 {\n      method OPTIONS\n      path_regexp r13 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/data/exports/[^/]+/cancel|/api/v1/auth/data/exports/[^/]+/download|/api/v1/auth/data/exports/[^/]+/redeem|/api/v1/auth/sessions/[^/]+)$\"\
+    \n    }\n    handle @r13 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \
+    \  }\n    @r14 {\n      method POST\n      path_regexp r14 \"^(?:/api/v1/auth/data/exports/[^/]+/cancel|/api/v1/auth/data/exports/[^/]+/redeem)$\"\
+    \n    }\n    handle @r14 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \
+    \  }\n    @r15 {\n      path_regexp r15 \"^(?:/\\\\.well\\\\-known/.+|/api/v1/.+)$\"\
+    \n    }\n    handle @r15 {\n      reverse_proxy 127.0.0.1:8081 {\n      }\n  \
+    \  }\n    @r16 {\n      path_regexp r16 \"^(?:/oauth/.+)$\"\n    }\n    handle\
+    \ @r16 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n    }\n    @r17 {\n \
+    \     method GET\n      path_regexp r17 \"^(?:/_id/.+)$\"\n    }\n    handle @r17\
+    \ {\n      reverse_proxy 127.0.0.1:3000 {\n        header_down Content-Security-Policy\
+    \ \"https://storage[.]yandexcloud[.]net\" \"https://storage.updspace.com\"\n \
+    \     }\n    }\n    @r18 {\n      method GET\n      path_regexp r18 \"^(?:/.+)$\"\
+    \n    }\n    handle @r18 {\n      reverse_proxy 127.0.0.1:3000 {\n        header_down\
+    \ Content-Security-Policy \"https://storage[.]yandexcloud[.]net\" \"https://storage.updspace.com\"\
+    \n      }\n    }\n    respond \"Not found\" 404\n  }\n}\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: id
+  namespace: updspace-id
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: &id001
+      app.kubernetes.io/name: id
+      app.kubernetes.io/part-of: updspace-id
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        kubernetes.io/hostname: updspace-home
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: api
+        image: docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: id-api
+        env:
+        - name: PORT
+          value: '8081'
+        - name: HOST
+          value: 0.0.0.0
+        ports:
+        - name: api
+          containerPort: 8081
+        securityContext: &id003
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet: &id002
+            path: /readyz
+            port: 8081
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet: *id002
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: ydb-ca
+          mountPath: /etc/ydb
+          readOnly: true
+        command:
+        - /usr/local/bin/id-api
+      - name: sessions
+        image: docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: id-sessions
+        env:
+        - name: PORT
+          value: '8082'
+        - name: HOST
+          value: 0.0.0.0
+        ports:
+        - name: sessions
+          containerPort: 8082
+        securityContext: *id003
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet: &id004
+            path: /readyz
+            port: 8082
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet: *id004
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: ydb-ca
+          mountPath: /etc/ydb
+          readOnly: true
+        command:
+        - /usr/local/bin/id-api
+      - name: mutations
+        image: docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: id-mutations
+        env:
+        - name: PORT
+          value: '8083'
+        - name: HOST
+          value: 0.0.0.0
+        ports:
+        - name: mutations
+          containerPort: 8083
+        securityContext: *id003
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet: &id005
+            path: /readyz
+            port: 8083
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet: *id005
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: ydb-ca
+          mountPath: /etc/ydb
+          readOnly: true
+        command:
+        - /usr/local/bin/id-api
+      - name: web
+        image: docker.io/updspace/id-web@sha256:08db40c0579fc76019124918b504dd7352956c0599fc18bb94d77f2c52e8bd12
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: id-web
+        env:
+        - name: PORT
+          value: '3000'
+        - name: HOST
+          value: 0.0.0.0
+        ports:
+        - name: web
+          containerPort: 3000
+        securityContext: *id003
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket: &id006
+            port: 3000
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+        readinessProbe:
+          tcpSocket: *id006
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: ydb-ca
+          mountPath: /etc/ydb
+          readOnly: true
+      - name: jobs
+        image: docker.io/updspace/id-runtime@sha256:a1ff985aa5ae67249daee1e98142e323d7f5fbaee95c67ad82472444d3ee475f
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: id-jobs
+        env:
+        - name: PORT
+          value: '8084'
+        - name: HOST
+          value: 0.0.0.0
+        ports:
+        - name: jobs
+          containerPort: 8084
+        securityContext: *id003
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket: &id007
+            port: 8084
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+        readinessProbe:
+          tcpSocket: *id007
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: ydb-ca
+          mountPath: /etc/ydb
+          readOnly: true
+        command:
+        - /usr/local/bin/id-jobs
+        args:
+        - --serve
+      - name: router
+        image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+        imagePullPolicy: Never
+        command:
+        - caddy
+        - run
+        - --config
+        - /etc/id-router/Caddyfile
+        - --adapter
+        - caddyfile
+        ports:
+        - name: http
+          containerPort: 8089
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+        env:
+        - name: XDG_CONFIG_HOME
+          value: /tmp/config
+        - name: XDG_DATA_HOME
+          value: /tmp/data
+        volumeMounts:
+        - name: router
+          mountPath: /etc/id-router
+          readOnly: true
+        - name: router-tmp
+          mountPath: /tmp
+        readinessProbe:
+          tcpSocket:
+            port: 8089
+      volumes:
+      - name: ydb-ca
+        configMap:
+          name: id-ydb-ca
+      - name: router
+        configMap:
+          name: id-router
+      - name: router-tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: id
+  namespace: updspace-id
+spec:
+  selector:
+    app.kubernetes.io/name: id
+    app.kubernetes.io/part-of: updspace-id
+  ports:
+  - name: http
+    port: 8089
+    targetPort: 8089
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: id-jobs
+  namespace: updspace-id
+spec:
+  selector:
+    app.kubernetes.io/name: id
+    app.kubernetes.io/part-of: updspace-id
+  ports:
+  - name: http
+    port: 8084
+    targetPort: 8084
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: updspace-id
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: id-runtime
+  namespace: updspace-id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: id
+      app.kubernetes.io/part-of: updspace-id
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: edge
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: caddy
+    ports:
+    - protocol: TCP
+      port: 8089
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-id
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: id-timer
+    ports:
+    - protocol: TCP
+      port: 8084
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: id-ydb
+    ports:
+    - protocol: TCP
+      port: 2135
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+        - 169.254.0.0/16
+        - 127.0.0.0/8
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 587
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: id-ydb-clients
+  namespace: updspace-data
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: id-ydb
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-id
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: id
+          app.kubernetes.io/part-of: updspace-id
+    ports:
+    - protocol: TCP
+      port: 2135
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: caddy-to-id
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-id
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: id
+          app.kubernetes.io/part-of: updspace-id
+    ports:
+    - protocol: TCP
+      port: 8089
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: id-timers
+  namespace: updspace-id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: id-timer
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-id
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: id
+          app.kubernetes.io/part-of: updspace-id
+    ports:
+    - protocol: TCP
+      port: 8084
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: recover-mail
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: '* * * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/internal/jobs/recover-mail
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: recover-security-mail
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: '*/5 * * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/internal/jobs/recover-security-mail
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: recover-verify-mail
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: '*/5 * * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/internal/jobs/recover-verify-mail
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: recover-export
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: '*/5 * * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/internal/jobs/recover-export
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: refresh-gravatars
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: 17 * * * *
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/refresh-gravatars
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi

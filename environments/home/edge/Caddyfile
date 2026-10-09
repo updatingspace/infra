@@ -1,0 +1,102 @@
+{
+  email {$ACME_EMAIL}
+  admin off
+}
+
+{$PANEL_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy panel.zomboid.svc.cluster.local:3001 {
+    health_uri /api/health
+    health_interval 30s
+    health_timeout 5s
+    transport http {
+      dial_timeout 5s
+      response_header_timeout 60s
+    }
+  }
+  header {
+    -Server
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  }
+  log {
+    output stdout
+    format json
+  }
+}
+
+status.updspace.com {
+  encode zstd gzip
+  reverse_proxy uptime-kuma.uptime-kuma.svc.cluster.local:3001
+  header -Server
+  log {
+    output stdout
+    format json
+  }
+}
+
+storage.updspace.com {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
+  reverse_proxy garage.updspace-data.svc.cluster.local:3900
+  header -Server
+  header Cache-Control "private, no-store"
+}
+
+# Temporary access until ID enforces staff AND the network administrator role.
+(monitoring_access) {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
+  basic_auth {
+    monitoring {$MONITORING_AUTH_HASH}
+  }
+  header {
+    -Server
+    Cache-Control "private, no-store"
+    X-Content-Type-Options "nosniff"
+  }
+}
+
+grafana.updspace.com {
+  import monitoring_access
+  reverse_proxy grafana.observability.svc.cluster.local:3000 {
+    header_up -Authorization
+  }
+}
+
+prometheus.updspace.com {
+  import monitoring_access
+  reverse_proxy prometheus.observability.svc.cluster.local:9090 {
+    header_up -Authorization
+  }
+}
+
+alerts.updspace.com {
+  import monitoring_access
+  reverse_proxy alertmanager.observability.svc.cluster.local:9093 {
+    header_up -Authorization
+  }
+}
+
+# Trial snapshot: public DNS still points at the cloud source.
+id.updspace.com {
+  tls /etc/id-origin-tls/tls.crt /etc/id-origin-tls/tls.key
+  encode zstd gzip
+  @trial_allowed remote_ip 127.0.0.1 ::1 192.168.1.0/24 10.42.0.0/16
+  handle @trial_allowed {
+    reverse_proxy id.updspace-id.svc.cluster.local:8089
+  }
+  handle {
+    respond "ID migration stage is private" 503
+  }
+  header -Server
+  header X-ID-Migration-Stage "trial"
+}

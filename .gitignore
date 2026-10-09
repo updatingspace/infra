@@ -399,3 +399,24 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Central home IaC exclusions
+__pycache__/
+*.pyc
+.venv/
+.rendered/
+private/
+*.tfstate*
+*.tfplan
+.terraform/
+*.tfvars
+*.tfvars.json
+*.kubeconfig
+*.key
+*.pem
+.env
+*.env
+*.db*
+*.sqlite*
+*.log
+*.tar*

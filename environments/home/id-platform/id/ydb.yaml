@@ -1,0 +1,147 @@
+# Single-node trial on file-backed storage; see ../README.md before production use.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: updspace-id-ydb
+spec:
+  capacity:
+    storage: 85Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /srv/updspace/id-ydb
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [updspace-home]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: id-ydb
+  namespace: updspace-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: updspace-id-ydb
+  resources:
+    requests:
+      storage: 85Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: id-ydb
+  namespace: updspace-data
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: id-ydb
+  ports:
+    - name: grpcs
+      port: 2135
+      targetPort: grpcs
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: id-ydb
+  namespace: updspace-data
+spec:
+  serviceName: id-ydb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: id-ydb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: id-ydb
+    spec:
+      automountServiceAccountToken: false
+      setHostnameAsFQDN: true
+      nodeSelector:
+        kubernetes.io/hostname: updspace-home
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ydb
+          image: docker.io/ydbplatform/local-ydb@sha256:9e46fd45875551a75bcf34d0bb9ca0baa1d8763a4ccf2070af45f4467c4b7402
+          imagePullPolicy: IfNotPresent
+          command: [/bin/bash, -ec]
+          args:
+            - |
+              test -f /ydb_data/.authentication-enforced
+              exec /ydbd server \
+                --yaml-config=/ydb_data/cluster/kikimr_configs/config.yaml \
+                --node=1 --ca=/ydb_certs/ca.pem --grpcs-port=2135 \
+                --grpc-port=0 --mon-port=8765 --ic-port=19001 \
+                --log-file-name=/dev/stderr --tiny-mode
+          env:
+            - {name: HOME, value: /tmp}
+          ports:
+            - {name: grpcs, containerPort: 2135}
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {cpu: "2", memory: 4Gi}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            tcpSocket: {port: grpcs}
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - >-
+                  test -f /ydb_data/.authentication-enforced &&
+                  /ydb --endpoint grpcs://localhost:2135 --database /local
+                  --ca-file /ydb_certs/ca.pem --user root
+                  --password-file /ydb_admin/password --no-discovery
+                  sql -s 'SELECT 1' >/dev/null 2>&1
+            periodSeconds: 20
+            timeoutSeconds: 10
+          volumeMounts:
+            - {name: data, mountPath: /ydb_data}
+            - {name: tls, mountPath: /ydb_certs, readOnly: true}
+            - {name: admin, mountPath: /ydb_admin, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: id-ydb}
+        - name: tls
+          secret: {secretName: id-ydb-tls, defaultMode: 0440}
+        - name: admin
+          secret: {secretName: id-ydb-admin, defaultMode: 0440}
+        - name: tmp
+          emptyDir: {sizeLimit: 128Mi}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: id-ydb-isolation
+  namespace: updspace-data
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: id-ydb
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []

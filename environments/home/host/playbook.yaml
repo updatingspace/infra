@@ -1,0 +1,36 @@
+---
+- name: Reconcile the adopted home host configuration without restarting services
+  hosts: home
+  become: true
+  gather_facts: true
+  vars:
+    managed_files: "{{ lookup('file', 'files.json') | from_json }}"
+  tasks:
+    - name: Require the intended existing k3s node
+      ansible.builtin.assert:
+        that: ansible_facts.hostname == 'updspace-home'
+    - name: Read installed k3s version
+      ansible.builtin.command: k3s --version
+      register: installed_k3s
+      changed_when: false
+      check_mode: false
+    - name: Prevent an implicit k3s upgrade
+      ansible.builtin.assert:
+        that: "'v1.36.4+k3s1' in installed_k3s.stdout"
+    - name: Ensure configuration directories exist
+      ansible.builtin.file:
+        path: "{{ item.target | dirname }}"
+        state: directory
+      loop: "{{ managed_files }}"
+    - name: Install versioned nonsecret configuration with a local rollback copy
+      ansible.builtin.copy:
+        src: "{{ item.source }}"
+        dest: "{{ item.target }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+        backup: true
+      loop: "{{ managed_files }}"
+    - name: Explain activation boundary
+      ansible.builtin.debug:
+        msg: "Files reconciled. No service/firewall restart or storage formatting is performed. Review changed files and activate during a coordinated maintenance window."

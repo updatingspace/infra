@@ -1,0 +1,63 @@
+{
+  "config.json": {
+    "age_recipient": "age10j2jyusghlwpz02dxsj52gxm3d0qg4mvrs96mszgfl7d8zk225qqwe3mls",
+    "data_root": "/srv/pz-storage/zomboid",
+    "data_uuid": "07466fa3-bd51-4036-be62-6f1c8c48547e",
+    "excluded_paths": [
+      "zomboid/backups",
+      "panel/.k8s-panel-updater/backups",
+      "zomboid/Logs",
+      "zomboid/server-console-docker.log",
+      "zomboid/server-console.txt",
+      "zomboid/ItemTracker.log",
+      "panel/map-tiles-cache",
+      "panel/mod-thumbnails",
+      "steam/depotcache",
+      "steam/logs",
+      "steam/appcache"
+    ],
+    "infra_revision": "deb9d95119bb45edba31b3ecf3911da81866f354",
+    "max_entries": 1000000,
+    "max_snapshot_bytes": 25769803776,
+    "min_free_bytes": 4294967296,
+    "min_free_inodes": 10000,
+    "recovery_helper": "/opt/pz-backup/gather-recovery.py",
+    "server_name": "survival42",
+    "spool": "/srv/pz-backup-spool",
+    "spool_uuid": "57bf6825-2399-425d-96b8-8c1516270afa",
+    "stop_timeout_seconds": 300,
+    "uploader_gid": 986
+  },
+  "remote-upload.json": {
+    "bucket": "upds-pz-backup-b1gidr45ifb2c25bco2d",
+    "endpoint_url": "https://storage.yandexcloud.net",
+    "lock_path": "/var/lib/pz-backup-remote/remote.lock",
+    "prefix": "pz/production",
+    "region_name": "ru-central1",
+    "snapshot_format": "pz-backup-v1",
+    "storage_class": "COLD"
+  },
+  "remote-retain.json": {
+    "bucket": "upds-pz-backup-b1gidr45ifb2c25bco2d",
+    "endpoint_url": "https://storage.yandexcloud.net",
+    "lock_path": "/var/lib/pz-backup-remote/remote.lock",
+    "prefix": "pz/production",
+    "region_name": "ru-central1",
+    "snapshot_format": "pz-backup-v1",
+    "storage_class": "COLD"
+  },
+  "cleanup-remote.json": {
+    "bucket": "upds-pz-backup-b1gidr45ifb2c25bco2d",
+    "endpoint_url": "https://storage.yandexcloud.net",
+    "lock_path": "/var/lib/pz-backup-remote/remote.lock",
+    "prefix": "pz/production",
+    "region_name": "ru-central1",
+    "snapshot_format": "pz-backup-v1",
+    "storage_class": "COLD"
+  },
+  "flags": {
+    "enabled": true,
+    "upload-enabled": true,
+    "retention-enabled": false
+  }
+}

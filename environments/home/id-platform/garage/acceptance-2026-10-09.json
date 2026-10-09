@@ -1,0 +1,18 @@
+{
+  "bucket": "updspace-id-media-ab88348a",
+  "key": "migration-check/b759818b-74ae-4443-8dfb-da17b6ad5bf1",
+  "sha256": "d1df28423d75f938f3447874bb84032f3ff1e356f0caefa6a39834bab558e3b1",
+  "checks": [
+    "put/get/list",
+    "presigned GET",
+    "anonymous denied",
+    "ID/Portal isolation",
+    "multipart SHA256",
+    "delete"
+  ],
+  "restart_verified": true,
+  "public_https_verified": true,
+  "restore_verified": true,
+  "portal_cors_verified": true,
+  "expired_presign_denied": true
+}

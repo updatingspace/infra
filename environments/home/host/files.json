@@ -1,0 +1,52 @@
+[
+  {
+    "source": "files/etc/systemd/system/pz-backup.timer.d/schedule.conf",
+    "target": "/etc/systemd/system/pz-backup.timer.d/schedule.conf",
+    "mode": "0644"
+  },
+  {
+    "source": "files/etc/systemd/system/pz-backup-metrics.service.d/local.conf",
+    "target": "/etc/systemd/system/pz-backup-metrics.service.d/local.conf",
+    "mode": "0644"
+  },
+  {
+    "source": "files/etc/systemd/system/k3s.service.d/pz-storage.conf",
+    "target": "/etc/systemd/system/k3s.service.d/pz-storage.conf",
+    "mode": "0644"
+  },
+  {
+    "source": "files/etc/systemd/system/k3s.service.d/shared-edge.conf",
+    "target": "/etc/systemd/system/k3s.service.d/shared-edge.conf",
+    "mode": "0644"
+  },
+  {
+    "source": "files/etc/systemd/system/srv-edge\\x2dcaddy.mount",
+    "target": "/etc/systemd/system/srv-edge\\x2dcaddy.mount",
+    "mode": "0644"
+  },
+  {
+    "source": "k3s-config.yaml",
+    "target": "/etc/rancher/k3s/config.yaml",
+    "mode": "0600"
+  },
+  {
+    "source": "files/etc/ufw/ufw.conf",
+    "target": "/etc/ufw/ufw.conf",
+    "mode": "0644"
+  },
+  {
+    "source": "files/etc/ufw/user.rules",
+    "target": "/etc/ufw/user.rules",
+    "mode": "0640"
+  },
+  {
+    "source": "files/etc/ufw/user6.rules",
+    "target": "/etc/ufw/user6.rules",
+    "mode": "0640"
+  },
+  {
+    "source": "files/etc/default/ufw",
+    "target": "/etc/default/ufw",
+    "mode": "0644"
+  }
+]

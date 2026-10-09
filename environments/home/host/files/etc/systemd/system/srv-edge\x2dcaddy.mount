@@ -1,0 +1,12 @@
+[Unit]
+Description=Shared local edge persistent storage
+RequiresMountsFor=/srv/pz-volumes
+
+[Mount]
+What=/srv/pz-volumes/edge.ext4
+Where=/srv/edge-caddy
+Type=ext4
+Options=loop,nodev,nosuid,noatime
+
+[Install]
+WantedBy=multi-user.target

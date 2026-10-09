@@ -1,0 +1,251 @@
+{
+  "monitors": [
+    {
+      "name": "cloud.joutak.ru",
+      "type": "http",
+      "url": "https://cloud.joutak.ru/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "is-schedule.updspace.com",
+      "type": "http",
+      "url": "https://is-schedule.updspace.com/",
+      "active": false,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "На паузе: сохранено исходное состояние или ожидается завершение переноса."
+    },
+    {
+      "name": "joutak.ru",
+      "type": "http",
+      "url": "https://joutak.ru/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "spbetu.ru",
+      "type": "http",
+      "url": "https://spbetu.ru/",
+      "active": false,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "ttnr.ru",
+      "type": "http",
+      "url": "https://ttnr.ru/",
+      "active": false,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "На паузе: сохранено исходное состояние или ожидается завершение переноса."
+    },
+    {
+      "name": "updspace.com",
+      "type": "http",
+      "url": "https://updspace.com/",
+      "active": false,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "На паузе: сохранено исходное состояние или ожидается завершение переноса."
+    },
+    {
+      "name": "wiki.joutak.ru",
+      "type": "http",
+      "url": "https://wiki.joutak.ru/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "ЛЭТИПобеда.рф",
+      "type": "http",
+      "url": "https://xn--80abjdnrwhz3i.xn--p1ai/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "Grafana",
+      "type": "http",
+      "url": "http://grafana.observability.svc.cluster.local:3000/api/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "Prometheus",
+      "type": "http",
+      "url": "http://prometheus.observability.svc.cluster.local:9090/-/ready",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "Alertmanager",
+      "type": "http",
+      "url": "http://alertmanager.observability.svc.cluster.local:9093/-/ready",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "Loki",
+      "type": "http",
+      "url": "http://loki.observability.svc.cluster.local:3100/ready",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Проверка каждые 5 минут из локальной сети."
+    },
+    {
+      "name": "Project Zomboid — панель",
+      "type": "http",
+      "url": "https://pz-admin.updspace.com/api/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "HTTPS-проверка панели Zomboid после переноса. Доступность игрового UDP и вход игрока проверяются отдельно."
+    }
+  ],
+  "statusPage": {
+    "slug": "updspace",
+    "title": "UpdatingSpace — статус сервисов",
+    "description": "Проверки каждые 5 минут.",
+    "autoRefreshInterval": 5,
+    "theme": "auto",
+    "showTags": false,
+    "customCSS": "body {\n  \n}\n",
+    "footerText": "Локальный мониторинг updspace",
+    "showPoweredBy": true,
+    "showCertificateExpiry": true,
+    "showOnlyLastHeartbeat": false
+  },
+  "publicGroups": [
+    {
+      "name": "Сайты",
+      "monitors": [
+        {
+          "name": "cloud.joutak.ru",
+          "sendUrl": true
+        },
+        {
+          "name": "joutak.ru",
+          "sendUrl": true
+        },
+        {
+          "name": "spbetu.ru",
+          "sendUrl": true
+        },
+        {
+          "name": "wiki.joutak.ru",
+          "sendUrl": true
+        },
+        {
+          "name": "ЛЭТИПобеда.рф",
+          "sendUrl": true
+        }
+      ]
+    },
+    {
+      "name": "Локальная инфраструктура",
+      "monitors": [
+        {
+          "name": "Grafana",
+          "sendUrl": false
+        },
+        {
+          "name": "Prometheus",
+          "sendUrl": false
+        },
+        {
+          "name": "Alertmanager",
+          "sendUrl": false
+        },
+        {
+          "name": "Loki",
+          "sendUrl": false
+        }
+      ]
+    },
+    {
+      "name": "Игровые сервисы",
+      "monitors": [
+        {
+          "name": "Project Zomboid — панель",
+          "sendUrl": false
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "keepDataPeriodDays": 90,
+    "serverTimezone": "Europe/Moscow",
+    "entryPage": "statusPage-updspace",
+    "checkUpdate": false,
+    "nscd": false,
+    "disableAuth": false
+  }
+}

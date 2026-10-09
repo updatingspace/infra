@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily consistent backup of local UpdSpace ID
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+Unit=updspace-id-backup.service
+
+[Install]
+WantedBy=timers.target

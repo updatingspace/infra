@@ -1,0 +1,29 @@
+[Unit]
+Description=Safely update Project Zomboid public Steam build
+After=k3s.service
+Requires=k3s.service
+RequiresMountsFor=/srv/pz-storage/zomboid /srv/pz-backup-spool
+ConditionPathExists=/etc/pz-backup/enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/pz-game-update/controller.py
+User=root
+Group=root
+UMask=0077
+TimeoutStartSec=infinity
+TimeoutStopSec=30
+KillMode=control-group
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+CPUQuota=100%
+MemoryMax=2G
+TasksMax=128
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pz-backup-spool /var/lib/pz-backup /var/lib/pz-volumes /srv/pz-storage/zomboid
+ReadOnlyPaths=/var/log/pods /sys/fs/cgroup
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

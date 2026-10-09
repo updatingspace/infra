@@ -1,0 +1,887 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "prometheus",
+        "namespace": "observability"
+      },
+      "data": {
+        "prometheus.yml": "alerting:\n  alertmanagers:\n  - static_configs:\n    - targets:\n      - alertmanager:9093\nglobal:\n  evaluation_interval: 30s\n  scrape_interval: 30s\nrule_files:\n- /etc/config/rules.yml\nscrape_configs:\n- job_name: prometheus\n  static_configs:\n  - targets:\n    - localhost:9090\n- job_name: zomboid\n  static_configs:\n  - targets:\n    - zomboid.zomboid.svc.cluster.local:9090\n- job_name: collector\n  static_configs:\n  - targets:\n    - otel-collector:8888\n- job_name: pz-backup\n  static_configs:\n  - targets:\n    - 192.168.1.176:9109\n",
+        "rules.yml": "groups:\n- name: pz-local\n  rules:\n  - alert: PZUnavailable\n    annotations:\n      summary: Zomboid metrics are unavailable\n    expr: up{job=\"zomboid\"} == 0\n    for: 15m\n    labels:\n      severity: critical\n  - alert: PZPanelUnavailable\n    annotations:\n      summary: Panel health check is failing\n    expr: max(httpcheck_status{check_name=\"panel-http\",http_status_class=\"2xx\"}) ==\n      0\n    for: 15m\n    labels:\n      severity: critical\n  - alert: PZTPSDegraded\n    annotations:\n      summary: Game tick rate is below 80 percent of its configured target\n    expr: sum(rate(storm_server_tick_total[5m])) / max(storm_server_lock_fps) < 0.8\n    for: 5m\n    labels:\n      severity: warning\n  - alert: PZTPSCritical\n    annotations:\n      summary: Game tick rate is below 50 percent of its configured target\n    expr: sum(rate(storm_server_tick_total[5m])) / max(storm_server_lock_fps) < 0.5\n    for: 5m\n    labels:\n      severity: critical\n  - alert: PZHeapHigh\n    annotations:\n      summary: Game heap usage exceeds 85 percent\n    expr: sum(jvm_memory_used_bytes{area=\"heap\"}) / sum(jvm_memory_max_bytes{area=\"heap\"})\n      > 0.85\n    for: 10m\n    labels:\n      severity: warning\n  - alert: PZHeapCritical\n    annotations:\n      summary: Game heap usage exceeds 95 percent\n    expr: sum(jvm_memory_used_bytes{area=\"heap\"}) / sum(jvm_memory_max_bytes{area=\"heap\"})\n      > 0.95\n    for: 10m\n    labels:\n      severity: critical\n  - alert: PZDiskSpaceLow\n    annotations:\n      summary: Filesystem usage exceeds 80 percent\n    expr: system_filesystem_utilization_ratio > 0.8\n    for: 10m\n    labels:\n      severity: warning\n  - alert: PZDiskSpaceCritical\n    annotations:\n      summary: Filesystem usage exceeds 90 percent\n    expr: system_filesystem_utilization_ratio > 0.9\n    for: 10m\n    labels:\n      severity: critical\n  - alert: PZBackupExporterUnavailableCritical\n    annotations:\n      summary: 'PZ backup: ExporterUnavailable'\n    expr: (1 - min(up{job=\"pz-backup\"})) > 0.9 or absent(1 - min(up{job=\"pz-backup\"}))\n    for: 60m\n    labels:\n      severity: critical\n  - alert: PZBackupStaleWarning\n    annotations:\n      summary: 'PZ backup: Stale'\n    expr: (max(pz_backup_age_seconds)) > 93600\n    for: 10m\n    labels:\n      severity: warning\n  - alert: PZBackupStaleCritical\n    annotations:\n      summary: 'PZ backup: Stale'\n    expr: (max(pz_backup_age_seconds)) > 108000 or absent(max(pz_backup_age_seconds))\n    for: 10m\n    labels:\n      severity: critical\n  - alert: PZBackupFailedCritical\n    annotations:\n      summary: 'PZ backup: Failed'\n    expr: (max({__name__=~\"pz_backup_current_job_failed|pz_backup_state_file_invalid|pz_backup_verification_failed|pz_backup_capture_failed|pz_backup_restore_failed\"}))\n      > 0.9 or absent(max({__name__=~\"pz_backup_current_job_failed|pz_backup_state_file_invalid|pz_backup_verification_failed|pz_backup_capture_failed|pz_backup_restore_failed\"}))\n    for: 5m\n    labels:\n      severity: critical\n  - alert: PZBackupMountMissingCritical\n    annotations:\n      summary: 'PZ backup: MountMissing'\n    expr: (1 - min(pz_backup_mounted{filesystem=~\"data|spool\"})) > 0.9 or absent(1\n      - min(pz_backup_mounted{filesystem=~\"data|spool\"}))\n    for: 15m\n    labels:\n      severity: critical\n  - alert: PZBackupSpaceLowWarning\n    annotations:\n      summary: 'PZ backup: SpaceLow'\n    expr: (min(pz_backup_free_bytes)) < 4294967296\n    for: 5m\n    labels:\n      severity: warning\n  - alert: PZBackupSpaceLowCritical\n    annotations:\n      summary: 'PZ backup: SpaceLow'\n    expr: (min(pz_backup_free_bytes)) < 2147483648 or absent(min(pz_backup_free_bytes))\n    for: 5m\n    labels:\n      severity: critical\n  - alert: PZBackupInodesLowWarning\n    annotations:\n      summary: 'PZ backup: InodesLow'\n    expr: (min(pz_backup_free_inodes)) < 20000\n    for: 5m\n    labels:\n      severity: warning\n  - alert: PZBackupInodesLowCritical\n    annotations:\n      summary: 'PZ backup: InodesLow'\n    expr: (min(pz_backup_free_inodes)) < 10000 or absent(min(pz_backup_free_inodes))\n    for: 5m\n    labels:\n      severity: critical\n  - alert: PZBackupMultipartIncompleteCritical\n    annotations:\n      summary: 'PZ backup: MultipartIncomplete'\n    expr: (max(pz_backup_incomplete_multipart)) > 0.9\n    for: 15m\n    labels:\n      severity: critical\n  - alert: PZBackupStalledWarning\n    annotations:\n      summary: 'PZ backup: Stalled'\n    expr: (max(pz_backup_incomplete) * (1 - max(pz_backup_capture_failed)) * max(pz_backup_stage_age_seconds))\n      > 3600\n    for: 10m\n    labels:\n      severity: warning\n  - alert: PZBackupStalledCritical\n    annotations:\n      summary: 'PZ backup: Stalled'\n    expr: (max(pz_backup_incomplete) * (1 - max(pz_backup_capture_failed)) * max(pz_backup_stage_age_seconds))\n      > 7200\n    for: 10m\n    labels:\n      severity: critical\n  - alert: PZBackupRestoreStaleWarning\n    annotations:\n      summary: 'PZ backup: RestoreStale'\n    expr: (max(pz_backup_restore_age_seconds)) > 2592000\n    for: 10m\n    labels:\n      severity: warning\n  - alert: PZBackupRestoreStaleCritical\n    annotations:\n      summary: 'PZ backup: RestoreStale'\n    expr: (max(pz_backup_restore_age_seconds)) > 3196800\n    for: 10m\n    labels:\n      severity: critical\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "alertmanager",
+        "namespace": "observability"
+      },
+      "data": {
+        "alertmanager.yml": "receivers:\n- name: local-ui\nroute:\n  group_by:\n  - alertname\n  group_interval: 5m\n  group_wait: 30s\n  receiver: local-ui\n  repeat_interval: 4h\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "loki",
+        "namespace": "observability"
+      },
+      "data": {
+        "loki.yml": "analytics:\n  reporting_enabled: false\nauth_enabled: false\ncommon:\n  path_prefix: /var/lib/app\n  replication_factor: 1\n  ring:\n    kvstore:\n      store: inmemory\n  storage:\n    filesystem:\n      chunks_directory: /var/lib/app/chunks\n      rules_directory: /var/lib/app/rules\ncompactor:\n  delete_request_store: filesystem\n  retention_enabled: true\n  working_directory: /var/lib/app/compactor\nlimits_config:\n  allow_structured_metadata: true\n  ingestion_burst_size_mb: 8\n  ingestion_rate_mb: 4\n  retention_period: 168h\nschema_config:\n  configs:\n  - from: '2026-01-01'\n    index:\n      period: 24h\n      prefix: index_\n    object_store: filesystem\n    schema: v13\n    store: tsdb\nserver:\n  http_listen_port: 3100\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "grafana-provisioning",
+        "namespace": "observability"
+      },
+      "data": {
+        "datasources.yml": "apiVersion: 1\ndatasources:\n- access: proxy\n  isDefault: true\n  name: Prometheus\n  type: prometheus\n  uid: prometheus\n  url: http://prometheus:9090\n- access: proxy\n  name: Loki\n  type: loki\n  uid: loki\n  url: http://loki:3100\n",
+        "dashboards.yml": "apiVersion: 1\nproviders:\n- name: Zomboid\n  options:\n    path: /etc/grafana/dashboards\n  type: file\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "grafana-dashboards",
+        "namespace": "observability"
+      },
+      "data": {
+        "pz-game.json": "{\"uid\": \"pz-game\", \"title\": \"Zomboid — Game\", \"schemaVersion\": 40, \"version\": 1, \"refresh\": \"30s\", \"time\": {\"from\": \"now-1h\", \"to\": \"now\"}, \"panels\": [{\"id\": 1, \"type\": \"timeseries\", \"title\": \"Server reachable\", \"gridPos\": {\"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"up{job=\\\"zomboid\\\"}\"}]}, {\"id\": 2, \"type\": \"timeseries\", \"title\": \"Game metrics\", \"gridPos\": {\"x\": 0, \"y\": 8, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"{job=\\\"zomboid\\\",__name__=~\\\".*(players|memory|heap|uptime).*\\\"}\"}]}]}",
+        "pz-host.json": "{\"uid\": \"pz-host\", \"title\": \"Zomboid — Host\", \"schemaVersion\": 40, \"version\": 1, \"refresh\": \"30s\", \"time\": {\"from\": \"now-1h\", \"to\": \"now\"}, \"panels\": [{\"id\": 1, \"type\": \"timeseries\", \"title\": \"Memory\", \"gridPos\": {\"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"system_memory_usage_bytes\"}]}, {\"id\": 2, \"type\": \"timeseries\", \"title\": \"Filesystem utilization\", \"gridPos\": {\"x\": 0, \"y\": 8, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"system_filesystem_utilization_ratio\"}]}, {\"id\": 3, \"type\": \"timeseries\", \"title\": \"CPU time\", \"gridPos\": {\"x\": 0, \"y\": 16, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"rate(system_cpu_time_seconds_total[5m])\"}]}]}",
+        "pz-panel.json": "{\"uid\": \"pz-panel\", \"title\": \"Zomboid — Panel\", \"schemaVersion\": 40, \"version\": 1, \"refresh\": \"30s\", \"time\": {\"from\": \"now-1h\", \"to\": \"now\"}, \"panels\": [{\"id\": 1, \"type\": \"timeseries\", \"title\": \"HTTP check\", \"gridPos\": {\"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"httpcheck_status{check_name=\\\"panel-http\\\",http_status_class=\\\"2xx\\\"}\"}]}, {\"id\": 2, \"type\": \"timeseries\", \"title\": \"Collector\", \"gridPos\": {\"x\": 0, \"y\": 8, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"up{job=\\\"collector\\\"}\"}]}]}",
+        "pz-backups.json": "{\"uid\": \"pz-backups\", \"title\": \"Zomboid — Backups\", \"schemaVersion\": 40, \"version\": 1, \"refresh\": \"30s\", \"time\": {\"from\": \"now-1h\", \"to\": \"now\"}, \"panels\": [{\"id\": 1, \"type\": \"timeseries\", \"title\": \"Verified backup age\", \"gridPos\": {\"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"pz_backup_age_seconds\"}]}, {\"id\": 2, \"type\": \"timeseries\", \"title\": \"Backup monitor\", \"gridPos\": {\"x\": 0, \"y\": 8, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"up{job=\\\"pz-backup\\\"}\"}]}, {\"id\": 3, \"type\": \"timeseries\", \"title\": \"Committed backup\", \"gridPos\": {\"x\": 0, \"y\": 16, \"w\": 24, \"h\": 8}, \"datasource\": {\"type\": \"prometheus\", \"uid\": \"prometheus\"}, \"targets\": [{\"refId\": \"A\", \"expr\": \"pz_backup_committed_present\"}]}]}"
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "prometheus",
+        "namespace": "observability"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "prometheus"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "prometheus"
+            }
+          },
+          "spec": {
+            "nodeSelector": {
+              "kubernetes.io/hostname": "updspace-home"
+            },
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 65534,
+              "runAsGroup": 65534,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "prometheus",
+                "image": "docker.io/prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+                "imagePullPolicy": "IfNotPresent",
+                "args": [
+                  "--config.file=/etc/config/prometheus.yml",
+                  "--storage.tsdb.path=/var/lib/app",
+                  "--storage.tsdb.retention.time=15d",
+                  "--storage.tsdb.retention.size=15GB",
+                  "--web.enable-remote-write-receiver",
+                  "--web.external-url=https://prometheus.updspace.com"
+                ],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 9090
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/app"
+                  },
+                  {
+                    "name": "config0",
+                    "mountPath": "/etc/config/prometheus.yml",
+                    "subPath": "prometheus.yml",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config1",
+                    "mountPath": "/etc/config/rules.yml",
+                    "subPath": "rules.yml",
+                    "readOnly": true
+                  }
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "50m",
+                    "memory": "128Mi",
+                    "ephemeral-storage": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "300m",
+                    "memory": "1024Mi",
+                    "ephemeral-storage": "512Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/-/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/-/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 60
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "hostPath": {
+                  "path": "/srv/pz-monitoring/prometheus",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "config0",
+                "configMap": {
+                  "name": "prometheus"
+                }
+              },
+              {
+                "name": "config1",
+                "configMap": {
+                  "name": "prometheus"
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 60
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "prometheus",
+        "namespace": "observability"
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": {
+          "app.kubernetes.io/name": "prometheus"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 9090,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "alertmanager",
+        "namespace": "observability"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "alertmanager"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "alertmanager"
+            }
+          },
+          "spec": {
+            "nodeSelector": {
+              "kubernetes.io/hostname": "updspace-home"
+            },
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 65534,
+              "runAsGroup": 65534,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "alertmanager",
+                "image": "docker.io/prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a",
+                "imagePullPolicy": "IfNotPresent",
+                "args": [
+                  "--config.file=/etc/config/alertmanager.yml",
+                  "--storage.path=/var/lib/app",
+                  "--cluster.listen-address=",
+                  "--web.external-url=https://alerts.updspace.com"
+                ],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 9093
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/app"
+                  },
+                  {
+                    "name": "config0",
+                    "mountPath": "/etc/config/alertmanager.yml",
+                    "subPath": "alertmanager.yml",
+                    "readOnly": true
+                  }
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "50m",
+                    "memory": "128Mi",
+                    "ephemeral-storage": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "100m",
+                    "memory": "128Mi",
+                    "ephemeral-storage": "512Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/-/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/-/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 60
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "hostPath": {
+                  "path": "/srv/pz-monitoring/alertmanager",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "config0",
+                "configMap": {
+                  "name": "alertmanager"
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 60
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "alertmanager",
+        "namespace": "observability"
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": {
+          "app.kubernetes.io/name": "alertmanager"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 9093,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "loki",
+        "namespace": "observability"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "loki"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "loki"
+            }
+          },
+          "spec": {
+            "nodeSelector": {
+              "kubernetes.io/hostname": "updspace-home"
+            },
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "loki",
+                "image": "docker.io/grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+                "imagePullPolicy": "IfNotPresent",
+                "args": [
+                  "-config.file=/etc/config/loki.yml"
+                ],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 3100
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/app"
+                  },
+                  {
+                    "name": "config0",
+                    "mountPath": "/etc/config/loki.yml",
+                    "subPath": "loki.yml",
+                    "readOnly": true
+                  }
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "50m",
+                    "memory": "128Mi",
+                    "ephemeral-storage": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "300m",
+                    "memory": "1024Mi",
+                    "ephemeral-storage": "512Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 60
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "hostPath": {
+                  "path": "/srv/pz-monitoring/loki",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "config0",
+                "configMap": {
+                  "name": "loki"
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 60
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "loki",
+        "namespace": "observability"
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": {
+          "app.kubernetes.io/name": "loki"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 3100,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "grafana",
+        "namespace": "observability"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "grafana"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "grafana"
+            }
+          },
+          "spec": {
+            "nodeSelector": {
+              "kubernetes.io/hostname": "updspace-home"
+            },
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 472,
+              "runAsGroup": 472,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "grafana",
+                "image": "docker.io/grafana/grafana:13.2.3@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572",
+                "imagePullPolicy": "IfNotPresent",
+                "args": [],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 3000
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/app"
+                  },
+                  {
+                    "name": "config0",
+                    "mountPath": "/etc/grafana/provisioning/datasources/local.yml",
+                    "subPath": "datasources.yml",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config1",
+                    "mountPath": "/etc/grafana/provisioning/dashboards/local.yml",
+                    "subPath": "dashboards.yml",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config2",
+                    "mountPath": "/etc/grafana/dashboards/pz-game.json",
+                    "subPath": "pz-game.json",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config3",
+                    "mountPath": "/etc/grafana/dashboards/pz-host.json",
+                    "subPath": "pz-host.json",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config4",
+                    "mountPath": "/etc/grafana/dashboards/pz-panel.json",
+                    "subPath": "pz-panel.json",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "config5",
+                    "mountPath": "/etc/grafana/dashboards/pz-backups.json",
+                    "subPath": "pz-backups.json",
+                    "readOnly": true
+                  }
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "50m",
+                    "memory": "128Mi",
+                    "ephemeral-storage": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "200m",
+                    "memory": "768Mi",
+                    "ephemeral-storage": "512Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/api/health",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/api/health",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 60
+                },
+                "env": [
+                  {
+                    "name": "GF_PATHS_DATA",
+                    "value": "/var/lib/app"
+                  },
+                  {
+                    "name": "GF_ANALYTICS_REPORTING_ENABLED",
+                    "value": "false"
+                  },
+                  {
+                    "name": "GF_ANALYTICS_CHECK_FOR_UPDATES",
+                    "value": "false"
+                  },
+                  {
+                    "name": "GF_USERS_ALLOW_SIGN_UP",
+                    "value": "false"
+                  },
+                  {
+                    "name": "GF_SERVER_ROOT_URL",
+                    "value": "https://grafana.updspace.com"
+                  },
+                  {
+                    "name": "GF_AUTH_ANONYMOUS_ENABLED",
+                    "value": "false"
+                  },
+                  {
+                    "name": "GF_SECURITY_COOKIE_SECURE",
+                    "value": "true"
+                  },
+                  {
+                    "name": "GF_SECURITY_ADMIN_USER",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "GF_SECURITY_ADMIN_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "grafana-admin",
+                        "key": "password"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "hostPath": {
+                  "path": "/srv/pz-monitoring/grafana",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "config0",
+                "configMap": {
+                  "name": "grafana-provisioning"
+                }
+              },
+              {
+                "name": "config1",
+                "configMap": {
+                  "name": "grafana-provisioning"
+                }
+              },
+              {
+                "name": "config2",
+                "configMap": {
+                  "name": "grafana-dashboards"
+                }
+              },
+              {
+                "name": "config3",
+                "configMap": {
+                  "name": "grafana-dashboards"
+                }
+              },
+              {
+                "name": "config4",
+                "configMap": {
+                  "name": "grafana-dashboards"
+                }
+              },
+              {
+                "name": "config5",
+                "configMap": {
+                  "name": "grafana-dashboards"
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 60
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "grafana",
+        "namespace": "observability"
+      },
+      "spec": {
+        "type": "NodePort",
+        "selector": {
+          "app.kubernetes.io/name": "grafana"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 3000,
+            "targetPort": "http",
+            "nodePort": 30030
+          }
+        ],
+        "externalTrafficPolicy": "Local"
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "local-prometheus-scrape",
+        "namespace": "observability"
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "prometheus"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "zomboid"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "zomboid"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9090
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.1.176/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9109
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "grafana-lan",
+        "namespace": "observability"
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "grafana"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.1.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 3000
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "game-from-local-prometheus",
+        "namespace": "zomboid"
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "zomboid"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "observability"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "prometheus"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9090
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

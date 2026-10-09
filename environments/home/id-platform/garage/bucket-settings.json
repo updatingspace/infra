@@ -1,0 +1,58 @@
+[
+  [
+    "portal",
+    "updspace-portal-prod-media-ab88348a",
+    "cors",
+    {
+      "CORSRules": [
+        {
+          "AllowedMethods": [
+            "GET",
+            "HEAD",
+            "PUT"
+          ],
+          "AllowedHeaders": [
+            "content-type"
+          ],
+          "AllowedOrigins": [
+            "https://portal.updspace.com",
+            "https://*.t.updspace.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3600
+        }
+      ]
+    }
+  ],
+  [
+    "id",
+    "updspace-id-exports-e3dd0415",
+    "lifecycle",
+    {
+      "Rules": [
+        {
+          "ID": "abort-incomplete-exports",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": "exports/"
+          },
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 1
+          }
+        },
+        {
+          "ID": "remove-orphan-exports",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": "exports/"
+          },
+          "Expiration": {
+            "Days": 2
+          }
+        }
+      ]
+    }
+  ]
+]

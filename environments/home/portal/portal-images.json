@@ -1,0 +1,10 @@
+{
+  "bff": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-bff@sha256:fc0c1c16e01119faa7d985ab6f05bd155fda231fd2b23ed35709033bec74ec29",
+  "portal": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-portal@sha256:27119aa97bdc7d2bc8d78514ea3949a0ef0ff901c39f1f22929432aed7cecf22",
+  "gamification": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-gamification@sha256:a1389e073eaf4d8d809ee0dcaf156d57c16c4fcca5ea71cb2633938d6a2d3198",
+  "events": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-events@sha256:4ed2cc1246c02537779bb0e368eea6982206760cd7a158ce79743ec40da38cc2",
+  "featureflags": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-featureflags@sha256:42f77e2f0c6b2d984e62e7b2de45eef60ec6f830d8c9d45f805ca0ced05378e2",
+  "activity": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-activity@sha256:92d18c6a358aeda840e1e31df1ef41ff4d0815bcf772bc2880b880edb667b9ef",
+  "voting": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-voting@sha256:bfe8985e147c860564f7104cfa254c746171c7717fc0dcbc69a0bf7213153e4e",
+  "access": "cr.yandex/crp0hcf5a7de4tunssc4/updatingspace-portal-access@sha256:1a436f6856343fccf3b46706b8e981356ba4454f1e2bd93b2e77ed880bd3f09b"
+}

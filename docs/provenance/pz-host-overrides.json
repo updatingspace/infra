@@ -1,0 +1,7 @@
+{
+  "/etc/systemd/system/pz-backup.timer.d/schedule.conf": "[Timer]\nOnCalendar=\nOnCalendar=*-*-* 06:00:00 Europe/Moscow\nPersistent=true\n",
+  "/etc/systemd/system/pz-backup-metrics.service.d/local.conf": "[Service]\nExecStart=\nExecStart=/usr/bin/python3 /opt/pz-backup/metrics.py --bind 192.168.1.176\n",
+  "/etc/systemd/system/k3s.service.d/pz-storage.conf": "[Unit]\nRequiresMountsFor=/srv/pz-storage/zomboid /srv/pz-backup-spool\n",
+  "/etc/systemd/system/k3s.service.d/shared-edge.conf": "[Unit]\nRequiresMountsFor=/srv/edge-caddy\n",
+  "/etc/systemd/system/srv-edge\\x2dcaddy.mount": "[Unit]\nDescription=Shared local edge persistent storage\nRequiresMountsFor=/srv/pz-volumes\n\n[Mount]\nWhat=/srv/pz-volumes/edge.ext4\nWhere=/srv/edge-caddy\nType=ext4\nOptions=loop,nodev,nosuid,noatime\n\n[Install]\nWantedBy=multi-user.target\n"
+}

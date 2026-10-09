@@ -1,0 +1,15 @@
+{
+  "kubeconfig_path": "/etc/rancher/k3s/k3s.yaml",
+  "caddy_image": "docker.io/local/caddy:migration-5f5c8640aae01df9",
+  "node_name": "updspace-home",
+  "panel_image": "ghcr.io/fpsacha/zomboid-panel:1.4.2@sha256:3ef8c756795afb7627955bf4c45f0684d09b0c88bbf8c20cb5fe08b4fd920150",
+  "game_image": "docker.io/local/pz-server:migration-da299e42ba5af2f1",
+  "node_ipv4": "192.168.1.176",
+  "panel_updater_suspended": true,
+  "storage_root": "/opt/pz-stack/data",
+  "kubeconfig_context": "default",
+  "caddy_config_path": "../local-edge/Caddyfile",
+  "edge_storage_root": "/srv/edge-caddy",
+  "monitoring_auth_secret_name": "observability-edge-auth",
+  "id_origin_tls_secret_name": "id-origin-tls"
+}

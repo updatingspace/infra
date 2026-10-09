@@ -1,0 +1,9 @@
+# Copy outside the repository or pass -var arguments. No secrets belong here.
+kubeconfig_path    = "~/.kube/zomboid-k3s.yaml"
+kubeconfig_context = "zomboid-k3s"
+node_name          = "compute-vm-2-6-60-ssd-1785610759198"
+node_private_ip    = "10.130.0.30"
+stack_path         = "/opt/pz-stack"
+monium_secret_name = "monium-env"
+# Offline migration only: use the exact imported copy of the existing image.
+# collector_image = "docker.io/local/otel-collector:migration-REPLACE"

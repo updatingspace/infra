@@ -1,0 +1,31 @@
+rule_files: [/tmp/pz-alert-rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: pz_backup_age_seconds
+        values: 97200+0x12
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: PZBackupStaleWarning
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: 'PZ backup: Stale'}
+      - eval_time: 11m
+        alertname: PZBackupStaleCritical
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'pz_backup_mounted{filesystem="data"}'
+        values: 0+0x17
+      - series: 'pz_backup_mounted{filesystem="spool"}'
+        values: 1+0x17
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: PZBackupMountMissingCritical
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: PZBackupMountMissingCritical
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {summary: 'PZ backup: MountMissing'}

@@ -1,0 +1,84 @@
+{
+  "ydb": {
+    "tls_admin_query": true,
+    "runtime_write_read": true,
+    "anonymous_denied": true,
+    "builtin_token_denied": true,
+    "runtime_ddl_denied": true,
+    "production_data_copied": true,
+    "copy_is_trial_snapshot": true,
+    "tables_restored": 67,
+    "restored_rows_verified_before_ttl": 1833
+  },
+  "source_restore": {
+    "tables": 67,
+    "matching_tables": 67,
+    "source_rows": 1833,
+    "target_rows": 1833,
+    "differences": []
+  },
+  "media": {
+    "objects": 6,
+    "bytes": 238025,
+    "copied": 6,
+    "all_sha256_equal": true,
+    "final_cutover_snapshot": false
+  },
+  "auth": {
+    "csrf_rejected": true,
+    "wrong_password_rejected": true,
+    "password_login": true,
+    "secure_session_cookie": true,
+    "session_read": true,
+    "sessions_route": true,
+    "account_csp": true,
+    "logout": true,
+    "session_revoked": true,
+    "mfa_required": true,
+    "sealed_totp_login": true,
+    "totp_replay_rejected": true,
+    "synthetic_account": -2100000000,
+    "trial_database_only": true
+  },
+  "oidc": {
+    "jwks_identical": true,
+    "oidc_discovery_identical": true
+  },
+  "offsite_restore": {
+    "restored_pod_ready": true,
+    "original_admin_credentials_work": true,
+    "durable_marker_restored": true,
+    "pre_test_snapshot_verified": true,
+    "users_restored": 19,
+    "media_files_sha256_verified": 6,
+    "network_isolated": true
+  },
+  "backup": {
+    "stamp": "20261009T122848Z",
+    "method": "quiesced-ydb-sparse-and-id-s3",
+    "sha256": "06d33ea01412600a7fe0817e613a84bd200c30916928c5dd2097ca1d8725f2c0",
+    "plaintext_sha256": "e6ed9369f9fedbb8a3f8f5f9c9fe5f77d8c3b64d83291728fbe42f5818b6cb14",
+    "encrypted_bytes": 128776068,
+    "pause_seconds": 18.01,
+    "media_objects": 6,
+    "committed": true
+  },
+  "browser": {
+    "browser": "system Chromium",
+    "tls_verification": true,
+    "dns_override_only_in_isolated_browser": true,
+    "trial_origin": true,
+    "password_and_totp_login": true,
+    "account_page": true,
+    "session_cookie_secure_http_only": true,
+    "authenticated_me": true,
+    "page_errors": []
+  },
+  "origin_tls": {
+    "host": "id.updspace.com",
+    "issuer": "Lets Encrypt",
+    "not_after": "2027-01-07",
+    "stage_lan_only": true,
+    "public_dns_still_cloud": true
+  }
+}

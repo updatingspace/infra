@@ -1,0 +1,21 @@
+[Unit]
+Description=Read-only private PZ backup metrics
+After=network-online.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/pz-backup/metrics.py --bind 10.130.0.30
+User=root
+Group=root
+UMask=0077
+Restart=on-failure
+CPUQuota=5%
+MemoryMax=64M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/pz-backup /var/lib/pz-backup-upload /var/lib/pz-backup-retain /srv/pz-storage/zomboid /srv/pz-backup-spool
+InaccessiblePaths=/etc/rancher /etc/pz-backup
+RestrictAddressFamilies=AF_INET AF_UNIX
+[Install]
+WantedBy=multi-user.target

@@ -10,7 +10,7 @@ Remote — `github.com/updatingspace/infra`, основная ветка `master
 | --- | --- |
 | `environments/home/host` | k3s, kubelet reservations, firewall, mount dependencies; Ansible |
 | `environments/home/edge` | общий HTTP/TLS Caddy, маршруты, сеть, сохранённые volumes |
-| `environments/home/dns` | пять Cloudflare CNAME: status, grafana, prometheus, alerts, errors; proxy включён |
+| `environments/home/dns` | шесть Cloudflare CNAME: status, grafana, prometheus, alerts, errors, id; proxy включён |
 | `environments/home/monitoring` | Grafana, Prometheus, Loki, Alertmanager, dashboard, datasource, 22 правила |
 | `environments/home/glitchtip` | ошибки и трейсы через Sentry SDK, отдельная PostgreSQL DB, backup и restore probe |
 | `environments/home/uptime-kuma` | приложение, PV, сеть, backup, проверки и публичная страница |
@@ -21,8 +21,9 @@ Remote — `github.com/updatingspace/infra`, основная ветка `master
 | `environments/home/teamspeak` | сохранённая MariaDB прежнего TeamSpeak в k3s; голосовой сервер не запускается |
 
 ID/YDB/Garage приняты проверенным SHA-пакетом от их владельца; состояние
-передачи записано в `docs/ownership.md`. Подготовленные Portal/ID manifests не
-означают переключения их публичных сервисов с облака. Старый PZ cloud source
+передачи записано в `docs/ownership.md`. Публичный ID переключён на k3s
+2026-10-09; его production overlay включает приложения и пять CronJobs.
+Portal переносится отдельно; смотреть acceptance и README его компонента. Старый PZ cloud source
 включён как исходный IaC, а не как инструкция заново создать платные ресурсы.
 
 Пароли, токены, TLS private keys, Terraform state, базы и backup не входят в Git.
@@ -35,8 +36,7 @@ ID/YDB/Garage приняты проверенным SHA-пакетом от их
 
 Cloudflare → существующий Caddy в namespace `edge` → ClusterIP сервиса по Host.
 Caddy остаётся единственным владельцем HTTP 80/HTTPS 443. Игровые UDP-порты
-обслуживаются отдельными k3s Services. Proxy Cloudflare для пяти доменов
-мониторинга включён (`proxied: true`, TTL Auto); отключать его для ACME не нужно.
+обслуживаются отдельными k3s Services. Proxy Cloudflare для объявленных доменов включён (`proxied: true`, TTL Auto); отключать его для ACME не нужно.
 
 - https://status.updspace.com — публичная страница; `/dashboard` — админка Kuma.
 - https://grafana.updspace.com
@@ -100,7 +100,7 @@ PZ game-config требует остановленных game/panel и maintenan
 `provision-monitoring-password.py` сохраняет существующий пароль при повторе.
 
 Cloudflare: `python3 scripts/dns.py` показывает drift, `--apply` согласует только
-пять объявленных записей. Нужен внешний `CLOUDFLARE_API_TOKEN`; остальные записи
+шесть объявленных записей. Нужен внешний `CLOUDFLARE_API_TOKEN`; остальные записи
 и настройки зоны не меняются. Storage DNS принадлежит передаче Garage отдельно.
 
 ## Восстановление и откат

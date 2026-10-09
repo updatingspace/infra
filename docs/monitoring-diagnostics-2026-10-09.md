@@ -44,3 +44,26 @@ terminated, its exact temporary directory removed, and the test alert resolved;
 the main Prometheus remained ready. Production rules and deployments were untouched.
 The configured `local-ui` receiver has no external integration: Telegram delivery
 has deliberately not been configured or tested yet.
+
+## Route comparison after ID cutover
+
+Fresh cache-MISS requests from HOME now completed for Kuma (2,272,187 decoded
+bytes) and Portal (950,639 bytes), both through the CDG edge. Grafana's small
+API health response succeeds, while its runtime JavaScript still times out before
+headers in a 12-second probe. The same Grafana runtime, requested by local curl
+through a temporary SSH SOCKS transport via the retained operator cloud VM,
+completed through FRA in 1.151 seconds: 54,939 decoded bytes, SHA256
+`a89f351e8bcf70f81012634e0d1344afb5df3456241832b17996f00e68f23fe5`, equal to origin.
+TLS verification stayed enabled end-to-end; credentials remained in the local
+curl process. The forwarding process was terminated after the bounded GET test.
+This isolates a route-dependent failure; it does not establish which provider or
+network segment causes it. CPU pressure, missing Basic-auth caching and gzip alone
+are not supported as explanations: warm origin requests take about 13–23 ms,
+the auth cache is enabled, and the same gzipped response completed externally.
+
+A fresh HOME Chromium attempt still did not render GlitchTip's login; individual
+reported pending chunks then completed through curl. A full external browser test
+awaits explicit operator approval after automatic review rejected that broader
+session scope. No system/router DNS change has been applied; its location is an
+operator choice. No speculative compression, auth or Cloudflare-proxy changes
+were made to disguise the failure.

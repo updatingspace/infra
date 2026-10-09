@@ -2,6 +2,13 @@
   "zone_id": "635e4264df1831a6f6cfa4c91361ef0f",
   "records": [
     {
+      "name": "errors.updspace.com",
+      "type": "CNAME",
+      "content": "updspacedd.tplinkdns.com",
+      "proxied": true,
+      "ttl": 1
+    },
+    {
       "name": "grafana.updspace.com",
       "type": "CNAME",
       "content": "updspacedd.tplinkdns.com",

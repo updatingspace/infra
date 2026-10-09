@@ -100,3 +100,58 @@ id.updspace.com {
   header -Server
   header X-ID-Migration-Stage "trial"
 }
+
+# Closed Portal stage; public DNS still points at the existing cloud service.
+portal.updspace.com {
+  tls /etc/portal-origin-tls/tls.crt /etc/portal-origin-tls/tls.key
+  encode zstd gzip
+  @portal_trial_allowed remote_ip 127.0.0.1 ::1 192.168.1.0/24 10.42.0.0/16
+  handle @portal_trial_allowed {
+    handle /api/v1/* {
+      reverse_proxy bff.updspace-portal.svc.cluster.local:8000 {
+        header_up X-Forwarded-Proto https
+      }
+    }
+    handle {
+      reverse_proxy frontend.updspace-portal.svc.cluster.local:8000 {
+        header_up X-Forwarded-Proto https
+      }
+    }
+  }
+  handle {
+    respond "Portal migration stage is private" 503
+  }
+  header -Server
+  header X-Portal-Migration-Stage "trial"
+}
+
+errors.updspace.com {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
+  encode zstd gzip
+  request_body {
+    max_size 40MB
+  }
+  # SDK requests authenticate with project DSNs, independently of staff UI access.
+  @glitchtip_ingest {
+    method POST OPTIONS
+    path_regexp glitchtip_ingest ^/api/[0-9]+/(envelope|minidump)/$
+  }
+  handle @glitchtip_ingest {
+    reverse_proxy glitchtip.glitchtip.svc.cluster.local:8000
+  }
+  handle {
+    basic_auth {
+      monitoring {$MONITORING_AUTH_HASH}
+    }
+    reverse_proxy glitchtip.glitchtip.svc.cluster.local:8000 {
+      header_up -Authorization
+    }
+    header Cache-Control "private, no-store"
+  }
+  header -Server
+  header X-Content-Type-Options "nosniff"
+}

@@ -1,0 +1,274 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: glitchtip
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: budget
+  namespace: glitchtip
+spec:
+  hard:
+    requests.cpu: 250m
+    requests.memory: 1Gi
+    limits.cpu: '2'
+    limits.memory: 2Gi
+    pods: '2'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glitchtip
+  namespace: glitchtip
+data:
+  SERVER_ROLE: all_in_one
+  WEB_CONCURRENCY: '1'
+  GRANIAN_WORKERS_MAX_RSS: '384'
+  GRANIAN_WORKERS_KILL_TIMEOUT: '30'
+  VALKEY_URL: ''
+  DATABASE_POOL_MIN_SIZE: '1'
+  DATABASE_POOL_MAX_SIZE: '8'
+  GLITCHTIP_DOMAIN: https://errors.updspace.com
+  ALLOWED_HOSTS: errors.updspace.com,localhost,127.0.0.1,glitchtip.glitchtip.svc.cluster.local
+  CSRF_TRUSTED_ORIGINS: https://errors.updspace.com
+  EMAIL_BACKEND: django.core.mail.backends.dummy.EmailBackend
+  DEFAULT_FROM_EMAIL: errors@updspace.com
+  ENABLE_USER_REGISTRATION: 'False'
+  ENABLE_SOCIAL_APPS_USER_REGISTRATION: 'False'
+  ENABLE_ORGANIZATION_CREATION: 'False'
+  ENABLE_ADMIN: 'False'
+  ENABLE_OPENAPI: 'False'
+  GLITCHTIP_ENABLE_MCP: 'False'
+  GLITCHTIP_ENABLE_UPTIME: 'False'
+  GLITCHTIP_ENABLE_LOGS: 'False'
+  GLITCHTIP_ENABLE_DUCKDB: 'True'
+  GLITCHTIP_COLD_STORAGE_DIR: /code/uploads/cold-storage
+  DUCKDB_MEMORY_LIMIT: 128MB
+  DUCKDB_TEMP_DIRECTORY: /tmp/duckdb
+  GLITCHTIP_RETENTION_DAYS: '14'
+  GLITCHTIP_TRANSACTION_RETENTION_DAYS: '7'
+  GLITCHTIP_SPAN_RAW_RETENTION_DAYS: '7'
+  GLITCHTIP_FILE_RETENTION_DAYS: '30'
+  MEDIA_ROOT: /code/uploads
+  GLITCHTIP_INSTANCE_NAME: UpdSpace Errors
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: glitchtip-uploads
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ''
+  local:
+    path: /srv/glitchtip/uploads
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [updspace-home]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads
+  namespace: glitchtip
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ''
+  volumeName: glitchtip-uploads
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glitchtip
+  namespace: glitchtip
+spec:
+  selector:
+    app.kubernetes.io/name: glitchtip
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glitchtip
+  namespace: glitchtip
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: glitchtip
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: glitchtip
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5000
+        runAsGroup: 5000
+        fsGroup: 5000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: glitchtip
+          image: docker.io/glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
+          envFrom:
+            - configMapRef:
+                name: glitchtip
+            - secretRef:
+                name: glitchtip-runtime
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: 125m
+              memory: 512Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            httpGet:
+              path: /_health/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: errors.updspace.com
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /_health/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: errors.updspace.com
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_health/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: errors.updspace.com
+            periodSeconds: 30
+          volumeMounts:
+            - name: uploads
+              mountPath: /code/uploads
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: glitchtip
+  namespace: glitchtip
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: edge
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: caddy
+      ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: updspace-data
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-from-glitchtip
+  namespace: updspace-data
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: glitchtip
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: glitchtip
+      ports:
+        - port: 5432
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: caddy-to-glitchtip
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: glitchtip
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: glitchtip
+      ports:
+        - port: 8000
+          protocol: TCP

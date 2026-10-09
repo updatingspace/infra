@@ -135,6 +135,11 @@
                     "name": "id-origin-tls",
                     "mountPath": "/etc/id-origin-tls",
                     "readOnly": true
+                  },
+                  {
+                    "name": "portal-origin-tls",
+                    "mountPath": "/etc/portal-origin-tls",
+                    "readOnly": true
                   }
                 ],
                 "env": [
@@ -190,6 +195,13 @@
                 "name": "id-origin-tls",
                 "secret": {
                   "secretName": "id-origin-tls",
+                  "defaultMode": 256
+                }
+              },
+              {
+                "name": "portal-origin-tls",
+                "secret": {
+                  "secretName": "portal-origin-tls",
                   "defaultMode": 256
                 }
               }

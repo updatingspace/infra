@@ -1,0 +1,34 @@
+# Candidate only. The shared edge owner validates/applies this block.
+# Public API stays on the cloud writer until final data synchronization.
+portal.updspace.com {
+  tls /etc/portal-origin-tls/tls.crt /etc/portal-origin-tls/tls.key
+  encode zstd gzip
+  @portal_trial_allowed remote_ip 127.0.0.1 ::1 192.168.1.0/24 10.42.0.0/16
+  handle @portal_trial_allowed {
+    handle /api/v1/* {
+      header X-Portal-Backend stage
+      reverse_proxy bff.updspace-portal.svc.cluster.local:8000 {
+        header_up X-Forwarded-Proto https
+      }
+    }
+    handle {
+      reverse_proxy frontend.updspace-portal.svc.cluster.local:8000
+    }
+  }
+  handle /api/v1/* {
+    header X-Portal-Backend cloud
+    reverse_proxy https://d5da1fs5arjv790l1uua.kr8f6hld.apigw.yandexcloud.net {
+      header_up Host d5da1fs5arjv790l1uua.kr8f6hld.apigw.yandexcloud.net
+      header_up X-Forwarded-Host portal.updspace.com
+      header_up X-Forwarded-Proto https
+      transport http {
+        tls_server_name d5da1fs5arjv790l1uua.kr8f6hld.apigw.yandexcloud.net
+      }
+    }
+  }
+  handle {
+    reverse_proxy frontend.updspace-portal.svc.cluster.local:8000
+  }
+  header -Server
+  header X-Portal-Migration-Stage "edge-first"
+}

@@ -29,7 +29,7 @@
         "template": {
           "metadata": {
             "annotations": {
-              "checksum/config": "737fcdb2e6602207a5be1567172f332b1fbe16d1c97d8cf2ac173ebf8146e392"
+              "checksum/config": "af1abedb33d81297c1381659cf58467ff70617d0c100a4a392c7fb50aa6b143f"
             },
             "labels": {
               "app.kubernetes.io/managed-by": "terraform",

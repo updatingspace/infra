@@ -1,0 +1,267 @@
+{
+  "recorded_at": "2026-10-09T14:22:43.595Z",
+  "scope": "private local trial; public DNS unchanged",
+  "browser": "Chromium",
+  "tls_verification": true,
+  "host_overrides": [
+    "id.updspace.com=192.168.1.176",
+    "portal.updspace.com=192.168.1.176"
+  ],
+  "portal_server_addr": {
+    "ipAddress": "192.168.1.176",
+    "port": 443
+  },
+  "id_stage": {
+    "status": 200,
+    "stage": "trial"
+  },
+  "password_mfa_required": true,
+  "totp_login_status": 200,
+  "consent_approved": true,
+  "callback_status": 302,
+  "session_me_status": 200,
+  "identity_matches_synthetic_fixture": true,
+  "tenant_slug": "aef",
+  "membership_status": "active",
+  "access_snapshot_status": "ready",
+  "capability_count": 22,
+  "page_errors": [],
+  "network": [
+    {
+      "url": "https://portal.updspace.com/t/aef",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/index-BZObD-sX.css",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/index-FFrv52BV.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/me",
+      "status": 401
+    },
+    {
+      "url": "https://portal.updspace.com/vite.svg",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/vite.svg",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Page-DwzP6wvL.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/auth/login",
+      "status": 302
+    },
+    {
+      "url": "https://id.updspace.com/authorize",
+      "status": 303
+    },
+    {
+      "url": "https://id.updspace.com/oauth/consent",
+      "status": 303
+    },
+    {
+      "url": "https://id.updspace.com/login",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/ui.css",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/login.css",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/ui.js",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/login.js",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/api/v1/auth/oauth/providers",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/healthz",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/api/v1/auth/form_token",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/api/v1/auth/login",
+      "status": 401
+    },
+    {
+      "url": "https://id.updspace.com/api/v1/auth/form_token",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/oauth/consent",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/ui.css",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/ui.js",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/consent.css",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/_id/consent.js",
+      "status": 200
+    },
+    {
+      "url": "https://id.updspace.com/oauth/authorize/approve",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "url": "https://portal.updspace.com/t/aef",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/index-BZObD-sX.css",
+      "status": 304
+    },
+    {
+      "url": "https://portal.updspace.com/assets/index-FFrv52BV.js",
+      "status": 304
+    },
+    {
+      "url": "https://portal.updspace.com/vite.svg",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/me",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/tenants",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/csrf",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/switch-tenant",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/me",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/personalization/preferences/defaults",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/personalization/introduction",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/ControlLabel-DR8RIn0h.css",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Page-CZ6gS7f5.css",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Label-D_bclDi4.css",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Switch-B5tPBm8Q.css",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Switch-B---IdQu.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Page-DvKL6eXl.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/personalization/preferences",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/Label-CAbgh_qw.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/votingApi-B_bLs1bp.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/activity-DJ5WqILX.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/useDashboards-B5Y0chqz.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/formatters-Bk4GQZOd.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/useFormatters-C9TALGGZ.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/events-D8REDp4v.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/assets/ControlLabel-BT9zGQDA.js",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/personalization/admin/dashboards/layouts",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/events/events/",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/activity/v2/feed",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/voting/polls",
+      "status": 200
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/session/me",
+      "status": 200
+    }
+  ]
+}

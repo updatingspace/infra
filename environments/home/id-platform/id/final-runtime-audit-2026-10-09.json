@@ -1,0 +1,16 @@
+{
+  "recorded_utc": "2026-10-09T15:14:03.263275+00:00",
+  "production_overlay_objects": 15,
+  "server_dry_run_passed": true,
+  "overlay_only_changes_replicas_and_suspend": true,
+  "running_images_flags_and_router_match": true,
+  "application_recovery_manifest_updated": true,
+  "recovery_manifest_sha256": "78e8b21f988333dd128b3ee224308b8990c878271a3b8d98042f5089457c2e11",
+  "runtime_yc_endpoint_keys": {
+    "api": [],
+    "sessions": [],
+    "mutations": [],
+    "web": [],
+    "jobs": []
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "enabled_utc": "2026-10-09T15:10:19.865061+00:00",
+  "crons": {
+    "recover-export": {
+      "schedule": "*/5 * * * *",
+      "suspend": false
+    },
+    "recover-mail": {
+      "schedule": "* * * * *",
+      "suspend": false
+    },
+    "recover-security-mail": {
+      "schedule": "*/5 * * * *",
+      "suspend": false
+    },
+    "recover-verify-mail": {
+      "schedule": "*/5 * * * *",
+      "suspend": false
+    },
+    "refresh-gravatars": {
+      "schedule": "17 * * * *",
+      "suspend": false
+    }
+  },
+  "daily_backup_timer_enabled": true,
+  "next_backup": "Sat 2026-10-10 02:30:00 UTC",
+  "checked_utc": "2026-10-09T15:17:16.330823+00:00",
+  "completed_jobs": {
+    "recover-export": {
+      "job": "recover-export-29859315",
+      "completed": "2026-10-09T15:15:06Z",
+      "succeeded": 1
+    },
+    "recover-mail": {
+      "job": "recover-mail-29859317",
+      "completed": "2026-10-09T15:17:05Z",
+      "succeeded": 1
+    },
+    "recover-security-mail": {
+      "job": "recover-security-mail-29859315",
+      "completed": "2026-10-09T15:15:05Z",
+      "succeeded": 1
+    },
+    "recover-verify-mail": {
+      "job": "recover-verify-mail-29859315",
+      "completed": "2026-10-09T15:15:05Z",
+      "succeeded": 1
+    },
+    "refresh-gravatars": {
+      "job": "refresh-gravatars-29859317",
+      "completed": "2026-10-09T15:17:04Z",
+      "succeeded": 1
+    }
+  }
+}

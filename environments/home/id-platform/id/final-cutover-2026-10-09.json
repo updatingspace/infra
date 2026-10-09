@@ -1,0 +1,52 @@
+{
+  "recorded_utc": "2026-10-09T15:17:58.550349+00:00",
+  "public_cutover_complete": true,
+  "scope": "ID and its dependencies; Portal owned separately",
+  "hostname": "id.updspace.com",
+  "dns": {
+    "type": "CNAME",
+    "content": "updspacedd.tplinkdns.com",
+    "proxied": true,
+    "ttl": 1
+  },
+  "tls": "shared Caddy automated ACME HTTP-01",
+  "vm": "updspace_m4tveevm@192.168.1.176",
+  "single_id_database": "YDB /local",
+  "source": {
+    "timers_paused": 5,
+    "gateway_maintenance_operations": 131,
+    "drain_seconds": 600,
+    "runtime_database_access_denied": true,
+    "resources_and_data_retained": true
+  },
+  "restore": {
+    "recorded_utc": "2026-10-09T14:54:07.924150+00:00",
+    "source_tables": 67,
+    "matching_tables": 67,
+    "schema_check": true,
+    "source_rows": 1833,
+    "users": 19,
+    "synthetic_account_absent": true,
+    "synthetic_identity_absent": true,
+    "media_objects": 6,
+    "media_bytes": 238025,
+    "media_sha256_metadata_match": true,
+    "removed_trial_media_objects": 2,
+    "source_archive_sha256": "5a3eb0180560f184fb483f32d807063699144fda624b76dbaec0758881a29e36"
+  },
+  "local_schedules_completed": 5,
+  "daily_backup_utc": "02:30",
+  "workstation_offsite_timer_active": true,
+  "first_final_full_offsite_backup": "20261009T145502Z",
+  "full_backup_decryption_and_hashes_verified": true,
+  "production_overlay_server_dry_run_passed": true,
+  "focused_unit_tests_passed": 14,
+  "full_application_ci_run": false,
+  "limitations": [
+    "Single-node file-backed YDB is not an upstream-supported production configuration; user authorized this cutover after disclosure.",
+    "Post-cutover real-user login, hardware passkeys, provider callbacks and real SMTP delivery were not manually tested.",
+    "Final archive hashes and metadata were verified; isolated runtime restore passed on a preceding trial offsite archive.",
+    "Daily cold backup briefly pauses ID; measured 17.68 seconds.",
+    "Global infra release pointer is consolidated by the infra owner after Portal final edge snapshot."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "recorded_utc": "2026-10-09T15:03:02.179017+00:00",
+  "tls_verified": true,
+  "checks": [
+    {
+      "path": "direct VM",
+      "spoofed_headers_sent": true,
+      "client_ip_matches": true,
+      "spoofed_headers_rejected": true
+    },
+    {
+      "path": "public Cloudflare",
+      "spoofed_headers_sent": false,
+      "client_ip_matches": true,
+      "spoofed_headers_rejected": true
+    }
+  ]
+}

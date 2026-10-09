@@ -40,8 +40,10 @@ PostgreSQL обслуживает также отдельную GlitchTip БД; 
   Он расшифрован только там и восстановлен в отдельный временный PostgreSQL:
   78 таблиц / 371 строка / 9 владельцев / 73 последовательности проверены.
 - Два media objects, 992182 байта, скопированы с metadata и проверены SHA256.
-  Logical media snapshot `20261009T142036Z-88b72d82` зашифрован на VM. Его
-  offsite restore пока не завершён; не считать его полным доказательством restore.
+  Logical media snapshot `20261009T144151Z-fbda96c4` передан зашифрованным на
+  workstation, расшифрован только там и восстановлен в временный префикс Garage:
+  оба SHA256 и metadata совпали, тестовые объекты удалены. Metadata читается
+  напрямую из Garage, до добавления Caddy заголовка Cache-Control.
 - Frontend: 3152 файла, 44219388 байт; MD5 source ETag и SHA256 локальных файлов
   проверены. Текущий release `/srv/updspace/portal-frontend/releases/20261009T134201Z-cfa3a145`.
 - OCI backup всех девяти образов:
@@ -115,9 +117,12 @@ runtime inputs. Cloud source пока сохраняется для отката
 
 `backup-media.py` создаёт отдельный logical snapshot Garage Portal bucket:
 инвентарь до/после должен совпасть, проверяются bytes/SHA/metadata, plaintext
-только в памяти, далее GPG. Ограничение 256 MiB; при росте заменить на потоковое
+только в памяти, далее GPG. Ограничение 64 MiB; при росте заменить на потоковое
 копирование. `sync-media-backups.py` повторно использует SHA-verified transport
-и пишет ciphertext в `portal-postgres/media`. Media timer ещё не установлен.
+и пишет ciphertext в `portal-postgres/media`. Media backup запускается после
+PostgreSQL backup тем же ежедневным service; offsite media sync — после
+PostgreSQL sync тем же ежечасным service. Узкая `garage-backup-network.json`
+разрешает только Activity Portal читать Garage напрямую; bucket key остаётся отдельным.
 
 OCI restore: проверить `SHA256SUMS`, затем на восстановленной VM
 `sudo k3s ctr -n k8s.io images import --platform linux/amd64 images.oci.tar`.

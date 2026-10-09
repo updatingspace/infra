@@ -14,13 +14,15 @@ PROGRAM = '''import hashlib,io,json,os,sys,tarfile
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','app.settings')
 import django;django.setup()
 from django.conf import settings
-from activity.media import _s3_client
-s3=_s3_client();bucket=settings.NEWS_MEDIA_BUCKET
+import boto3
+from botocore.client import Config
+# Read object metadata before the public edge adds its cache policy.
+s3=boto3.client('s3',endpoint_url='http://garage.updspace-data.svc.cluster.local:3900',region_name=settings.S3_REGION,aws_access_key_id=settings.S3_ACCESS_KEY_ID,aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,config=Config(signature_version='s3v4',s3={'addressing_style':'path'}));bucket=settings.NEWS_MEDIA_BUCKET
 def inventory():
  return sorted([{'key':o['Key'],'etag':o['ETag'],'size':o['Size']} for p in s3.get_paginator('list_objects_v2').paginate(Bucket=bucket) for o in p.get('Contents',[])],key=lambda x:x['key'])
 before=inventory()
-# shortcut: bounded in-memory snapshots; switch to streaming before media exceeds 256 MiB.
-assert sum(o['size'] for o in before)<=256*1024*1024,'Media exceeds snapshot memory budget'
+# shortcut: bounded in-memory snapshots; switch to streaming before media exceeds 64 MiB.
+assert sum(o['size'] for o in before)<=64*1024*1024,'Media exceeds snapshot memory budget'
 buffer=io.BytesIO();manifest={'format':1,'bucket':bucket,'objects':[]}
 with tarfile.open(fileobj=buffer,mode='w') as archive:
  def add(name,data):

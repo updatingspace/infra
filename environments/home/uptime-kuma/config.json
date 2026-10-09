@@ -168,6 +168,19 @@
       "ignoreTls": false,
       "maxredirects": 10,
       "description": "HTTPS-проверка панели Zomboid после переноса. Доступность игрового UDP и вход игрока проверяются отдельно."
+    },
+    {
+      "name": "GlitchTip",
+      "type": "http",
+      "url": "http://glitchtip.glitchtip.svc.cluster.local:8000/_health/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 10,
+      "description": "Внутренняя готовность GlitchTip и PostgreSQL; публичный HTTPS и приём событий проверяются отдельно."
     }
   ],
   "statusPage": {
@@ -226,6 +239,10 @@
         },
         {
           "name": "Loki",
+          "sendUrl": false
+        },
+        {
+          "name": "GlitchTip",
           "sendUrl": false
         }
       ]

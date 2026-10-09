@@ -5,7 +5,7 @@ transactions/spans use Sentry SDKs; existing Prometheus and Loki handle infrastr
 metrics and logs. Sentry profiling and session replay are not provided.
 
 One k3s pod, pinned GlitchTip 6.2.6 image digest, request 125m CPU/512Mi RAM,
-limit 1 CPU/1Gi RAM. Initial idle usage was about 165Mi before enabling span storage;
+limit 1 CPU/1Gi RAM. Measured idle usage with span storage was 179Mi / 27m CPU;
 this is not a load test. Embedded DuckDB is limited to 128MB, under the same pod limit.
 There is no separate Redis, Kafka or ClickHouse. PostgreSQL is the existing shared
 instance, with a separate `glitchtip` database and role (12 connections maximum).
@@ -39,6 +39,14 @@ The public ingestion test passes through Cloudflare. Chromium login passes with 
 local DNS override to the origin and normal TLS verification. Large public JavaScript
 downloads from the home network remain affected by the separate network incident;
 origin success does not certify public UI access from that network.
+
+Kuma checks the internal `/_health/` endpoint every five minutes. Its scoped
+NetworkPolicies are part of `resources.yaml`, and the monitor is declared in
+`../uptime-kuma/config.json`. This is not a public HTTPS acceptance check.
+
+Apply `resources.yaml` separately after the database bootstrap and runtime Secret
+exist; `scripts/render.py --scope all` does not include this component. The edge
+route also requires its scoped egress policy from this file.
 
 ## Backup and restore
 

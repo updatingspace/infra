@@ -35,8 +35,25 @@ const differences = (actual, expected) => Object.keys(expected).filter(key => {
     await call('getMonitorList');
     let drift = 0;
     for (const definition of desired.monitors) {
-        const existing = Object.values(monitors).find(m => m.name === definition.name);
-        assert(existing, 'Missing monitor: ' + definition.name + '; create once in Kuma, then adopt its config');
+        let matches = Object.values(monitors).filter(m => m.name === definition.name);
+        assert(matches.length <= 1, 'Ambiguous monitor name: ' + definition.name);
+        let existing = matches[0];
+        if (!existing) {
+            drift++;
+            console.log(JSON.stringify({ monitor: definition.name, missing: true }));
+            if (!apply) continue;
+            const added = await call('add', {
+                ...definition, method: 'GET', accepted_statuscodes: ['200-299'],
+                resendInterval: 0, upsideDown: false, expiryNotification: true,
+                domainExpiryNotification: false, notificationIDList: {},
+                saveResponse: false, saveErrorResponse: false,
+                kafkaProducerBrokers: [], kafkaProducerSaslOptions: {},
+                rabbitmqNodes: [], conditions: []
+            });
+            await call('getMonitorList');
+            existing = monitors[added.monitorID];
+            assert(existing && existing.name === definition.name, 'Created monitor was not returned');
+        }
         const current = (await call('getMonitor', existing.id)).monitor;
         const changed = differences(current, definition);
         if (!changed.length) continue;

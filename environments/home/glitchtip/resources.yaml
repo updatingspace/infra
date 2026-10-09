@@ -202,6 +202,12 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: caddy
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: uptime-kuma
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: uptime-kuma
       ports:
         - port: 8000
           protocol: TCP
@@ -260,6 +266,28 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: caddy
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: glitchtip
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: glitchtip
+      ports:
+        - port: 8000
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kuma-to-glitchtip
+  namespace: uptime-kuma
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: uptime-kuma
   policyTypes: [Egress]
   egress:
     - to:

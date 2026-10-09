@@ -10,8 +10,9 @@ Remote — `github.com/updatingspace/infra`, основная ветка `master
 | --- | --- |
 | `environments/home/host` | k3s, kubelet reservations, firewall, mount dependencies; Ansible |
 | `environments/home/edge` | общий HTTP/TLS Caddy, маршруты, сеть, сохранённые volumes |
-| `environments/home/dns` | четыре Cloudflare CNAME: status, grafana, prometheus, alerts; proxy включён |
+| `environments/home/dns` | пять Cloudflare CNAME: status, grafana, prometheus, alerts, errors; proxy включён |
 | `environments/home/monitoring` | Grafana, Prometheus, Loki, Alertmanager, dashboard, datasource, 22 правила |
+| `environments/home/glitchtip` | ошибки и трейсы через Sentry SDK, отдельная PostgreSQL DB, backup и restore probe |
 | `environments/home/uptime-kuma` | приложение, PV, сеть, backup, проверки и публичная страница |
 | `environments/pz/kubernetes` | перенесённый существующий Terraform PZ, collector, backup/updater и конфиги игры |
 | `environments/home/pz-values` | несекретные параметры существующего домашнего размещения PZ |
@@ -34,7 +35,7 @@ ID/YDB/Garage приняты проверенным SHA-пакетом от их
 
 Cloudflare → существующий Caddy в namespace `edge` → ClusterIP сервиса по Host.
 Caddy остаётся единственным владельцем HTTP 80/HTTPS 443. Игровые UDP-порты
-обслуживаются отдельными k3s Services. Proxy Cloudflare для четырёх доменов
+обслуживаются отдельными k3s Services. Proxy Cloudflare для пяти доменов
 мониторинга включён (`proxied: true`, TTL Auto); отключать его для ACME не нужно.
 
 - https://status.updspace.com — публичная страница; `/dashboard` — админка Kuma.
@@ -49,6 +50,12 @@ Grafana сохраняет также собственный вход `admin`; �
 `observability/grafana-admin`, key `password`. NodePort 30030/30031 не пробрасывать
 на роутере. ID-вход ещё не подключён: он должен проверять **staff И роль сетевого
 системного администратора**, точный контракт описан в `docs/id-access.md`.
+
+GlitchTip: https://errors.updspace.com — общий Basic `monitoring`, затем
+`admin@updspace.com`. Пароль и DSN: root-only
+`/opt/updspace-infra/private/glitchtip-credentials.json` на VM. Приложение
+ограничено 1 CPU/1 GiB; PostgreSQL общий, его бюджет учитывается отдельно.
+Инструкции применения и backup: [GlitchTip](environments/home/glitchtip/README.md).
 
 ## Проверка и ограниченное применение
 
@@ -93,7 +100,7 @@ PZ game-config требует остановленных game/panel и maintenan
 `provision-monitoring-password.py` сохраняет существующий пароль при повторе.
 
 Cloudflare: `python3 scripts/dns.py` показывает drift, `--apply` согласует только
-четыре объявленные записи. Нужен внешний `CLOUDFLARE_API_TOKEN`; остальные записи
+пять объявленных записей. Нужен внешний `CLOUDFLARE_API_TOKEN`; остальные записи
 и настройки зоны не меняются. Storage DNS принадлежит передаче Garage отдельно.
 
 ## Восстановление и откат

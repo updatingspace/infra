@@ -1,9 +1,10 @@
 # Portal на домашней VM
 
 Публичный `https://portal.updspace.com` переведён на VM 2026-10-09 в 15:23:44 UTC.
-Frontend и API работают в k3s; Cloudflare proxy сохранён. Исходный облачный API
-возвращает maintenance 503, единственный активный облачный timer остановлен.
-Облачные данные и ресурсы сохранены для контролируемого отката.
+Frontend и API работают в k3s; Cloudflare proxy сохранён. После приёмки переноса
+старые восемь облачных контейнеров, gateway, outbox function и trigger выведены
+из эксплуатации. Облачные YDB/S3, секреты и общий registry сохранены.
+Ведомость очистки — [cloud-retirement-2026-10-09.md](../../../docs/cloud-retirement-2026-10-09.md).
 
 Все дальнейшие изменения размещения находятся в этом каталоге центрального
 `updspace/infra`. `HANDOFF.md` и `ROLES-HANDOFF.md` описывают ранние передачи;
@@ -86,8 +87,12 @@ ID issuer/client/callback и исходные Django/HMAC/OIDC/media encryption 
 При восстановлении проверить оба SHA256, импортировать оба архива через
 `sudo k3s ctr -n k8s.io images import --platform linux/amd64 <archive>` до запуска
 приложений. Nginx использует `IfNotPresent` и также содержится в исходном архиве.
-Архивы образов пока находятся на VM; зашифрованные offsite копии ниже относятся
-к PostgreSQL и media, а не к полному восстановлению потерянного хоста.
+Архивы образов находятся на VM. Дополнительный зашифрованный recovery bundle
+`/srv/updspace/backups/portal-recovery/20261009T162957Z/recovery.tar.gpg` содержит
+оба OCI archive, 3152 файла frontend, восемь runtime Secrets, восемь Portal DB roles,
+Garage Portal key, frozen export и конфигурацию. Временный IAM token и credentials
+других компонентов исключены. Bundle на рабочий ПК не передавался: владелец
+отказался от хранения архивов на ПК. Это копия на той же VM, не offsite.
 
 ## Применение и защищённые входы
 
@@ -115,11 +120,13 @@ pods. Он проверяет COMMITTED/SHA256/model coverage, затем имп
 
 ## Backup и восстановление
 
-VM backup timer: ежедневно 03:15 UTC + до 300s. Workstation offsite timer:
-ежечасно + до 300s. Каталог `~/.local/share/updspace-backups/portal-postgres`,
-media подкаталог `media`. Постоянно хранятся только зашифрованные архивы;
-закрытый GPG key остаётся на workstation в `~/.local/share/updspace-backups/keys`.
-`COMMITTED` ставится после проверки SHA256. Автоматического удаления копий нет.
+VM backup timer остаётся включённым: ежедневно 03:15 UTC + до 300s.
+Workstation offsite timer `updspace-postgres-offsite.timer` disabled/inactive
+по решению владельца; прежний каталог `~/.local/share/updspace-backups/portal-postgres`
+с архивами удалён. Закрытый GPG key сохранён в `~/.local/share/updspace-backups/keys`: его
+нельзя удалять вместе с архивами. Исторические offsite restore proofs выше остаются
+доказательствами проверки переноса, но актуальной внешней копии Portal сейчас нет.
+`COMMITTED` на VM ставится после проверки SHA256. Автоматического удаления копий нет.
 
 PG backup включает только `updspace`; roles dump без паролей. Для полного
 восстановления требуются protected runtime inputs. `restore-verify.py`
@@ -136,11 +143,12 @@ Media читается непосредственно из Garage до моди�
 
 Облачная конфигурация до заморозки сохранена root-only в
 `/opt/updspace-portal-migration/cloud-freeze/`: Gateway spec, trigger state,
-исходный DNS и freeze proof. Cloud outbox trigger `a1s30tucfpcid4tsgd2q` остановлен.
-Cloud Gateway `d5da1fs5arjv790l1uua` сохраняет maintenance response для API.
+исходный DNS и freeze proof. Cloud outbox trigger `a1s30tucfpcid4tsgd2q` и
+Cloud Gateway `d5da1fs5arjv790l1uua` удалены при согласованном сокращении облака.
 **После новых локальных записей простой возврат DNS потеряет эти изменения.**
 Сначала остановить локальных writers, сохранить свежий backup и вернуть delta
-в источник; только после сверки согласованно восстановить Gateway/trigger/DNS.
+в источник; runtime/gateway/trigger потребуется создать заново из сохранённой
+конфигурации с новыми resource IDs, затем согласованно восстановить DNS.
 Облачные данные не удалять до отдельного решения владельца.
 
 Portal origin certificate действителен до 2027-01-07 и пока подключён явно

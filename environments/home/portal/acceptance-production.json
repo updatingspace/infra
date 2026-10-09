@@ -1,0 +1,160 @@
+{
+  "final-source-proof": {
+    "source_snapshot": "/opt/updspace-portal-migration/exports/20261009T150956Z-492adaae/snapshot.json",
+    "control_snapshot": "/opt/updspace-portal-migration/exports/20261009T145451Z-51f75ac4/snapshot.json",
+    "stable_tables": 78,
+    "source_rows": 371,
+    "drain_elapsed": true,
+    "candidate_backup": "/srv/updspace/backups/postgres/20261009T144400Z-ILbfoB",
+    "verified_at": "2026-10-09T15:11:58.334339+00:00"
+  },
+  "offsite-business-restore-proof": {
+    "restored_source_tables": 78,
+    "restored_source_rows": 371,
+    "schema_owners": 9,
+    "sequences_verified": 73,
+    "sha256_all_match": true,
+    "contains_portal_business_data": true,
+    "backup": "20261009T152137Z-yfOpRh",
+    "offsite_decrypt_and_sha256": "passed"
+  },
+  "offline-runtime-proof": {
+    "at": "2026-10-09T15:26:01.335746+00:00",
+    "source_registry_secret_removed": true,
+    "backend_images_local": 8,
+    "pull_policy": "Never",
+    "source_layers_and_runtime_unchanged": true,
+    "archive_sha256": "751542eccf5bf06b635297989cea4a010d61448661e29b01db033fad5bae59c6",
+    "archive_bytes": 688363520,
+    "enabled_jobs": [
+      "portal-outbox"
+    ],
+    "outbox_manual_job": "Complete"
+  },
+  "edge-final-proof": {
+    "at": "2026-10-09T15:23:44.582139+00:00",
+    "before_sha256": "af1abedb33d81297c1381659cf58467ff70617d0c100a4a392c7fb50aa6b143f",
+    "after_sha256": "a42c0259a66fc35e3f10c43b4b0fff4e4e9d16e73bee8a79a53873da22c097dc",
+    "only_portal_block_changed": true,
+    "portal_backend": "vm",
+    "tls_unchanged": true
+  },
+  "deployments": {
+    "access": 1,
+    "activity": 1,
+    "bff": 1,
+    "events": 1,
+    "featureflags": 1,
+    "frontend": 1,
+    "gamification": 1,
+    "portal": 1,
+    "voting": 1
+  },
+  "database": {
+    "databases": [
+      "updspace"
+    ],
+    "hosts": [
+      "postgres.updspace-data.svc.cluster.local"
+    ],
+    "service_roles": [
+      "portal_access",
+      "portal_activity",
+      "portal_bff",
+      "portal_core",
+      "portal_events",
+      "portal_featureflags",
+      "portal_gamification",
+      "portal_voting"
+    ]
+  },
+  "verified_at": "2026-10-09T15:29:11.211651+00:00",
+  "public-final-probe": [
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 1767,
+      "backend": null
+    },
+    {
+      "path": "/api/v1/session/me",
+      "status": 401,
+      "bytes": 145,
+      "backend": "vm"
+    },
+    {
+      "path": "/assets/index-FFrv52BV.js",
+      "status": 200,
+      "bytes": 950639,
+      "backend": null,
+      "sha256": "1fe049c6f4d48af8a23e7c7ef06caadb3d32411b83cd4b6162a2e0b577f60648"
+    },
+    {
+      "path": "/api/v1/csrf",
+      "status": 200,
+      "backend": "vm",
+      "json_valid": true
+    }
+  ],
+  "public-browser-proof": {
+    "at": "2026-10-09T15:24:49.990Z",
+    "page_status": 200,
+    "title": "Home \u00b7 UpdSpace Portal",
+    "final_path": "/",
+    "assets": [
+      {
+        "path": "/assets/index-BZObD-sX.css",
+        "status": 200
+      },
+      {
+        "path": "/assets/index-FFrv52BV.js",
+        "status": 200
+      },
+      {
+        "path": "/assets/Page-C63IOYo7.js",
+        "status": 200
+      }
+    ],
+    "api": [
+      {
+        "path": "/api/v1/session/me",
+        "status": 401
+      }
+    ],
+    "failures": [],
+    "page_errors": []
+  },
+  "public-login-redirect-proof": {
+    "status": 200,
+    "final_host": "id.updspace.com",
+    "final_path": "/login",
+    "title": "\u0412\u0445\u043e\u0434 \u2014 UpdSpace ID"
+  },
+  "media_offsite_restore": {
+    "backup": "20261009T152139Z-aa4a745f",
+    "objects": 2,
+    "body_sha256": "passed",
+    "metadata": "passed",
+    "temporary_objects_removed": true
+  },
+  "external_cloud_probe": {
+    "source": "51.250.40.253",
+    "csrf_status": 200,
+    "session_me_status": 401,
+    "backend": "vm",
+    "asset_status": 200,
+    "asset_bytes": 950639,
+    "asset_sha256": "1fe049c6f4d48af8a23e7c7ef06caadb3d32411b83cd4b6162a2e0b577f60648"
+  },
+  "cloud_final_fence": {
+    "cloud_trigger_status": "PAUSED",
+    "cloud_gateway_status": 503,
+    "maintenance_marker": true
+  },
+  "source_validation": {
+    "unit_tests_passed": 32,
+    "runtime_backup_timers_active": true,
+    "frontend_browser_full_login_after_cutover": false,
+    "stage_full_synthetic_sso_passed": true
+  }
+}

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Prepare Portal runtime Secrets from existing protected migration inputs on the VM."""
 import argparse
-import base64
 import json
 from pathlib import Path
 import subprocess
@@ -53,12 +52,6 @@ def objects(source: dict, passwords: dict, storage: dict, images: dict, *, id_st
             raise ValueError('Missing original application secrets: ' + name)
         output.append({'apiVersion': 'v1', 'kind': 'Secret', 'type': 'Opaque',
                        'metadata': {'name': name + '-runtime', 'namespace': NAMESPACE}, 'stringData': env})
-    token = source['temporary_iam_token']
-    registry = {'auths': {'cr.yandex': {'username': 'iam', 'password': token,
-                'auth': base64.b64encode(('iam:' + token).encode()).decode()}}}
-    output.append({'apiVersion': 'v1', 'kind': 'Secret', 'type': 'kubernetes.io/dockerconfigjson',
-                   'metadata': {'name': 'source-registry', 'namespace': NAMESPACE},
-                   'stringData': {'.dockerconfigjson': json.dumps(registry)}})
     return output
 
 
@@ -79,7 +72,7 @@ def main() -> None:
             text=True, capture_output=True, timeout=60)
         if process.returncode:
             raise RuntimeError('Secret apply failed; secret-bearing output suppressed')
-    print(('Applied' if args.apply else 'Prepared') + ' 8 runtime Secrets and temporary registry auth; values suppressed')
+    print(('Applied' if args.apply else 'Prepared') + ' 8 runtime Secrets; values suppressed')
 
 
 if __name__ == '__main__':

@@ -30,6 +30,15 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(env['ID_PUBLIC_BASE_URL'], 'https://id.updspace.com')
         self.assertEqual(env['ID_BASE_URL'], 'http://id.updspace-id.svc.cluster.local:8089/api/v1')
 
+    def test_runtime_no_longer_needs_cloud_registry_credentials(self):
+        images = {name: 'synthetic-image-' + name for name in module.ROLES}
+        source = {'services': {name: {'image': image, 'environment': {'DJANGO_SECRET_KEY': 'synthetic', 'BFF_INTERNAL_HMAC_SECRET': 'synthetic'}} for name, image in images.items()}}
+        passwords = {role: 'synthetic' for role in module.ROLES.values()}
+        storage = {'endpoint': 'https://storage.updspace.com', 'region': 'garage', 'access_key_id': 'synthetic', 'secret_access_key': 'synthetic'}
+        result = module.objects(source, passwords, storage, images)
+        self.assertEqual(len(result), 8)
+        self.assertTrue(all(item['metadata']['name'].endswith('-runtime') for item in result))
+
     def test_refuses_unexpected_service_set(self):
         with self.assertRaises(ValueError):
             module.objects({'services': {}}, {}, {}, {})

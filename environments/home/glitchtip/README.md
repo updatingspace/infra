@@ -20,7 +20,8 @@ is not a filesystem quota. Backups have no automatic deletion policy.
 ## Access and bootstrap
 
 https://errors.updspace.com uses the common Caddy, with Cloudflare proxy enabled.
-UI requires the existing Basic user `monitoring`, followed by the GlitchTip login
+UI requires an active UpdSpace ID account with BOTH staff and system_admin,
+followed by the GlitchTip login
 `admin@updspace.com`. Passwords and the initial project DSN are in the VM's root-only
 `/opt/updspace-infra/private/glitchtip-credentials.json`; never commit that file.
 `bootstrap.py` preserves existing credentials and rejects unexpected database ownership
@@ -28,17 +29,20 @@ or role privileges. Run without arguments for a read-only state check, then expl
 `--apply database` before deployment and `--apply account` after migrations are ready.
 Kubernetes runtime Secret is `glitchtip/glitchtip-runtime`.
 
-Public SDK POST/OPTIONS requests bypass the UI password only on numeric project
+Public SDK POST/OPTIONS requests bypass the ID browser gate only on numeric project
 `/api/<id>/envelope/` and `/api/<id>/minidump/` paths; GlitchTip still verifies the DSN.
-Signup, email delivery, uptime checks and log ingestion are disabled. Future ID login
-must enforce staff AND the network administrator role; it is not integrated yet.
+Signup, email delivery, uptime checks and log ingestion are disabled. ID role
+checks are live on every UI/API request; project ingestion remains DSN-authenticated.
 The existing `UpdSpace / Infra Smoke` project contains labelled synthetic acceptance
 events. Application projects/SDK settings remain an explicit application rollout.
 
-The public ingestion test passes through Cloudflare. Chromium login passes with a
-local DNS override to the origin and normal TLS verification. Large public JavaScript
-downloads from the home network remain affected by the separate network incident;
-origin success does not certify public UI access from that network.
+After the ID gate rollout, public Cloudflare ingestion accepted and persisted an
+error, transaction and child span (`infra-acceptance-b01764ab0849`). On the operator
+workstation the explicitly approved hosts block routes only five monitoring domains
+to the home origin with normal TLS verification. Chromium loaded GlitchTip and
+signed in without JavaScript errors before the ID gate cutover. Full interactive
+ID login has not yet been verified with the operator account. Other computers do
+not receive this hosts change; Cloudflare stays proxied externally.
 
 Kuma checks the internal `/_health/` endpoint every five minutes. Its scoped
 NetworkPolicies are part of `resources.yaml`, and the monitor is declared in

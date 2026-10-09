@@ -1,5 +1,12 @@
 # Monitoring acceptance, 2026-10-09
 
+Historical investigation before the ID gate cutover. Current state and authentication
+are in [ID access](id-access.md). The operator subsequently approved a hosts override
+only on their workstation; GlitchTip then rendered and accepted login without JS
+errors. Cloudflare stays enabled externally. `verify-access.py` now uses optional
+operator cookies rather than the former Basic credentials. The observations below
+describe the earlier measurements; they do not claim the external route is fixed.
+
 ## Grafana: public acceptance remains failed
 
 The earlier HTML/API-only check returned 200 while JavaScript downloads were incomplete.

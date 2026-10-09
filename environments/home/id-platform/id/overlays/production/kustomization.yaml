@@ -13,6 +13,12 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      - op: test
+        path: /spec/template/spec/containers/2/name
+        value: mutations
+      - op: replace
+        path: /spec/template/spec/containers/2/image
+        value: docker.io/updspace/id-observability@sha256:d8f239a8641a12bfaa01ded7a1798d7b083ab1ff3edf6d02037870ca4b0a0cd3
   - target:
       group: batch
       version: v1

@@ -4,13 +4,12 @@ from build import build
 
 
 class LocalMonitoringTests(unittest.TestCase):
-    def test_only_grafana_is_exposed_and_only_to_lan(self):
+    def test_no_nodeport_bypasses_identity_gate(self):
         resources, _ = build()
         public = [r for r in resources if r['kind'] == 'Service' and r['spec']['type'] != 'ClusterIP']
-        self.assertEqual([r['metadata']['name'] for r in public], ['grafana'])
-        self.assertEqual(public[0]['spec']['externalTrafficPolicy'], 'Local')
+        self.assertEqual(public, [])
         policy = next(r for r in resources if r['metadata']['name'] == 'grafana-lan')
-        self.assertEqual(policy['spec']['ingress'][0]['from'], [{'ipBlock': {'cidr': '192.168.1.0/24'}}])
+        self.assertEqual(policy['spec']['ingress'], [])
 
     def test_collector_routes_to_local_backends_without_cloud_secrets(self):
         _, collector = build()

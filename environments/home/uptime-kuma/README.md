@@ -2,10 +2,9 @@
 
 Сервер: `updspace_m4tveevm@192.168.1.176`. Kubernetes namespace: `uptime-kuma`.
 
-- Локальная страница: http://192.168.1.176:30031/status/updspace
-- Локальная панель: http://192.168.1.176:30031/dashboard
+- Прямой NodePort 30031 закрыт; использовать HTTPS-домен и общий proxy.
 - Страница через общий Caddy и Cloudflare: https://status.updspace.com
-- Панель через HTTPS: https://status.updspace.com/dashboard
+- Панель через HTTPS: https://status.updspace.com/dashboard — ID active + staff + system_admin, затем учётная запись Kuma.
 - Администратор: `admin`. Пароль на сервере: `sudo cat /opt/uptime-kuma/admin-credentials.json` (0600, root).
 
 Один контейнер `louislam/uptime-kuma:2.5.5-slim-rootless`, закреплённый по digest.
@@ -22,7 +21,8 @@ Requests: 50m CPU / 128Mi RAM; limits: 500m CPU / 512Mi RAM. SQLite размещ
 доменов из имён проверок, поэтому полного совпадения с приватными настройками
 UptimeRobot не заявляем. Старую историю не переносили.
 
-`config.json` содержит текущее состояние: 8 сайтов, 4 локальных readiness endpoint и панель PZ.
+`config.json` содержит 24 проверки: 8 прежних сайтов, 5 сервисов мониторинга,
+панель PZ, публичные ID и Portal, API Portal и 7 внутренних сервисов Portal.
 `is-schedule.updspace.com`, `ttnr.ru`, `updspace.com` оставлены на паузе по указанию
 пользователя. Проверка панели PZ включена после подтверждения нового DNS,
 валидного HTTPS и ответа `/api/health` HTTP 200; первый heartbeat Kuma — UP.
@@ -42,8 +42,9 @@ pod label `app.kubernetes.io/name=caddy`, общий вход 80/443. Маршр
 `status.updspace.com -> uptime-kuma.uptime-kuma.svc.cluster.local:3001`.
 Игровые TCP/UDP-порты не направляются через HTTP-маршруты.
 
-`access.yaml` разрешает доступ только из LAN `192.168.1.0/24` и общего Caddy.
-NodePort 30031 использует externalTrafficPolicy Local, чтобы сохранить IP клиента.
+`access.yaml` оставляет ClusterIP и доступ общего Caddy; прежняя LAN policy
+закрыта. `portal-network.yaml` разрешает Kuma проверять ровно восемь backend
+сервисов Portal. Внешний доступ к админке и Socket.IO проходит ID gate.
 `kuma.yaml` разрешает исходящие HTTP(S) в интернет, cluster DNS и четыре порта
 локального мониторинга; дополнительных привилегий и service account token нет.
 `health-from-uptime-kuma` — единственная добавленная policy в namespace observability.
@@ -102,7 +103,7 @@ Deployment использует Recreate, чтобы два процесса н�
 
 ## Конфигурация через IaC
 
-`config.json` принят из текущей панели: 14 HTTP-проверок, настройки и группы
+`config.json` принят из текущей панели и расширен: 24 HTTP-проверки, настройки и группы
 статусной страницы. Помимо трёх исходных пауз оператор приостановил spbetu.ru;
 это состояние сохранено. Для обычного изменения сначала править этот JSON,
 проверить diff, затем запустить `config.cjs --apply`. Прямое изменение в UI

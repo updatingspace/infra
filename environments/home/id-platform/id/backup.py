@@ -94,12 +94,14 @@ try:
     (stage/'garage-id-credentials.json').write_text(json.dumps(credentials))
     secrets = []
     for namespace, names in [('updspace-id', ['id-api', 'id-sessions', 'id-mutations', 'id-web', 'id-jobs']),
-                             ('updspace-data', ['id-ydb-admin', 'id-ydb-runtime', 'id-ydb-tls'])]:
+                             ('updspace-data', ['id-ydb-admin', 'id-ydb-runtime', 'id-ydb-tls']),
+                             ('observability-auth', ['oauth2-proxy'])]:
         for name in names:
             obj = json.loads(kube('-n', namespace, 'get', 'secret', name, '-o', 'json'))
             secrets.append({'apiVersion': 'v1', 'kind': 'Secret', 'type': obj['type'],
                             'metadata': {'name': name, 'namespace': namespace}, 'data': obj['data']})
     (stage/'kubernetes-secrets.json').write_text(json.dumps({'apiVersion': 'v1', 'kind': 'List', 'items': secrets}))
+    shutil.copy2('/opt/updspace-infra/private/observability-oidc.json', stage/'observability-oidc.json')
     shutil.copytree('/opt/updspace-data/id-ydb/certs', stage/'ydb-certs')
     for path in [CONFIG/'applications.yaml', Path('/opt/updspace-data/id-ydb/ydb.yaml')]:
         shutil.copy2(path, stage/path.name)

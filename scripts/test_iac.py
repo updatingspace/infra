@@ -13,15 +13,15 @@ class IaCTests(unittest.TestCase):
   text=(HOME/'edge/Caddyfile').read_text()
   for host in ('status.updspace.com','storage.updspace.com','{$PANEL_DOMAIN}'):
    self.assertIn(host+' {',text)
-  self.assertIn('monitoring {$MONITORING_AUTH_HASH}',text)
+  self.assertNotIn('basic_auth',text)
+  self.assertIn('uri /oauth/observability-access',text)
   for host in ('grafana','prometheus','alerts'):
    block=text.split(host+'.updspace.com {',1)[1].split('\n}',1)[0]
-   self.assertIn('import monitoring_access',block)
+   self.assertIn('import id_access',block)
    self.assertIn('header_up -Authorization',block)
   deployment=next(x for x in self.objects if x['kind']=='Deployment' and x['metadata']['name']=='caddy')
   env=deployment['spec']['template']['spec']['containers'][0]['env']
-  ref=next(x for x in env if x['name']=='MONITORING_AUTH_HASH')['valueFrom']['secretKeyRef']
-  self.assertEqual(ref,{'name':'observability-edge-auth','key':'password-hash'})
+  self.assertFalse(any(x['name']=='MONITORING_AUTH_HASH' for x in env))
  def test_public_monitoring_ingress_is_only_caddy(self):
   policy=next(x for x in self.objects if x['metadata']['name']=='monitoring-from-caddy')
   peers=policy['spec']['ingress'][0]['from']

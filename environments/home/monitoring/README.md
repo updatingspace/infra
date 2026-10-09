@@ -18,11 +18,11 @@ and `loki` to 10001. Create the `grafana-admin` Secret with a private random
 
 Grafana is at `https://grafana.updspace.com`; Prometheus at
 `https://prometheus.updspace.com`; Alertmanager at `https://alerts.updspace.com`.
-Shared Caddy requires temporary Basic user `monitoring` for all three. Grafana
-also retains its own `admin` login. LAN fallback: `http://192.168.1.176:30030`. Its NetworkPolicy
-permits only `192.168.1.0/24`; NodePort preserves the client address. Do not
-forward this port on the router. Loki stays internal. Prometheus/Alertmanager have no public NodePort; Caddy
-reaches them through the narrow policies in `../edge/monitoring-network.yaml`.
+Shared Caddy requires an active UpdSpace ID account with BOTH staff and system_admin.
+Grafana also retains its own admin login. Services are ClusterIP; the former LAN
+NodePort 30030 is closed. Loki remains internal. Caddy reaches the services through
+`../edge/monitoring-network.yaml`; session and role authorization is documented in
+`docs/id-access.md` at repository root.
 
 Prometheus retains 15 days, capped at 15 GB; Loki retains seven days.
 These retention settings are not filesystem quotas. The four backends use

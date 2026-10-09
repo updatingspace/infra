@@ -734,7 +734,7 @@
         "namespace": "observability"
       },
       "spec": {
-        "type": "NodePort",
+        "type": "ClusterIP",
         "selector": {
           "app.kubernetes.io/name": "grafana"
         },
@@ -742,11 +742,9 @@
           {
             "name": "http",
             "port": 3000,
-            "targetPort": "http",
-            "nodePort": 30030
+            "targetPort": "http"
           }
-        ],
-        "externalTrafficPolicy": "Local"
+        ]
       }
     },
     {
@@ -822,23 +820,7 @@
         "policyTypes": [
           "Ingress"
         ],
-        "ingress": [
-          {
-            "from": [
-              {
-                "ipBlock": {
-                  "cidr": "192.168.1.0/24"
-                }
-              }
-            ],
-            "ports": [
-              {
-                "protocol": "TCP",
-                "port": 3000
-              }
-            ]
-          }
-        ]
+        "ingress": []
       }
     },
     {

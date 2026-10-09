@@ -29,7 +29,7 @@
         "template": {
           "metadata": {
             "annotations": {
-              "checksum/config": "a42c0259a66fc35e3f10c43b4b0fff4e4e9d16e73bee8a79a53873da22c097dc"
+              "checksum/config": "3a894d3e66ee669ae898f84d4248b887b2156257acca98ddecf4e0310bc591b3"
             },
             "labels": {
               "app.kubernetes.io/managed-by": "terraform",
@@ -142,17 +142,7 @@
                     "readOnly": true
                   }
                 ],
-                "env": [
-                  {
-                    "name": "MONITORING_AUTH_HASH",
-                    "valueFrom": {
-                      "secretKeyRef": {
-                        "name": "observability-edge-auth",
-                        "key": "password-hash"
-                      }
-                    }
-                  }
-                ]
+                "env": []
               }
             ],
             "dnsPolicy": "ClusterFirst",

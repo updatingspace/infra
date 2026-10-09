@@ -27,6 +27,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y age zstd rsync acl openjdk-17-jdk-headless
           python -m pip install -r requirements.txt -r environments/pz/kubernetes/backup/requirements.txt
+      - name: Install pinned Caddy for authorization integration test
+        run: |
+          curl --fail --location --retry 2 --max-time 120 https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz -o /tmp/caddy.tar.gz
+          echo '8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9  /tmp/caddy.tar.gz' | sha512sum --check
+          tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
+          echo 'CADDY_BINARY=/tmp/caddy' >> "$GITHUB_ENV"
       - name: Unit and real archive roundtrip tests
         run: python scripts/validate.py
       - name: Render access configuration

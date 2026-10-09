@@ -1,0 +1,16 @@
+{
+  "client_id": "observability",
+  "name": "UpdSpace monitoring",
+  "description": "Private monitoring: active staff with the system_admin role only",
+  "redirect_uris": [
+    "https://grafana.updspace.com/oauth2/callback",
+    "https://prometheus.updspace.com/oauth2/callback",
+    "https://alerts.updspace.com/oauth2/callback",
+    "https://errors.updspace.com/oauth2/callback",
+    "https://status.updspace.com/oauth2/callback"
+  ],
+  "allowed_scopes": ["openid", "email", "profile", "offline_access"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "is_public": false,
+  "is_first_party": false
+}

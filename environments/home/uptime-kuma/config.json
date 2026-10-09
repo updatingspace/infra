@@ -181,6 +181,144 @@
       "ignoreTls": false,
       "maxredirects": 10,
       "description": "Внутренняя готовность GlitchTip и PostgreSQL; публичный HTTPS и приём событий проверяются отдельно."
+    },
+    {
+      "name": "UpdSpace ID",
+      "type": "http",
+      "url": "https://id.updspace.com/readyz",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "description": "Готовность публичного ID, его базы и HTTPS через Cloudflare."
+    },
+    {
+      "name": "UpdSpace Portal",
+      "type": "http",
+      "url": "https://portal.updspace.com/",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "description": "Публичный интерфейс Portal через Cloudflare; backend проверяется отдельно."
+    },
+    {
+      "name": "Portal API",
+      "type": "http",
+      "url": "http://bff.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "description": "Внутренняя готовность Portal BFF; не подменяется страницей входа.",
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}"
+    },
+    {
+      "name": "Portal access",
+      "type": "http",
+      "url": "http://access.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal activity",
+      "type": "http",
+      "url": "http://activity.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal events",
+      "type": "http",
+      "url": "http://events.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal featureflags",
+      "type": "http",
+      "url": "http://featureflags.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal gamification",
+      "type": "http",
+      "url": "http://gamification.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal portal",
+      "type": "http",
+      "url": "http://portal.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Portal voting",
+      "type": "http",
+      "url": "http://voting.updspace-portal.svc.cluster.local:8000/health",
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20.0,
+      "maxretries": 2,
+      "ignoreTls": false,
+      "maxredirects": 0,
+      "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
+      "description": "Внутренняя проверка готовности сервиса Portal."
     }
   ],
   "statusPage": {
@@ -197,6 +335,23 @@
     "showOnlyLastHeartbeat": false
   },
   "publicGroups": [
+    {
+      "name": "UpdSpace — основной контур",
+      "monitors": [
+        {
+          "name": "UpdSpace ID",
+          "sendUrl": false
+        },
+        {
+          "name": "UpdSpace Portal",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal API",
+          "sendUrl": false
+        }
+      ]
+    },
     {
       "name": "Сайты",
       "monitors": [
@@ -252,6 +407,39 @@
       "monitors": [
         {
           "name": "Project Zomboid — панель",
+          "sendUrl": false
+        }
+      ]
+    },
+    {
+      "name": "Portal — сервисы",
+      "monitors": [
+        {
+          "name": "Portal access",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal activity",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal events",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal featureflags",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal gamification",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal portal",
+          "sendUrl": false
+        },
+        {
+          "name": "Portal voting",
           "sendUrl": false
         }
       ]

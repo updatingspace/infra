@@ -48,9 +48,6 @@ def build():
                     'automountServiceAccountToken':False,'securityContext':{'runAsNonRoot':True,'runAsUser':uid,'runAsGroup':uid,'seccompProfile':{'type':'RuntimeDefault'}},
                     'containers':[container],'volumes':volumes,'terminationGracePeriodSeconds':60}}}})
         service = {'type':'ClusterIP','selector':labels,'ports':[{'name':'http','port':port,'targetPort':'http'}]}
-        if name == 'grafana':
-            service['type']='NodePort'; service['ports'][0]['nodePort']=30030
-            service['externalTrafficPolicy']='Local'
         resources.append({'apiVersion':'v1','kind':'Service','metadata':{'name':name,'namespace':NS},'spec':service})
 
     rules = {'groups':[{'name':'pz-local','rules':[
@@ -121,7 +118,7 @@ def build():
     resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'local-prometheus-scrape','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'prometheus'}},'policyTypes':['Egress'],'egress':[
         {'to':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'zomboid'}},'podSelector':{'matchLabels':{'app.kubernetes.io/name':'zomboid'}}}], 'ports':[{'protocol':'TCP','port':9090}]},
         {'to':[{'ipBlock':{'cidr':'192.168.1.176/32'}}],'ports':[{'protocol':'TCP','port':9109}]}]}})
-    resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'grafana-lan','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'grafana'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'ipBlock':{'cidr':'192.168.1.0/24'}}],'ports':[{'protocol':'TCP','port':3000}]}]}})
+    resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'grafana-lan','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'grafana'}},'policyTypes':['Ingress'],'ingress':[]}})
     resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'game-from-local-prometheus','namespace':'zomboid'},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'zomboid'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':NS}},'podSelector':{'matchLabels':{'app.kubernetes.io/name':'prometheus'}}}],'ports':[{'protocol':'TCP','port':9090}]}]}})
     collector=yaml.safe_load((ROOT/'collector-source.yaml').read_text())
     collector['exporters']={'prometheus_remote_write/local':{'endpoint':'http://prometheus:9090/api/v1/write','resource_to_telemetry_conversion':{'enabled':True}},

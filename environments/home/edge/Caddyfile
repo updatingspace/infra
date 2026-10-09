@@ -3,6 +3,65 @@
   admin off
 }
 
+# Browser sessions belong to oauth2-proxy; every request is authorized live by ID.
+(monitoring_headers) {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
+  header {
+    -Server
+    Cache-Control "private, no-store"
+    X-Content-Type-Options "nosniff"
+  }
+}
+
+(id_access) {
+  request_header -X-Auth-*
+  request_header -X-Observability-*
+  request_header -X-Forwarded-User
+  request_header -X-Forwarded-Email
+  request_header -X-Forwarded-Groups
+  request_header -X-Forwarded-Access-Token
+  handle /oauth2/* {
+    reverse_proxy oauth2-proxy.observability-auth.svc.cluster.local:4180 {
+      header_up X-Forwarded-Host {host}
+      header_up X-Forwarded-Proto https
+      header_up -Authorization
+    }
+  }
+  reverse_proxy oauth2-proxy.observability-auth.svc.cluster.local:4180 {
+    method GET
+    rewrite /oauth2/auth
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto https
+    header_up -Authorization
+    @session status 2xx
+    handle_response @session {
+      request_header X-Observability-Token {rp.header.X-Auth-Request-Access-Token}
+      # Preserve all cookie chunks and refreshes, including when authorization denies.
+      copy_response_headers {
+        include Set-Cookie
+      }
+    }
+    @login status 401
+    handle_response @login {
+      copy_response_headers {
+        include Set-Cookie
+      }
+      redir * /oauth2/start?rd=/ 302
+    }
+  }
+  forward_auth id.updspace-id.svc.cluster.local:8089 {
+    uri /oauth/observability-access
+    header_up Authorization "Bearer {http.request.header.X-Observability-Token}"
+    header_up -Cookie
+  }
+  request_header -X-Observability-Token
+}
+
+
 {$PANEL_DOMAIN} {
   encode zstd gzip
   reverse_proxy panel.zomboid.svc.cluster.local:3001 {
@@ -29,12 +88,25 @@
 
 status.updspace.com {
   encode zstd gzip
-  reverse_proxy uptime-kuma.uptime-kuma.svc.cluster.local:3001
-  header -Server
-  log {
-    output stdout
-    format json
+  # Public status uses HTTP polling; the administrator Socket.IO endpoint stays gated.
+  @public_status {
+    method GET HEAD
+    path / /status/updspace /status/updspace/rss /assets/* /upload/* /icon.svg /icon.png /favicon.ico /manifest.json /api/status-page/updspace /api/status-page/heartbeat/updspace /api/status-page/updspace/manifest.json /api/status-page/updspace/incident-history /api/status-page/updspace/badge
   }
+  handle @public_status {
+    reverse_proxy uptime-kuma.uptime-kuma.svc.cluster.local:3001
+  }
+  handle {
+    header Cache-Control "private, no-store"
+    route {
+      import id_access
+      reverse_proxy uptime-kuma.uptime-kuma.svc.cluster.local:3001 {
+        header_up -Authorization
+        stream_timeout 1m
+      }
+    }
+  }
+  header -Server
 }
 
 storage.updspace.com {
@@ -48,41 +120,36 @@ storage.updspace.com {
   header Cache-Control "private, no-store"
 }
 
-# Temporary access until ID enforces staff AND the network administrator role.
-(monitoring_access) {
-  tls {
-    issuer acme {
-      disable_tlsalpn_challenge
-    }
-  }
-  basic_auth {
-    monitoring {$MONITORING_AUTH_HASH}
-  }
-  header {
-    -Server
-    Cache-Control "private, no-store"
-    X-Content-Type-Options "nosniff"
-  }
-}
-
 grafana.updspace.com {
-  import monitoring_access
-  reverse_proxy grafana.observability.svc.cluster.local:3000 {
-    header_up -Authorization
+  import monitoring_headers
+  route {
+    import id_access
+    reverse_proxy grafana.observability.svc.cluster.local:3000 {
+      header_up -Authorization
+      stream_timeout 1m
+    }
   }
 }
 
 prometheus.updspace.com {
-  import monitoring_access
-  reverse_proxy prometheus.observability.svc.cluster.local:9090 {
-    header_up -Authorization
+  import monitoring_headers
+  route {
+    import id_access
+    reverse_proxy prometheus.observability.svc.cluster.local:9090 {
+      header_up -Authorization
+      stream_timeout 1m
+    }
   }
 }
 
 alerts.updspace.com {
-  import monitoring_access
-  reverse_proxy alertmanager.observability.svc.cluster.local:9093 {
-    header_up -Authorization
+  import monitoring_headers
+  route {
+    import id_access
+    reverse_proxy alertmanager.observability.svc.cluster.local:9093 {
+      header_up -Authorization
+      stream_timeout 1m
+    }
   }
 }
 
@@ -145,13 +212,14 @@ errors.updspace.com {
     reverse_proxy glitchtip.glitchtip.svc.cluster.local:8000
   }
   handle {
-    basic_auth {
-      monitoring {$MONITORING_AUTH_HASH}
-    }
-    reverse_proxy glitchtip.glitchtip.svc.cluster.local:8000 {
-      header_up -Authorization
-    }
     header Cache-Control "private, no-store"
+    route {
+      import id_access
+      reverse_proxy glitchtip.glitchtip.svc.cluster.local:8000 {
+        header_up -Authorization
+        stream_timeout 1m
+      }
+    }
   }
   header -Server
   header X-Content-Type-Options "nosniff"

@@ -21,8 +21,10 @@ is not a filesystem quota. Backups have no automatic deletion policy.
 
 https://errors.updspace.com uses the common Caddy, with Cloudflare proxy enabled.
 UI requires an active UpdSpace ID account with BOTH staff and system_admin,
-followed by the GlitchTip login
-`admin@updspace.com`. Passwords and the initial project DSN are in the VM's root-only
+then **UpdSpace ID** on the GlitchTip login page creates a personal account and
+adds it as a member of the existing UpdatingSpace LLC organization. The existing owner
+`admin@updspace.com` remains available for recovery. Its password and the initial
+project DSN are in the VM's root-only
 `/opt/updspace-infra/private/glitchtip-credentials.json`; never commit that file.
 `bootstrap.py` preserves existing credentials and rejects unexpected database ownership
 or role privileges. Run without arguments for a read-only state check, then explicitly
@@ -40,8 +42,8 @@ After the ID gate rollout, public Cloudflare ingestion accepted and persisted an
 error, transaction and child span (`infra-acceptance-b01764ab0849`). On the operator
 workstation the explicitly approved hosts block routes only five monitoring domains
 to the home origin with normal TLS verification. Chromium loaded GlitchTip and
-signed in without JavaScript errors before the ID gate cutover. Full interactive
-ID login has not yet been verified with the operator account. Other computers do
+signed in without JavaScript errors before the ID gate cutover. Full interactive native
+GlitchTip login has not yet been verified with the operator account. Other computers do
 not receive this hosts change; Cloudflare stays proxied externally.
 
 Kuma checks the internal `/_health/` endpoint every five minutes. Its scoped
@@ -90,3 +92,29 @@ transaction and child span records. `--origin-ip 192.168.1.176` checks the origi
 separately. A 2026-10-09 offsite restore recovered 1 user, 1 project, 3 errors,
 3 transactions and 1 span; uploads were empty, so real uploaded-file restoration
 has not yet been exercised. No production application telemetry is wired automatically.
+
+## Native UpdSpace ID login
+
+The provider is declared in `oidc.json`; apply on the VM after the seven-callback
+client migration and ID image with fresh observability userinfo authorization:
+
+```sh
+sudo python3 environments/home/glitchtip/configure-oidc.py --apply
+sudo python3 environments/home/glitchtip/configure-oidc.py
+sudo k3s kubectl -n glitchtip exec -i deployment/glitchtip -- python - < environments/home/glitchtip/verify-oidc-start.py
+```
+
+Existing provider drift is rejected. The client secret travels via stdin and never
+appears in output/source. No real user's privileges are modified. GlitchTip fetches
+userinfo, and ID rejects inactive/nonstaff/nonsystem-admin tokens for this client.
+PKCE S256 is enabled; the exact native callback is
+`https://errors.updspace.com/accounts/oidc/updspace/login/callback/`.
+Public organization-provider linkage permits eligible native SSO accounts while
+unrelated signup remains disabled. Profile matching uses provider subject; no
+insecure email-linking override is enabled. The provider/link are backed up in PG.
+
+The pod resolves only `id.updspace.com` to the shared HTTPS origin using hostAliases;
+its egress policy allows only that origin on 443 in addition to existing DNS/PG.
+TLS validation stays enabled. Granian requires both X-Forwarded-For and
+X-Forwarded-Proto when testing the backend directly; Caddy supplies both normally.
+The start probe creates only an anonymous CSRF session, never a personal account.

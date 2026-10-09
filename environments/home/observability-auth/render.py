@@ -28,6 +28,7 @@ def render():
     edge = peer('edge', 'caddy')
     identity = peer('updspace-id', 'id')
     proxy = peer(NS, 'oauth2-proxy')
+    grafana = peer('observability', 'grafana')
     tcp = lambda port: {'protocol': 'TCP', 'port': port}
     return [
         resource('Namespace', NS, namespace=None),
@@ -63,6 +64,10 @@ def render():
                     'ports': [tcp(53), {'protocol': 'UDP', 'port': 53}]}]}),
         resource('NetworkPolicy', 'caddy-to-observability-auth', {'podSelector': {'matchLabels': edge['podSelector']['matchLabels']},
             'policyTypes': ['Egress'], 'egress': [{'to': [proxy], 'ports': [tcp(4180)]}]}, namespace='edge'),
+        resource('NetworkPolicy', 'grafana-to-id', {'podSelector': grafana['podSelector'],
+            'policyTypes': ['Egress'], 'egress': [{'to': [identity], 'ports': [tcp(8089)]}]}, namespace='observability'),
+        resource('NetworkPolicy', 'id-from-grafana', {'podSelector': identity['podSelector'],
+            'policyTypes': ['Ingress'], 'ingress': [{'from': [grafana], 'ports': [tcp(8089)]}]}, namespace='updspace-id'),
         resource('NetworkPolicy', 'id-from-observability-auth', {'podSelector': identity['podSelector'],
             'policyTypes': ['Ingress'], 'ingress': [{'from': [proxy], 'ports': [tcp(8089)]}]}, namespace='updspace-id'),
     ]

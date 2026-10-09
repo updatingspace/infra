@@ -43,6 +43,24 @@ def matches(row, config, credentials):
             and all(json.loads(row[k]) == config[k] for k in ('redirect_uris','allowed_scopes','grant_types')))
 
 
+def application_callbacks_sql(row, config, credentials):
+    previous = config | {'redirect_uris': config['redirect_uris'][:-2]}
+    assert config['redirect_uris'][-2:] == ['https://grafana.updspace.com/login/generic_oauth', 'https://errors.updspace.com/accounts/oidc/updspace/login/callback/']
+    staged = config | {'redirect_uris': config['redirect_uris'][:-1] + ['https://errors.updspace.com/accounts/updspace/login/callback/']}
+    assert matches(row, previous, credentials) or matches(row, staged, credentials), 'Only the declared legacy callback migrations are allowed'
+    desired = literal(json.dumps(config['redirect_uris']))
+    existing = literal(row['redirect_uris'])
+    secret_hash = literal(credentials['client_secret_hash'])
+    return f"""UPDATE idp_oidcclient
+SET redirect_uris = Ensure(Unwrap(CAST({desired} AS Json)),
+    CAST(redirect_uris AS Utf8) = Unwrap(CAST({existing} AS Utf8)) AND client_secret_hash = Unwrap(CAST({secret_hash} AS Utf8)), 'client changed'),
+    updated_at = CurrentUtcDatetime()
+WHERE id = {credentials['id']} AND client_id = 'observability';
+INSERT INTO usid_audit_log (actor_user_id, action, target_type, target_id, tenant_id, meta_json, created_at)
+VALUES (NULL, 'oidc_client.updated', 'oidc_client', 'observability', NULL,
+    Json('{{"source":"operator-requested-application-oauth","change":"add-exact-application-callbacks"}}'), CurrentUtcDatetime());"""
+
+
 def sql(query):
     command = KUBE + ['-n','updspace-data','exec','-i','id-ydb-0','--','/ydb',
         '--endpoint','grpcs://localhost:2135','--database','/local','--ca-file','/ydb_certs/ca.pem',
@@ -63,13 +81,16 @@ def private_file(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--apply', action='store_true'); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--add-application-callbacks', action='store_true')
+    args = parser.parse_args()
+    if args.add_application_callbacks and not args.apply: parser.error('--add-application-callbacks requires --apply')
     if os.geteuid() != 0:
         raise SystemExit('Run on the VM as root')
     config = json.loads((ROOT/'client.json').read_text())
     expected_hosts = ['grafana','prometheus','alerts','errors','status']
     assert config['client_id'] == 'observability' and not config['is_public'] and not config['is_first_party']
-    assert config['redirect_uris'] == [f'https://{h}.updspace.com/oauth2/callback' for h in expected_hosts]
+    assert config['redirect_uris'] == [f'https://{h}.updspace.com/oauth2/callback' for h in expected_hosts] + ['https://grafana.updspace.com/login/generic_oauth', 'https://errors.updspace.com/accounts/oidc/updspace/login/callback/']
     assert config['allowed_scopes'] == ['openid','email','profile','offline_access']
     assert config['grant_types'] == ['authorization_code','refresh_token']
     with open('/run/lock/updspace-observability-client.lock','w') as lock:
@@ -78,8 +99,11 @@ def main():
         if len(rows) > 1:
             raise RuntimeError('Ambiguous existing client; no change made')
         credentials = private_file(PRIVATE) if PRIVATE.exists() else None
-        if rows and (not credentials or not matches(rows[0], config, credentials)):
-            raise RuntimeError('Existing client differs or private recovery file is missing; no rotation or update attempted')
+        if rows and credentials and args.add_application_callbacks and not matches(rows[0], config, credentials):
+            sql(application_callbacks_sql(rows[0], config, credentials))
+            rows = sql(read_sql())
+        if rows and (not credentials or len(rows) != 1 or not matches(rows[0], config, credentials)):
+            raise RuntimeError('Existing client differs or recovery file missing; only --apply --add-application-callbacks permits the declared two-callback migration')
         print(json.dumps({'client':'observability','state':'matching' if rows else 'missing','callbacks':config['redirect_uris'],'usersChanged':False}))
         if not args.apply: return
         if credentials is None:
@@ -104,7 +128,12 @@ def main():
         result = subprocess.run(KUBE+['apply','--server-side','--field-manager=observability-client','-f','-'],
             input=json.dumps(secret).encode(), capture_output=True)
         if result.returncode: raise RuntimeError('Client is persisted; Kubernetes Secret apply failed, rerun after checking drift')
-        print('Client and session key verified; personal accounts and their privileges unchanged')
+        secret = {'apiVersion':'v1','kind':'Secret','metadata':{'name':'grafana-oidc','namespace':'observability'},
+            'type':'Opaque','stringData':{'client-secret':credentials['client_secret']}}
+        result = subprocess.run(KUBE+['apply','--server-side','--field-manager=observability-client','-f','-'],
+            input=json.dumps(secret).encode(), capture_output=True)
+        if result.returncode: raise RuntimeError('Client persisted; Grafana Secret apply failed, check before retrying')
+        print('Client and session keys verified; personal ID accounts and their privileges unchanged')
 
 
 if __name__ == '__main__': main()

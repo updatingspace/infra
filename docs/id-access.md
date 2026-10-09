@@ -14,7 +14,7 @@ an explicitly approved local hosts block for these five domains; see
 `environments/workstation/README.md`. There is no competing HTTP edge.
 
 ID issuer `https://id.updspace.com`, RS256, nonce and PKCE S256 are checked.
-The confidential `observability` client has exactly five callback addresses,
+The confidential `observability` client has exactly seven callback addresses (five edge callbacks plus native Grafana and GlitchTip),
 authorization-code/refresh grants and openid/email/profile/offline_access scopes.
 `prompt=consent` replaces oauth2-proxy's legacy `approval_prompt=force`, which ID's
 strict authorization parser rejects. Consent stays under the user's control.
@@ -38,8 +38,28 @@ refresh every five minutes; loss of a role is enforced at the next HTTP request.
 OAuth2-proxy request/auth logs are disabled to avoid callback secrets in logs.
 
 Grafana and Kuma Services are ClusterIP; old NodePorts 30030/30031 and the old LAN
-NetworkPolicy grants are closed. Applications retain their existing own login:
-this rollout does not provision ID identities inside Grafana, GlitchTip or Kuma.
+NetworkPolicy grants are closed. Grafana uses native Generic OAuth with automatic
+login, PKCE S256, refresh tokens and profile synchronization. Its immutable identity binding is ID `sub`, while the visible login uses
+`preferred_username`; strict role mapping requires all active/staff/system_admin flags and grants
+organization Admin, never Grafana server administrator. Password/basic authentication
+is disabled; the old admin Secret and database are retained for recovery. Insecure
+email-based account linking remains disabled. The client Secret is installed as
+`observability/grafana-oidc`; scoped NetworkPolicies allow only Grafana → ID:8089.
+
+GlitchTip advertises **UpdSpace ID** through its native OpenID Connect provider,
+linked to the existing organization, UpdatingSpace LLC. New identities receive normal member
+access; the existing owner remains unchanged. Public/social general registration
+stays disabled. Provider configuration lives in `glitchtip/oidc.json` and is applied
+idempotently by `configure-oidc.py`. Its callback is
+`https://errors.updspace.com/accounts/oidc/updspace/login/callback/`.
+Provider discovery uses the public HTTPS issuer via a pod-local host alias to the
+common edge; certificate verification stays enabled. Existing password login is
+retained for recovery. Kuma still has its own application login.
+
+GlitchTip always fetches userinfo. For tokens issued to `observability`, ID applies
+the same fresh active/staff/system_admin check to `/oauth/userinfo` before returning
+identity data. This also protects native login after switching ID accounts; other
+OAuth clients retain their existing userinfo behavior.
 The public status API is a narrow GET/HEAD allowlist; administrator Socket.IO is
 protected. Only numeric GlitchTip POST/OPTIONS envelope/minidump paths bypass ID.
 
@@ -76,5 +96,17 @@ Caddy 2.11.4 and a pinned official archive checksum.
 Live acceptance checks redirects for all five hosts, then follows each request to
 ID and verifies that it reaches `/login`, public Kuma routes, closed NodePorts,
 client secret recognition and GlitchTip Cloudflare ingestion. No production user
-or privileged test identity was created. Full interactive staff login and actual
-role removal from the operator account are not claimed as verified.
+or privileged test identity was created. The operator subsequently confirmed native Grafana login, name and email sync
+with a profile screenshot. Personal GlitchTip callback and actual production role
+removal have not been verified.
+
+Native OAuth acceptance uses the actual pinned Grafana image with a disposable
+local database and mock IdP: rejects missing staff/admin combinations, provisions
+an organization Admin, preserves its identity while name/email change, and does
+not grant server administrator. GlitchTip's live headless start verifies CSRF,
+provider discovery, exact HTTPS callback and S256. Personal consent/account login
+is still operator-controlled; we did not accept consent on the operator's behalf.
+
+Grafana Generic OAuth 13.2.3 does not consume the OIDC `picture` claim; its
+profile-image mechanism is Gravatar-compatible. ID already exposes scoped `picture`,
+but an ID-to-Grafana avatar integration is not part of this native login change.

@@ -7,10 +7,20 @@
     "https://prometheus.updspace.com/oauth2/callback",
     "https://alerts.updspace.com/oauth2/callback",
     "https://errors.updspace.com/oauth2/callback",
-    "https://status.updspace.com/oauth2/callback"
+    "https://status.updspace.com/oauth2/callback",
+    "https://grafana.updspace.com/login/generic_oauth",
+    "https://errors.updspace.com/accounts/oidc/updspace/login/callback/"
   ],
-  "allowed_scopes": ["openid", "email", "profile", "offline_access"],
-  "grant_types": ["authorization_code", "refresh_token"],
+  "allowed_scopes": [
+    "openid",
+    "email",
+    "profile",
+    "offline_access"
+  ],
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
   "is_public": false,
   "is_first_party": false
 }

@@ -53,8 +53,10 @@ Basic auth снят; NodePort 30030/30031 закрыты. Публичная с�
 и приём SDK-событий GlitchTip доступны без staff-сессии. Контракт и проверки:
 [ID access](docs/id-access.md).
 
-Grafana, GlitchTip и Kuma сохраняют собственные учётные записи после входа через ID.
-Grafana: Secret `observability/grafana-admin`, key `password`.
+Grafana автоматически входит через OAuth и создаёт личную учётку по ID.
+GlitchTip: кнопка **UpdSpace ID** создаёт личную учётку в организации UpdSpace.
+Kuma пока сохраняет отдельный вход после ID. Старый Grafana Secret
+`observability/grafana-admin` сохранён для восстановления; обычный вход паролем отключён.
 GlitchTip: https://errors.updspace.com, `admin@updspace.com`; пароль и DSN в
 `/opt/updspace-infra/private/glitchtip-credentials.json` на VM, root 0600.
 Приложение ограничено 1 CPU/1 GiB; PostgreSQL общий, его бюджет учитывается отдельно.

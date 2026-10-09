@@ -70,6 +70,20 @@ elif 'pg_dump' in args: sys.exit(42)
             bootstrap.database()
             self.assertFalse(any('PASSWORD' in call.args[0] for call in sql.call_args_list))
 
+    def test_oidc_keeps_signup_and_user_privileges_closed(self):
+        config=json.loads(Path(__file__).with_name('oidc.json').read_text())
+        self.assertEqual(config['client_id'],'observability')
+        self.assertEqual(config['organization'],'updspace')
+        self.assertTrue(config['settings']['fetch_userinfo'])
+        self.assertTrue(config['settings']['oauth_pkce_enabled'])
+        objects=list(yaml.safe_load_all(Path(__file__).with_name('resources.yaml').read_text()))
+        cm=next(x for x in objects if x['kind']=='ConfigMap')
+        self.assertEqual(cm['data']['ENABLE_USER_REGISTRATION'],'False')
+        self.assertEqual(cm['data']['ENABLE_SOCIAL_APPS_USER_REGISTRATION'],'False')
+        deploy=next(x for x in objects if x['kind']=='Deployment')
+        self.assertEqual(deploy['spec']['template']['spec']['hostAliases'],
+            [{'ip':'192.168.1.176','hostnames':['id.updspace.com']}])
+
     def test_manifest_keeps_small_persistent_isolated_runtime(self):
         objects = list(yaml.safe_load_all(Path(__file__).with_name('resources.yaml').read_text()))
         self.assertFalse(any(o['kind'] == 'Secret' for o in objects))

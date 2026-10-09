@@ -13,7 +13,7 @@ class ConfigurationTests(unittest.TestCase):
         cfg = tomllib.loads((ROOT/'oauth2-proxy.cfg').read_text())
         client = json.loads((ROOT/'client.json').read_text())
         self.assertFalse(client['is_public'])
-        self.assertEqual({f'https://{h}/oauth2/callback' for h in cfg['whitelist_domains']}, set(client['redirect_uris']))
+        self.assertEqual({f'https://{h}/oauth2/callback' for h in cfg['whitelist_domains']} | {'https://grafana.updspace.com/login/generic_oauth', 'https://errors.updspace.com/accounts/oidc/updspace/login/callback/'}, set(client['redirect_uris']))
         self.assertEqual(cfg['client_id'], client['client_id'])
         self.assertEqual(set(cfg['scope'].split()), set(client['allowed_scopes']))
         self.assertNotIn('cookie_domains', cfg)
@@ -56,6 +56,17 @@ class ConfigurationTests(unittest.TestCase):
         for key, value in [('id', 43), ('client_secret_hash', 'changed'), ('is_public', True),
                            ('redirect_uris', '["https://evil.invalid/callback"]')]:
             self.assertFalse(module.matches(row | {key:value}, cfg, credentials))
+        previous = row | {'redirect_uris':json.dumps(cfg['redirect_uris'][:-2])}
+        migration = module.application_callbacks_sql(previous, cfg, credentials)
+        self.assertIn('Ensure(', migration)
+        staged = row | {'redirect_uris':json.dumps(cfg['redirect_uris'][:-1] + ['https://errors.updspace.com/accounts/updspace/login/callback/'])}
+        self.assertIn('Ensure(', module.application_callbacks_sql(staged, cfg, credentials))
+        self.assertNotIn('UPDATE auth_user', migration)
+        self.assertNotIn('SET client_secret', migration)
+        with self.assertRaises(AssertionError):
+            module.application_callbacks_sql(previous | {'client_secret_hash':'changed'}, cfg, credentials)
+        with self.assertRaises(AssertionError):
+            module.application_callbacks_sql(row, cfg, credentials)
         sql = module.create_sql(cfg, credentials)
         self.assertIn('Ensure(', sql)
         self.assertIn('INSERT INTO idp_oidcclient', sql)

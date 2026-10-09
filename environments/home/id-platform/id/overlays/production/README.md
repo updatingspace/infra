@@ -26,8 +26,16 @@ patch from the repository root; build `services/id-rust/Dockerfile.api` with
 `services/id-rust` as context. Run the policy unit and isolated YDB integration tests
 before importing the image and applying this overlay.
 
-Imported image: `docker.io/updspace/id-observability@sha256:d8f239a8641a12bfaa01ded7a1798d7b083ab1ff3edf6d02037870ca4b0a0cd3`.
-Recovery archive on VM: `/opt/updspace-id/images/observability-20261009.tar`, SHA256
-`4cbf41d35d80d2dc2e3c45b11632250a44b2cc800ed32cf6944e8854e0f10407`.
+Imported image: `docker.io/updspace/id-observability@sha256:c82b7474009486c3cdd8ac16786d06bb1c91ab46254c6182679c29e0309086a5`.
+Recovery archive on VM: `/opt/updspace-id/images/profile-20261009.tar`, SHA256
+`ecde2f03db0b91c57c24f826bc4246976d7255c28fe66539d79b26fef01e22c0`.
 The archive is required on a replacement node; the local image name is not a registry.
 Client/bootstrap and backup recovery are described in `docs/id-access.md` at infra root.
+
+The patch also requires the same live role policy on `/oauth/userinfo` for the
+`observability` client. Other clients are unchanged. This prevents native GlitchTip
+login from bypassing the edge policy after an ID account switch.
+
+Profile scopes now include `preferred_username` from the existing ID username.
+The stable subject and consent scope filtering are unchanged; isolated real-YDB
+exchange tests cover included and omitted username claims.

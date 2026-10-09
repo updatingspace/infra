@@ -95,7 +95,7 @@ with transaction.atomic():
         user=get_user_model().objects.create_superuser(c['admin_email'],c['admin_password'])
     assert user.is_staff and user.is_superuser and user.is_active
     EmailAddress.objects.get_or_create(user=user,email=user.email,defaults={'primary':True,'verified':True})
-    org,_=Organization.objects.get_or_create(slug='updspace',defaults={'name':'UpdSpace'})
+    org,_=Organization.objects.get_or_create(slug='updspace',defaults={'name':'UpdatingSpace LLC'})
     member,_=OrganizationUser.objects.get_or_create(organization=org,user=user,defaults={'role':OrganizationUserRole.OWNER})
     assert member.role==OrganizationUserRole.OWNER
     owner,_=OrganizationOwner.objects.get_or_create(organization=org,defaults={'organization_user':member})

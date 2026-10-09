@@ -116,6 +116,10 @@ spec:
       labels:
         app.kubernetes.io/name: glitchtip
     spec:
+      # Resolve only this trusted IdP through the common local TLS edge.
+      hostAliases:
+        - ip: 192.168.1.176
+          hostnames: [id.updspace.com]
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
       securityContext:
@@ -300,3 +304,26 @@ spec:
       ports:
         - port: 8000
           protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: glitchtip-to-id-origin
+  namespace: glitchtip
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: glitchtip
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.176/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: edge
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: caddy
+      ports:
+        - {protocol: TCP, port: 443}

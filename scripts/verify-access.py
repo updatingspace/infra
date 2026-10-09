@@ -75,11 +75,11 @@ def verify_login_start(host, origin_ip=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--origin-ip')
-    parser.add_argument('--cookie-file', type=Path, help='Private Netscape cookie file from an authorized operator session')
+    parser.add_argument('--cookie-file', type=Path, help='Private Netscape cookie file with edge and native Grafana sessions from an authorized operator')
     args = parser.parse_args()
     if args.cookie_file:
         assert args.cookie_file.is_file() and args.cookie_file.stat().st_mode & 0o077 == 0, 'Cookie file must be private'
-    for domain, path in [('grafana', '/login'), ('prometheus', '/api/v1/query?query=up'),
+    for domain, path in [('grafana', '/'), ('prometheus', '/api/v1/query?query=up'),
                          ('alerts', '/api/v2/status'), ('errors', '/'), ('status', '/dashboard')]:
         host = domain + '.updspace.com'
         url = 'https://' + host + path

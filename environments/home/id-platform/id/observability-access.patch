@@ -1,16 +1,17 @@
 --- a/services/id-rust/crates/id-runtime/src/oidc_userinfo.rs
 +++ b/services/id-rust/crates/id-runtime/src/oidc_userinfo.rs
-@@ -104,19 +104,21 @@
+@@ -104,19 +104,22 @@
          let Some(principal) = active_principal_tx(tx, *user_id).await? else { return Ok(None); };
          if principal.public_subject.as_str() != subject { return Ok(None); }
          let Ok(scopes) = narrow_scopes(scope, None) else { return Ok(None); };
 -        let Some(mut account) = tx.query_row("SELECT first_name, last_name, email FROM auth_user WHERE id = $id")
-+        let Some(mut account) = tx.query_row("SELECT first_name, last_name, email, is_staff FROM auth_user WHERE id = $id")
++        let Some(mut account) = tx.query_row("SELECT first_name, last_name, email, is_staff, username FROM auth_user WHERE id = $id")
              .param("$id", *user_id).optional().await? else { return Ok(None); };
          let first_name: String = account.remove_field_by_name("first_name")?.try_into()?;
          let last_name: String = account.remove_field_by_name("last_name")?.try_into()?;
          let email: String = account.remove_field_by_name("email")?.try_into()?;
 +        let is_staff: bool = account.remove_field_by_name("is_staff")?.try_into()?;
++        let username: String = account.remove_field_by_name("username")?.try_into()?;
          let Some(mut identity) = tx.query_row("SELECT system_admin, email_verified FROM usid_user WHERE user_id = $id")
              .param("$id", principal.identity_id.get()).optional().await? else { return Ok(None); };
          let system_admin: bool = identity.remove_field_by_name("system_admin")?.try_into()?;
@@ -24,6 +25,14 @@
          if scopes.iter().any(|scope| scope == "email") {
              let mut stream = tx.query("SELECT email, verified FROM account_emailaddress VIEW account_emailaddress_user_id_2c513194 WHERE user_id = $id AND primary = true LIMIT 2")
                  .param("$id", *user_id).await?;
+@@ -157,6 +160,7 @@
+                 claims.insert("phone_number_verified".into(), json!(profile.is_some_and(|row| row.2)));
+             }
+             if wants_profile {
++                claims.insert("preferred_username".into(), json!(username));
+                 claims.insert("name".into(), json!(format!("{first_name} {last_name}").trim()));
+                 let picture = match profile.and_then(|row| row.0.as_deref()).filter(|key| !key.is_empty()) {
+                     Some(key) => match media.as_ref() {
 --- a/services/id-rust/crates/id-runtime/src/oidc_token_http.rs
 +++ b/services/id-rust/crates/id-runtime/src/oidc_token_http.rs
 @@ -112,6 +112,7 @@
@@ -42,28 +51,36 @@
      let mut authorization = request.headers().get_all(header::AUTHORIZATION).iter();
      let Some(value) = authorization.next() else {
          return invalid_bearer();
-@@ -152,6 +154,16 @@
+@@ -152,7 +154,7 @@
      )
      .await
      {
-+        Ok(Some(claims)) if observability => {
-+            if !observability_allowed(&claims) {
-+                return json_response(StatusCode::FORBIDDEN, json!({"error":"access_denied"}));
-+            }
-+            let mut response = StatusCode::NO_CONTENT.into_response();
-+            response
-+                .headers_mut()
-+                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-+            response
-+        }
-         Ok(Some(claims)) => json_response(StatusCode::OK, claims),
+-        Ok(Some(claims)) => json_response(StatusCode::OK, claims),
++        Ok(Some(claims)) => userinfo_response(observability, claims),
          Ok(None) => invalid_bearer(),
          Err(failure) => {
-@@ -163,6 +175,50 @@
+             tracing::error!(?failure, "Rust OIDC UserInfo failed");
+@@ -163,6 +165,108 @@
                  false,
              )
          }
 +    }
++}
++
++fn userinfo_response(observability: bool, claims: Value) -> Response {
++    // Native monitoring clients must satisfy the same policy as the edge session.
++    if (observability || claims["client_id"] == "observability") && !observability_allowed(&claims)
++    {
++        return json_response(StatusCode::FORBIDDEN, json!({"error":"access_denied"}));
++    }
++    if !observability {
++        return json_response(StatusCode::OK, claims);
++    }
++    let mut response = StatusCode::NO_CONTENT.into_response();
++    response
++        .headers_mut()
++        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
++    response
 +}
 +
 +// Policy uses fresh UserInfo database reads, never browser or cached token flags.
@@ -85,11 +102,33 @@
 +        let base = json!({"client_id":"observability", "master_flags":{
 +            "is_staff":true,"system_admin":true,"status":"active","banned":false,"suspended":false}});
 +        assert!(observability_allowed(&base));
++        assert_eq!(
++            userinfo_response(true, base.clone()).status(),
++            StatusCode::NO_CONTENT
++        );
++        assert_eq!(
++            userinfo_response(false, base.clone()).status(),
++            StatusCode::OK
++        );
++        assert_eq!(
++            userinfo_response(false, json!({"client_id":"portal"})).status(),
++            StatusCode::OK
++        );
 +        for (staff, admin) in [(false, false), (true, false), (false, true)] {
 +            let mut claims = base.clone();
 +            claims["master_flags"]["is_staff"] = json!(staff);
 +            claims["master_flags"]["system_admin"] = json!(admin);
 +            assert!(!observability_allowed(&claims));
++            if claims["client_id"] == "observability" {
++                assert_eq!(
++                    userinfo_response(false, claims.clone()).status(),
++                    StatusCode::FORBIDDEN
++                );
++            }
++            assert_eq!(
++                userinfo_response(true, claims).status(),
++                StatusCode::FORBIDDEN
++            );
 +        }
 +        for (key, value) in [
 +            ("status", json!("suspended")),
@@ -100,11 +139,31 @@
 +            let mut claims = base.clone();
 +            claims["master_flags"][key] = value;
 +            assert!(!observability_allowed(&claims));
++            if claims["client_id"] == "observability" {
++                assert_eq!(
++                    userinfo_response(false, claims.clone()).status(),
++                    StatusCode::FORBIDDEN
++                );
++            }
++            assert_eq!(
++                userinfo_response(true, claims).status(),
++                StatusCode::FORBIDDEN
++            );
 +        }
 +        for client in [json!("portal"), Value::Null, json!(["observability"])] {
 +            let mut claims = base.clone();
 +            claims["client_id"] = client;
 +            assert!(!observability_allowed(&claims));
++            if claims["client_id"] == "observability" {
++                assert_eq!(
++                    userinfo_response(false, claims.clone()).status(),
++                    StatusCode::FORBIDDEN
++                );
++            }
++            assert_eq!(
++                userinfo_response(true, claims).status(),
++                StatusCode::FORBIDDEN
++            );
 +        }
 +        assert!(!observability_allowed(&json!({})));
      }
@@ -112,10 +171,12 @@
  
 --- a/services/id-rust/crates/id-runtime/tests/oidc_code_exchange_ydb.rs
 +++ b/services/id-rust/crates/id-runtime/tests/oidc_code_exchange_ydb.rs
-@@ -162,6 +162,17 @@
+@@ -161,7 +161,18 @@
+             .await?.context("issued access token must reach UserInfo")?;
          ensure!(info["sub"] == subject && info["user_id"] == identity_id.to_string()
              && info["email"] == email && info["email_verified"] == true
-             && info.get("name").is_none(), "UserInfo claims differ from granted scopes");
+-            && info.get("name").is_none(), "UserInfo claims differ from granted scopes");
++            && info.get("name").is_none() && info.get("preferred_username").is_none(), "UserInfo claims differ from granted scopes");
 +        ensure!(info["client_id"] == client_id && info["master_flags"]["is_staff"] == false);
 +        // The same token must observe privilege changes, without a new login.
 +        for (staff, admin) in [(true, false), (false, true), (true, true), (false, false)] {
@@ -130,3 +191,11 @@
          ensure!(userinfo(&client, &keys, "https://other.example.invalid", &tokens.access_token, None, now).await?.is_none(), "wrong issuer accepted");
          let tampered = format!("{}x", tokens.access_token);
          ensure!(userinfo(&client, &keys, "https://id.example.invalid", &tampered, None, now).await?.is_none(), "tampered access token accepted");
+@@ -305,6 +316,7 @@
+         let legacy_info = userinfo(&client, &keys, "https://id.example.invalid", &legacy_access, Some(media), now)
+             .await?.context("legacy-scope access token must reach UserInfo")?;
+         ensure!(legacy_info["sub"] == subject && legacy_info["name"] == "Ada Lovelace"
++            && legacy_info["preferred_username"] == format!("oidc-{stamp}")
+             && legacy_info["given_name"] == "Ada" && legacy_info["family_name"] == "Lovelace"
+             && legacy_info["birthdate"] == "2001-02-03" && legacy_info["phone_number"] == "+123456789"
+             && legacy_info["phone_number_verified"] == true && legacy_info["locale"] == "ru"

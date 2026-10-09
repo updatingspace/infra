@@ -42,6 +42,13 @@
       "content": "updspacedd.tplinkdns.com",
       "proxied": true,
       "ttl": 1
+    },
+    {
+      "name": "portal.updspace.com",
+      "type": "CNAME",
+      "content": "updspacedd.tplinkdns.com",
+      "proxied": true,
+      "ttl": 1
     }
   ]
 }

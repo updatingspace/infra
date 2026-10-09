@@ -62,8 +62,15 @@ are not supported as explanations: warm origin requests take about 13–23 ms,
 the auth cache is enabled, and the same gzipped response completed externally.
 
 A fresh HOME Chromium attempt still did not render GlitchTip's login; individual
-reported pending chunks then completed through curl. A full external browser test
-awaits explicit operator approval after automatic review rejected that broader
-session scope. No system/router DNS change has been applied; its location is an
+reported pending chunks then completed through curl. A full external browser login was not exercised; the external evidence above
+is limited to complete authenticated GET responses. No system/router DNS change has been applied; its location is an
 operator choice. No speculative compression, auth or Cloudflare-proxy changes
 were made to disguise the failure.
+
+The subsequent controlled Grafana-only trial set upstream `Accept-Encoding` to
+`identity`. Origin returned all 54,939 bytes with Content-Length, but the public
+request still timed out. The trial was reverted; live Caddy was verified back at
+SHA256 `a42c0259a66fc35e3f10c43b4b0fff4e4e9d16e73bee8a79a53873da22c097dc`,
+including the final ID and Portal routes. A process-local Chromium HTTP/3 trial
+also left GlitchTip login unrendered. Neither experiment changed global DNS or
+Cloudflare settings, and no experimental proxy setting remains active.

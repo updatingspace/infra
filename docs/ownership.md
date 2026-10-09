@@ -12,7 +12,7 @@ symlinks на общие canonical файлы. Общий edge меняет то
 | Edge, monitoring, Kuma, GlitchTip, host | `environments/home` | Приложения live; GlitchTip errors/spans и offsite restore проверены; host принят без рестарта |
 | PZ, collector, backup/updater | `environments/pz/kubernetes` | 157 исходников существующего working tree, затем явные центральные изменения |
 | Параметры PZ и game config | `home/pz-values`, `pz/kubernetes/game-config` | Сняты с VM; game config check без изменения live |
-| PostgreSQL, roles и Portal | `environments/home/portal` | Два SHA-verified пакета; PostgreSQL live, Portal подготовлен |
+| PostgreSQL, roles и Portal | `environments/home/portal` | Публичные frontend/API на VM; 78 таблиц / 371 строка и 2 media objects восстановлены и проверены |
 | ID, YDB, Garage | `environments/home/id-platform` | Публичный ID на k3s с 2026-10-09; final snapshot, media, jobs, backup и public acceptance проверены |
 | Legacy TeamSpeak DB | `environments/home/teamspeak` | Состояние переноса в README компонента |
 
@@ -56,5 +56,7 @@ ID: при объединённом рендере включать объект
 оператором в задаче ID и не отменяется успешным переносом. Интеграция доступа к
 мониторингу через ID staff AND network administrator ещё не включена.
 
-Итоговый общий release собирается после передачи окончательного Caddyfile
-владельцем Portal; не применять промежуточный edge snapshot поверх его cutover.
+Итоговый Caddyfile принят после публичной проверки Portal: SHA256
+`a42c0259a66fc35e3f10c43b4b0fff4e4e9d16e73bee8a79a53873da22c097dc`.
+ID и Portal используют локальные API. Сертификат Portal пока ручной LE,
+его срок и процедуру продления отслеживать по README компонента.

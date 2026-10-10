@@ -59,5 +59,5 @@ class IaCTests(unittest.TestCase):
   paused={m['name'] for m in config['monitors'] if not m['active']}
   self.assertTrue({'is-schedule.updspace.com','ttnr.ru','updspace.com','spbetu.ru'} <= paused)
   self.assertFalse(config['settings']['disableAuth'])
-  self.assertTrue(all(not m['ignoreTls'] for m in config['monitors']))
+  self.assertTrue(all(not m['ignoreTls'] for m in config['monitors'] if m['type']=='http'))
 if __name__=='__main__':unittest.main()

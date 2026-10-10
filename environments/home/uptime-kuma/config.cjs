@@ -9,10 +9,17 @@ const credentials = JSON.parse(fs.readFileSync(0, 'utf8'));
 assert.equal(desired.settings.disableAuth, false);
 assert.equal(new Set(desired.monitors.map(m => m.name)).size, desired.monitors.length);
 for (const m of desired.monitors) {
-    assert.equal(m.type, 'http', 'New monitor types need an explicit configuration contract');
-    assert.equal(m.ignoreTls, false);
-    const u = new URL(m.url);
-    assert(['http:', 'https:'].includes(u.protocol) && !u.username && !u.password);
+    if (m.type === 'http') {
+        assert.equal(m.ignoreTls, false);
+        const u = new URL(m.url);
+        assert(['http:', 'https:'].includes(u.protocol) && !u.username && !u.password);
+    } else {
+        assert.equal(m.type, 'gamedig', 'Unsupported monitor type');
+        assert.equal(m.game, 'minecraft');
+        assert.equal(m.hostname, 'minecraft.minecraft.svc.cluster.local');
+        assert.equal(m.port, 25565);
+        assert.equal(m.gamedigGivenPortOnly, true);
+    }
     assert(m.interval >= 20 && typeof m.active === 'boolean');
 }
 const socket = io('http://127.0.0.1:3001', { transports: ['websocket'], reconnection: false });

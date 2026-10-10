@@ -15,7 +15,7 @@ def render():
  for name in ('edge/resources.json','monitoring/foundation.json'):
   objects.extend(json.loads((HOME/name).read_text())['items'])
  objects.extend(monitoring)
- for name in ('uptime-kuma/kuma.yaml','uptime-kuma/access.yaml','edge/monitoring-network.yaml','edge/portal-stage-network.yaml','uptime-kuma/portal-network.yaml'):
+ for name in ('uptime-kuma/kuma.yaml','uptime-kuma/access.yaml','edge/monitoring-network.yaml','edge/portal-stage-network.yaml','uptime-kuma/portal-network.yaml','uptime-kuma/minecraft-network.yaml'):
   objects.extend(yaml.safe_load_all((HOME/name).read_text()))
  objects.append({'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'caddy-config','namespace':'edge'},'data':{'Caddyfile':(HOME/'edge/Caddyfile').read_text()}})
  identities=[(x['kind'],x['metadata'].get('namespace',''),x['metadata']['name']) for x in objects]

@@ -319,6 +319,20 @@
       "maxredirects": 0,
       "headers": "{\"Host\": \"localhost\", \"X-Forwarded-Proto\": \"https\"}",
       "description": "Внутренняя проверка готовности сервиса Portal."
+    },
+    {
+      "name": "Minecraft",
+      "type": "gamedig",
+      "game": "minecraft",
+      "hostname": "minecraft.minecraft.svc.cluster.local",
+      "port": 25565,
+      "gamedigGivenPortOnly": true,
+      "active": true,
+      "interval": 300,
+      "retryInterval": 60,
+      "timeout": 20,
+      "maxretries": 2,
+      "description": "Minecraft Server List Ping из k3s каждые 5 минут. Проверяет ответ игрового протокола; внешний доступ и вход игрока проверяются отдельно."
     }
   ],
   "statusPage": {
@@ -407,6 +421,10 @@
       "monitors": [
         {
           "name": "Project Zomboid — панель",
+          "sendUrl": false
+        },
+        {
+          "name": "Minecraft",
           "sendUrl": false
         }
       ]

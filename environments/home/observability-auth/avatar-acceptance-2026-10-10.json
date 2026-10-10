@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-10",
+  "component": "Grafana signed-in ID avatar",
+  "scope": "Current viewer only; other user hashes and absent pictures use Grafana fallback",
+  "authorization": "Existing active AND staff AND system_admin live policy; no added OAuth scopes",
+  "mapping": "Grafana 13.2.3 SHA-256 normalized email URL to fresh ID picture",
+  "allowedMediaOrigin": "https://storage.updspace.com/updspace-id-media-ab88348a/avatars/",
+  "image": "docker.io/updspace/id-observability@sha256:beb855c41fd3e1254354404660237c0a41278103fafc09e3f4b4c1e38843f014",
+  "imageArchive": "/opt/updspace-id/images/avatar-20261010.tar",
+  "imageArchiveSha256": "6c2fe954874beb8c46597bd084a3974723426cdc27e30181bc8136cfd5603185",
+  "edgeSha256": "0eb516d1e3f74b73fbabe87f59fa8eb302b015eb6ed7715cc42bd40acfae59cb",
+  "checks": {
+    "rustPolicyTests": 2,
+    "realGrafanaTests": 5,
+    "realCaddyAndConfigTests": 6,
+    "infrastructureTests": 15,
+    "kumaTests": 2,
+    "patchRoundtrip": true,
+    "serverCaddyValidate": true,
+    "idReady": "6/6",
+    "edgeReady": "1/1",
+    "allFiveHostsAnonymousAndForgedDenied": true,
+    "avatarForgedHeaderDenied": true,
+    "publicStatus": 200,
+    "minecraftUP": true,
+    "minecraftRestarted": false
+  },
+  "rollback": {
+    "idManifest": "/opt/updspace-infra/private/avatar-rollout-20261010T122624Z-id",
+    "edgeManifests": "/opt/updspace-infra/private/avatar-rollout-20261010T122729Z-edge",
+    "previousImageRetained": true
+  },
+  "limitations": [
+    "Operator account image rendering was not checked: available browser session belongs to an unrelated QA account, whose grants were not changed",
+    "Avatar requires email and profile consent; Grafana username updates on the next native OAuth login",
+    "This does not add an avatar feature to GlitchTip"
+  ]
+}

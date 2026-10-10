@@ -53,3 +53,10 @@ and the GlitchTip provider using `sudo python3 ../glitchtip/configure-oidc.py --
 with paths relative to this directory. The GlitchTip provider and organization link
 are included in its PostgreSQL backup. No user is created by the provisioning tool;
 application accounts are created only when an eligible person completes ID login.
+
+Grafana avatar requests also use this live gate. Only a validated ID response can
+supply `X-Observability-Avatar`; incoming copies are stripped and the internal
+header never reaches applications or the browser. Shared Caddy redirects the
+current user's matching `/avatar/<sha256-email>` to the signed ID picture URL.
+Other users, missing pictures and ordinary application requests keep their normal
+responses. No new provider scope, endpoint, service, database or role is required.

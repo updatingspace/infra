@@ -57,8 +57,11 @@
     uri /oauth/observability-access
     header_up Authorization "Bearer {http.request.header.X-Observability-Token}"
     header_up -Cookie
+    header_up X-Forwarded-Host {host}
+    copy_headers X-Observability-Avatar
   }
-  request_header -X-Observability-Token
+  vars observability_avatar {http.request.header.X-Observability-Avatar}
+  request_header -X-Observability-*
 }
 
 
@@ -124,6 +127,12 @@ grafana.updspace.com {
   import monitoring_headers
   route {
     import id_access
+    @id_avatar {
+      method GET HEAD
+      path /avatar/*
+      expression `{vars.observability_avatar} != ""`
+    }
+    redir @id_avatar {vars.observability_avatar} 302
     reverse_proxy grafana.observability.svc.cluster.local:3000 {
       header_up -Authorization
       stream_timeout 1m

@@ -22,14 +22,22 @@ The mutations image now includes `../../observability-access.patch`, built over
 ID source `5bfa8dad` plus the existing `runtime-local-services.patch`. Only mutations
 changes; API, sessions, jobs, web and router keep their previous digests.
 Build from a clean checkout: apply the runtime patch first, then the observability
-patch from the repository root; build `services/id-rust/Dockerfile.api` with
+patch from the repository root, followed by `observability-avatar.patch`; build `services/id-rust/Dockerfile.api` with
 `services/id-rust` as context. Run the policy unit and isolated YDB integration tests
 before importing the image and applying this overlay.
 
-Imported image: `docker.io/updspace/id-observability@sha256:c82b7474009486c3cdd8ac16786d06bb1c91ab46254c6182679c29e0309086a5`.
-Recovery archive on VM: `/opt/updspace-id/images/profile-20261009.tar`, SHA256
-`ecde2f03db0b91c57c24f826bc4246976d7255c28fe66539d79b26fef01e22c0`.
+Imported image: `docker.io/updspace/id-observability@sha256:beb855c41fd3e1254354404660237c0a41278103fafc09e3f4b4c1e38843f014`.
+Recovery archive on VM: `/opt/updspace-id/images/avatar-20261010.tar`, SHA256
+`6c2fe954874beb8c46597bd084a3974723426cdc27e30181bc8136cfd5603185`.
 The archive is required on a replacement node; the local image name is not a registry.
+Import and register the exact digest alias before applying the overlay (`Never`
+pull policy does not resolve the imported tag automatically):
+
+```sh
+sudo k3s ctr images import /opt/updspace-id/images/avatar-20261010.tar
+sudo k3s ctr images tag docker.io/updspace/id-observability:avatar-20261010 docker.io/updspace/id-observability@sha256:beb855c41fd3e1254354404660237c0a41278103fafc09e3f4b4c1e38843f014
+```
+
 Client/bootstrap and backup recovery are described in `docs/id-access.md` at infra root.
 
 The patch also requires the same live role policy on `/oauth/userinfo` for the
@@ -39,3 +47,11 @@ login from bypassing the edge policy after an ID account switch.
 Profile scopes now include `preferred_username` from the existing ID username.
 The stable subject and consent scope filtering are unchanged; isolated real-YDB
 exchange tests cover included and omitted username claims.
+
+The avatar patch extends the existing staff authorization response only for a
+Grafana request for the current user's SHA-256 email avatar key. It passes a
+validated signed picture URL in an internal header; the shared edge consumes and
+removes that header. URLs outside the existing HTTPS media bucket are rejected.
+All original UserInfo role, scope and token checks remain in place. The patch has
+focused Rust tests; the real Grafana and Caddy integration tests cover the URL
+format, forged headers, absent sessions, denied roles and fallback behavior.

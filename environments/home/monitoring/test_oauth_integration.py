@@ -22,6 +22,7 @@ from build import build
 class GrafanaOAuthTest(unittest.TestCase):
     def test_auto_signup_exact_role_and_stable_subject(self):
         profile = {'sub':'fixture-allowed','preferred_username':'fixture-login','email':'fixture@example.invalid','name':'OAuth Fixture',
+            'picture':'https://storage.updspace.com/updspace-id-media-ab88348a/avatars/fixture.png',
             'email_verified':True,'master_flags':{'is_staff':True,'system_admin':True,
                 'status':'active','banned':False,'suspended':False}}
         state = {'profile':profile, 'challenge':None}
@@ -102,6 +103,7 @@ class GrafanaOAuthTest(unittest.TestCase):
             client=login();status,_,body=get(client,base+'/api/user')
             self.assertEqual(status,200,body)
             user=json.loads(body);self.assertEqual(user['login'],profile['preferred_username']);self.assertFalse(user['isGrafanaAdmin'])
+            self.assertEqual(user['avatarUrl'], '/avatar/'+hashlib.sha256(profile['email'].encode()).hexdigest())
             status,_,body=get(client,base+'/api/user/orgs')
             self.assertEqual(status,200);self.assertEqual(json.loads(body)[0]['role'],'Admin')
             state['profile']=profile | {'preferred_username':'fixture-renamed','email':'fixture-renamed@example.invalid','name':'Renamed Fixture'}

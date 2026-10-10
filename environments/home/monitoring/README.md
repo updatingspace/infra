@@ -21,6 +21,13 @@ Grafana is at `https://grafana.updspace.com`; Prometheus at
 Shared Caddy requires an active UpdSpace ID account with BOTH staff and system_admin.
 Grafana automatically completes native OAuth with ID, creates personal accounts by
 stable `sub`, and synchronizes login (`preferred_username`), name/email and organization Admin access on login.
+The signed-in user's avatar is loaded from ID through the shared edge: Grafana 13
+uses a SHA-256 email URL and does not consume the OIDC `picture` claim. The live
+ID check returns a short-lived picture URL only for that user's matching avatar
+request. The edge redirects only to the existing private ID media bucket, with
+no authorization cache. Missing pictures and other users retain Grafana's normal
+fallback; no public user/avatar lookup is added.
+
 Server administrator is never granted. Password/basic login is disabled; existing
 credentials and accounts remain for recovery. Provision `grafana-oidc` from
 `../observability-auth/provision-client.py --apply` and apply its two Grafana↔ID

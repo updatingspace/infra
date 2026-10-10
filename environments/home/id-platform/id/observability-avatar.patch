@@ -1,0 +1,193 @@
+--- a/services/id-rust/crates/id-runtime/src/oidc_token_http.rs
++++ b/services/id-rust/crates/id-runtime/src/oidc_token_http.rs
+@@ -125,6 +125,18 @@
+ 
+ async fn userinfo(State(config): State<Arc<OidcTokenHttpConfig>>, request: Request) -> Response {
+     let observability = request.uri().path() == "/oauth/observability-access";
++    let avatar_uri = (request
++        .headers()
++        .get("x-forwarded-host")
++        .and_then(|h| h.to_str().ok())
++        == Some("grafana.updspace.com"))
++    .then(|| {
++        request
++            .headers()
++            .get("x-forwarded-uri")
++            .and_then(|h| h.to_str().ok())
++    })
++    .flatten();
+     let mut authorization = request.headers().get_all(header::AUTHORIZATION).iter();
+     let Some(value) = authorization.next() else {
+         return invalid_bearer();
+@@ -154,7 +166,7 @@
+     )
+     .await
+     {
+-        Ok(Some(claims)) => userinfo_response(observability, claims),
++        Ok(Some(claims)) => userinfo_response(observability, claims, avatar_uri),
+         Ok(None) => invalid_bearer(),
+         Err(failure) => {
+             tracing::error!(?failure, "Rust OIDC UserInfo failed");
+@@ -168,7 +180,7 @@
+     }
+ }
+ 
+-fn userinfo_response(observability: bool, claims: Value) -> Response {
++fn userinfo_response(observability: bool, claims: Value, avatar_uri: Option<&str>) -> Response {
+     // Native monitoring clients must satisfy the same policy as the edge session.
+     if (observability || claims["client_id"] == "observability") && !observability_allowed(&claims)
+     {
+@@ -181,7 +193,40 @@
+     response
+         .headers_mut()
+         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
++    if let Some(picture) = avatar_uri.and_then(|uri| observability_avatar(&claims, uri)) {
++        response
++            .headers_mut()
++            .insert("x-observability-avatar", picture);
++    }
+     response
++}
++
++fn observability_avatar(claims: &Value, uri: &str) -> Option<HeaderValue> {
++    use sha2::Digest;
++    let email = claims["email"].as_str()?.trim().to_lowercase();
++    if email.is_empty() {
++        return None;
++    }
++    // Grafana 13 uses a SHA-256 email key; it is not an authorization proof.
++    let hash = sha2::Sha256::digest(email.as_bytes());
++    if uri.split('?').next()? != format!("/avatar/{}", hex::encode(hash)) {
++        return None;
++    }
++    let picture = claims["picture"].as_str()?;
++    let url = url::Url::parse(picture).ok()?;
++    if url.scheme() != "https"
++        || url.host_str() != Some("storage.updspace.com")
++        || !url.username().is_empty()
++        || url.password().is_some()
++        || url.port().is_some()
++        || url.fragment().is_some()
++        || !url
++            .path()
++            .starts_with("/updspace-id-media-ab88348a/avatars/")
++    {
++        return None;
++    }
++    HeaderValue::from_str(picture).ok()
+ }
+ 
+ // Policy uses fresh UserInfo database reads, never browser or cached token flags.
+@@ -199,20 +244,64 @@
+     use super::*;
+ 
+     #[test]
++    fn avatar_is_current_owner_only_and_requires_live_authorization() {
++        let picture = "https://storage.updspace.com/updspace-id-media-ab88348a/avatars/fixture.png?X-Amz-Signature=fixture";
++        let mut claims = json!({"client_id":"observability", "email":"Fixture@Example.Invalid",
++            "picture":picture, "master_flags":{"is_staff":true,"system_admin":true,
++            "status":"active","banned":false,"suspended":false}});
++        use sha2::Digest;
++        let hash = sha2::Sha256::digest(b"fixture@example.invalid");
++        let uri = format!("/avatar/{}?s=80", hex::encode(hash));
++        let response = userinfo_response(true, claims.clone(), Some(&uri));
++        assert_eq!(response.status(), StatusCode::NO_CONTENT);
++        assert_eq!(response.headers()["x-observability-avatar"], picture);
++        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
++        for path in ["/", "/avatar/another-user", "/avatar/", "/api/user"] {
++            assert!(observability_avatar(&claims, path).is_none());
++        }
++        for bad in [
++            "",
++            "http://storage.updspace.com/updspace-id-media-ab88348a/avatars/a.png",
++            "https://evil.invalid/avatars/a.png",
++            "https://user@storage.updspace.com/updspace-id-media-ab88348a/avatars/a.png",
++            "https://storage.updspace.com/updspace-id-media-ab88348a/exports/a.png",
++            "javascript:alert(1)",
++        ] {
++            claims["picture"] = json!(bad);
++            assert!(observability_avatar(&claims, &uri).is_none());
++        }
++        claims["picture"] = json!(picture);
++        for flag in ["is_staff", "system_admin"] {
++            let mut denied = claims.clone();
++            denied["master_flags"][flag] = json!(false);
++            let response = userinfo_response(true, denied, Some(&uri));
++            assert_eq!(response.status(), StatusCode::FORBIDDEN);
++            assert!(!response.headers().contains_key("x-observability-avatar"));
++        }
++        assert!(
++            !userinfo_response(false, claims.clone(), Some(&uri))
++                .headers()
++                .contains_key("x-observability-avatar")
++        );
++        claims["email"] = Value::Null;
++        assert!(observability_avatar(&claims, &uri).is_none());
++    }
++
++    #[test]
+     fn requires_exact_client_and_both_live_privileges() {
+         let base = json!({"client_id":"observability", "master_flags":{
+             "is_staff":true,"system_admin":true,"status":"active","banned":false,"suspended":false}});
+         assert!(observability_allowed(&base));
+         assert_eq!(
+-            userinfo_response(true, base.clone()).status(),
++            userinfo_response(true, base.clone(), None).status(),
+             StatusCode::NO_CONTENT
+         );
+         assert_eq!(
+-            userinfo_response(false, base.clone()).status(),
++            userinfo_response(false, base.clone(), None).status(),
+             StatusCode::OK
+         );
+         assert_eq!(
+-            userinfo_response(false, json!({"client_id":"portal"})).status(),
++            userinfo_response(false, json!({"client_id":"portal"}), None).status(),
+             StatusCode::OK
+         );
+         for (staff, admin) in [(false, false), (true, false), (false, true)] {
+@@ -222,12 +311,12 @@
+             assert!(!observability_allowed(&claims));
+             if claims["client_id"] == "observability" {
+                 assert_eq!(
+-                    userinfo_response(false, claims.clone()).status(),
++                    userinfo_response(false, claims.clone(), None).status(),
+                     StatusCode::FORBIDDEN
+                 );
+             }
+             assert_eq!(
+-                userinfo_response(true, claims).status(),
++                userinfo_response(true, claims, None).status(),
+                 StatusCode::FORBIDDEN
+             );
+         }
+@@ -242,12 +331,12 @@
+             assert!(!observability_allowed(&claims));
+             if claims["client_id"] == "observability" {
+                 assert_eq!(
+-                    userinfo_response(false, claims.clone()).status(),
++                    userinfo_response(false, claims.clone(), None).status(),
+                     StatusCode::FORBIDDEN
+                 );
+             }
+             assert_eq!(
+-                userinfo_response(true, claims).status(),
++                userinfo_response(true, claims, None).status(),
+                 StatusCode::FORBIDDEN
+             );
+         }
+@@ -257,12 +346,12 @@
+             assert!(!observability_allowed(&claims));
+             if claims["client_id"] == "observability" {
+                 assert_eq!(
+-                    userinfo_response(false, claims.clone()).status(),
++                    userinfo_response(false, claims.clone(), None).status(),
+                     StatusCode::FORBIDDEN
+                 );
+             }
+             assert_eq!(
+-                userinfo_response(true, claims).status(),
++                userinfo_response(true, claims, None).status(),
+                 StatusCode::FORBIDDEN
+             );
+         }

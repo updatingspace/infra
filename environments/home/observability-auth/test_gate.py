@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 class GateTest(unittest.TestCase):
     def test_session_authorization_and_header_boundary(self):
         state = {'policy': 204, 'checks': 0}
+        picture = 'https://storage.updspace.com/updspace-id-media-ab88348a/avatars/fixture.png?signature=fixture'
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args): pass
             def do_GET(self):
@@ -35,7 +36,11 @@ class GateTest(unittest.TestCase):
                     assert self.headers.get('Authorization') == 'Bearer server-validated-token'
                     assert not self.headers.get('Cookie')
                     state['checks'] += 1
-                    self.send_response(state['policy']); self.end_headers()
+                    self.send_response(state['policy'])
+                    assert self.headers.get('X-Forwarded-Host') == 'grafana.updspace.com'
+                    if self.headers.get('X-Forwarded-Uri') == '/avatar/fixture' and state['policy'] == 204:
+                        self.send_header('X-Observability-Avatar', picture)
+                    self.end_headers()
                 else:
                     self.send_response(200); self.end_headers()
                     self.wfile.write(json.dumps(dict(self.headers)).encode())
@@ -52,11 +57,14 @@ class GateTest(unittest.TestCase):
         snippet = caddy[caddy.index('(id_access) {'):caddy.index('\n\n\n{$PANEL_DOMAIN}')]
         snippet = snippet.replace('oauth2-proxy.observability-auth.svc.cluster.local:4180', f'127.0.0.1:{servers[0].server_port}')
         snippet = snippet.replace('id.updspace-id.svc.cluster.local:8089', f'127.0.0.1:{servers[1].server_port}')
-        config = '{ admin off\n auto_https off\n}\n' + snippet + f'\nhttp://127.0.0.1:{port} {{\n route {{\n import id_access\n reverse_proxy 127.0.0.1:{servers[2].server_port} {{\n header_up -Authorization\n }}\n }}\n}}'
-        def request(headers):
+        grafana = caddy.split('grafana.updspace.com {', 1)[1].split('\n}', 1)[0]
+        grafana = grafana.replace('  import monitoring_headers', '')
+        grafana = grafana.replace('grafana.observability.svc.cluster.local:3000', f'127.0.0.1:{servers[2].server_port}')
+        config = '{ admin off\n auto_https off\n}\n' + snippet + f'\nhttp://:{port} {{\n bind 127.0.0.1' + grafana + '\n}'
+        def request(headers, path='/api/private'):
             conn = http.client.HTTPConnection('127.0.0.1', port, timeout=3)
             try:
-                conn.request('GET', '/api/private', headers=headers)
+                conn.request('GET', path, headers=headers | {'Host':'grafana.updspace.com'})
                 response = conn.getresponse(); body = response.read()
                 return response.status, response.getheaders(), body
             finally: conn.close()
@@ -71,7 +79,8 @@ class GateTest(unittest.TestCase):
                 else:
                     log.seek(0); self.fail(log.read())
                 spoof = {'X-Observability-Token':'forged', 'X-Auth-Request-Access-Token':'forged',
-                    'X-Forwarded-User':'admin', 'Authorization':'Bearer forged'}
+                    'X-Forwarded-User':'admin', 'Authorization':'Bearer forged',
+                    'X-Observability-Avatar':'https://evil.invalid', 'X-Forwarded-Uri':'/avatar/fixture'}
                 status, headers, _ = request(spoof)
                 self.assertEqual(status, 302)
                 self.assertIn(('Location', '/oauth2/start?rd=/'), headers)
@@ -80,12 +89,21 @@ class GateTest(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(len([x for x in headers if x[0].lower() == 'set-cookie']), 2)
                 received = {key.lower():value for key,value in json.loads(body).items()}
-                for name in ('authorization', 'x-observability-token', 'x-auth-request-access-token', 'x-forwarded-user'):
+                for name in ('authorization', 'x-observability-token', 'x-auth-request-access-token', 'x-forwarded-user', 'x-observability-avatar'):
                     self.assertNotIn(name, received)
                 for policy in (403, 401, 503, 204):
                     state['policy'] = policy
                     self.assertEqual(request({'Cookie':'fixture=valid'})[0], 200 if policy == 204 else policy)
                 self.assertEqual(state['checks'], 5, 'ID must run on every request without an authorization cache')
+                status, headers, _ = request(spoof | {'Cookie':'fixture=valid'}, '/avatar/fixture')
+                self.assertEqual(status, 302)
+                self.assertIn(('Location', picture), headers)
+                self.assertFalse(any(name.lower() == 'x-observability-avatar' for name, _ in headers))
+                self.assertEqual(request(spoof, '/avatar/fixture')[0], 302)
+                self.assertEqual(request(spoof | {'Cookie':'fixture=valid'}, '/avatar/other-user')[0], 200)
+                for policy in (403, 401, 503):
+                    state['policy'] = policy
+                    self.assertEqual(request(spoof | {'Cookie':'fixture=valid'}, '/avatar/fixture')[0], policy)
             finally:
                 process.terminate(); process.wait(timeout=10); log.close()
                 for server in servers: server.shutdown(); server.server_close()

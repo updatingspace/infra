@@ -5,12 +5,11 @@ metadata:
   name: uptime-kuma
   namespace: uptime-kuma
 spec:
-  type: NodePort
-  externalTrafficPolicy: Local
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: uptime-kuma
   ports:
-    - {name: http, port: 3001, targetPort: http, nodePort: 30031}
+    - {name: http, port: 3001, targetPort: http}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -22,12 +21,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: uptime-kuma
   policyTypes: [Ingress]
-  ingress:
-    - from:
-        - ipBlock:
-            cidr: 192.168.1.0/24
-      ports:
-        - {protocol: TCP, port: 3001}
+  ingress: []
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

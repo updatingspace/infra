@@ -29,7 +29,7 @@
         "template": {
           "metadata": {
             "annotations": {
-              "checksum/config": "737fcdb2e6602207a5be1567172f332b1fbe16d1c97d8cf2ac173ebf8146e392"
+              "checksum/config": "0eb516d1e3f74b73fbabe87f59fa8eb302b015eb6ed7715cc42bd40acfae59cb"
             },
             "labels": {
               "app.kubernetes.io/managed-by": "terraform",
@@ -135,19 +135,14 @@
                     "name": "id-origin-tls",
                     "mountPath": "/etc/id-origin-tls",
                     "readOnly": true
+                  },
+                  {
+                    "name": "portal-origin-tls",
+                    "mountPath": "/etc/portal-origin-tls",
+                    "readOnly": true
                   }
                 ],
-                "env": [
-                  {
-                    "name": "MONITORING_AUTH_HASH",
-                    "valueFrom": {
-                      "secretKeyRef": {
-                        "name": "observability-edge-auth",
-                        "key": "password-hash"
-                      }
-                    }
-                  }
-                ]
+                "env": []
               }
             ],
             "dnsPolicy": "ClusterFirst",
@@ -190,6 +185,13 @@
                 "name": "id-origin-tls",
                 "secret": {
                   "secretName": "id-origin-tls",
+                  "defaultMode": 256
+                }
+              },
+              {
+                "name": "portal-origin-tls",
+                "secret": {
+                  "secretName": "portal-origin-tls",
                   "defaultMode": 256
                 }
               }

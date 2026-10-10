@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-09",
+  "environment": "updspace-home",
+  "image": "docker.io/glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6",
+  "pod": {
+    "ready": true,
+    "restarts": 0,
+    "cpu_millicores": 27,
+    "memory_mib": 179,
+    "load_test": false
+  },
+  "ingestion": {
+    "endpoint": "https://errors.updspace.com",
+    "cloudflare_proxy": true,
+    "probe": "infra-acceptance-9a224702d171",
+    "http_status": 200,
+    "error_persisted": true,
+    "transaction_persisted": true,
+    "child_span_persisted": true
+  },
+  "ui": {
+    "origin_chromium_login": true,
+    "tls_verification": true,
+    "page_errors": [],
+    "public_home_large_assets": "unresolved separate network path incident"
+  },
+  "kuma": {
+    "name": "GlitchTip",
+    "active": true,
+    "latest_status": 1,
+    "latest_message": "200 - OK",
+    "latest_heartbeat_utc": "2026-10-09T14:41:01.539Z",
+    "declared_monitors": 14,
+    "configuration_drift": 0
+  },
+  "backup": {
+    "vm_timer_active": true,
+    "workstation_timer_active": true,
+    "workstation_service_result": "success",
+    "source_files_match_installed_sha256": true,
+    "offsite_directory": "20261009T142633Z-Mk6JsL",
+    "ciphertext_sha256": "5b7463a29af7e7c9f8dcd5341ad3af4e3190ad24c20e770dc8bad92a0dbe946b",
+    "committed": true
+  },
+  "restore": {
+    "source": "offsite encrypted archive",
+    "isolated_postgres": true,
+    "production_database_untouched": true,
+    "users": 1,
+    "projects": 1,
+    "errors": 3,
+    "transactions": 3,
+    "spans": 1,
+    "uploaded_files": 0,
+    "temporary_pod_deleted": true,
+    "replacement_application_started": false
+  },
+  "deferred": [
+    "application SDK rollout",
+    "ID staff AND network administrator login",
+    "Telegram delivery",
+    "profiling and session replay unsupported by GlitchTip",
+    "restore with real uploaded files",
+    "backup retention policy"
+  ]
+}

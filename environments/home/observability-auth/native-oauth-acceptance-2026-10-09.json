@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-09",
+  "grafana": {
+    "nativeOAuth": true,
+    "provider": "UpdSpace ID",
+    "autoLogin": true,
+    "identityKey": "sub",
+    "displayLogin": "preferred_username",
+    "role": "organization Admin",
+    "serverAdministrator": false,
+    "organization": "UpdatingSpace LLC",
+    "realImageMockProviderTest": "passed",
+    "operatorScreenshotConfirmedNameEmailAndLogin": true,
+    "updatedUsernameRequiresNewOAuthLogin": true
+  },
+  "glitchtip": {
+    "provider": "UpdSpace ID",
+    "organizationSlug": "updspace",
+    "organizationName": "UpdatingSpace LLC",
+    "newIdentityRole": "member",
+    "generalSignup": false,
+    "nativeStartRealProvider": true,
+    "httpsCallback": "https://errors.updspace.com/accounts/oidc/updspace/login/callback/",
+    "csrfAndPkceS256": true,
+    "anonymousIdLoginReached": true,
+    "personalNativeCallbackVerified": false
+  },
+  "access": {
+    "policy": "active AND staff AND system_admin",
+    "freshObservabilityUserinfo": true,
+    "fiveHostsRejectAnonymousAndSpoofedHeaders": true,
+    "publicStatusPreserved": true,
+    "productionUserGrantsChanged": false
+  },
+  "ingestion": {
+    "test": "infra-acceptance-03228b2da0f2",
+    "cloudflareProxied": true,
+    "error": true,
+    "transaction": true,
+    "span": true
+  },
+  "limits": [
+    "Actual production role revocation was not performed",
+    "Avatar mapping is not provided by Grafana native Generic OAuth",
+    "No production application SDK rollout or Telegram setup"
+  ],
+  "idMutationsImage": "docker.io/updspace/id-observability@sha256:c82b7474009486c3cdd8ac16786d06bb1c91ab46254c6182679c29e0309086a5",
+  "isolatedYdbCodeExchange": "passed including preferred_username scope filtering"
+}

@@ -37,6 +37,15 @@ class BackupSyncTests(unittest.TestCase):
         self.assertEqual((self.root / NAME / "postgres.tar.gpg").read_bytes(), PAYLOAD)
         self.assertEqual((self.root / NAME / "postgres.tar.gpg").stat().st_mode & 0o777, 0o600)
 
+    def test_media_archive_uses_the_same_verified_transport(self):
+        checksum = hashlib.sha256(PAYLOAD).hexdigest() + "  media.tar.gpg\n"
+        with patch.object(sync_backups, "ARCHIVE_NAME", "media.tar.gpg"), \
+             patch.object(sync_backups.subprocess, "check_output", side_effect=[NAME + "\n", checksum]), \
+             patch.object(sync_backups.subprocess, "run", side_effect=self.download):
+            sync_backups.sync()
+        self.assertTrue((self.root / NAME / "COMMITTED").exists())
+        self.assertEqual((self.root / NAME / "media.tar.gpg").read_bytes(), PAYLOAD)
+
     def test_mismatched_sha256_never_commits(self):
         wrong_checksum = "0" * 64 + "  postgres.tar.gpg\n"
         with patch.object(sync_backups.subprocess, "check_output", side_effect=[NAME + "\n", wrong_checksum]), \

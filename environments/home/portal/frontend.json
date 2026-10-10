@@ -1,0 +1,257 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolume",
+      "metadata": {
+        "name": "updspace-portal-frontend"
+      },
+      "spec": {
+        "capacity": {
+          "storage": "512Mi"
+        },
+        "accessModes": [
+          "ReadOnlyMany"
+        ],
+        "persistentVolumeReclaimPolicy": "Retain",
+        "storageClassName": "",
+        "local": {
+          "path": "/srv/updspace/portal-frontend"
+        },
+        "nodeAffinity": {
+          "required": {
+            "nodeSelectorTerms": [
+              {
+                "matchExpressions": [
+                  {
+                    "key": "kubernetes.io/hostname",
+                    "operator": "In",
+                    "values": [
+                      "updspace-home"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "frontend",
+        "namespace": "updspace-portal"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadOnlyMany"
+        ],
+        "storageClassName": "",
+        "volumeName": "updspace-portal-frontend",
+        "resources": {
+          "requests": {
+            "storage": "512Mi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "frontend-web",
+        "namespace": "updspace-portal"
+      },
+      "data": {
+        "nginx.conf": "worker_processes 2;\npid /tmp/nginx.pid;\nerror_log /dev/stderr warn;\nevents { worker_connections 1024; }\nhttp {\n    include /etc/nginx/mime.types;\n    default_type application/octet-stream;\n    access_log /dev/stdout;\n    client_body_temp_path /tmp/client_temp;\n    proxy_temp_path /tmp/proxy_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;\n    sendfile on;\n    gzip on;\n    gzip_types text/css application/javascript application/json image/svg+xml;\n    server {\n        listen 8000;\n        server_name _;\n        root /srv/current;\n        location / { try_files $uri /index.html; }\n        location = /index.html { add_header Cache-Control \"no-cache\"; }\n    }\n}\n"
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "frontend",
+        "namespace": "updspace-portal"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "frontend",
+            "app.kubernetes.io/part-of": "updspace-portal"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "frontend",
+              "app.kubernetes.io/part-of": "updspace-portal"
+            },
+            "annotations": {
+              "updspace.com/config-sha256": "32ef13d9d21cb77b7836d8aac03f2ada9eee0a2fe5162adb0d5045db2cab1444"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsUser": 101,
+              "runAsGroup": 101,
+              "fsGroup": 101,
+              "runAsNonRoot": true,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "frontend",
+                "image": "docker.io/nginxinc/nginx-unprivileged@sha256:15c994d10d6d78658721c3bcafff14cb281fba2a4bdf9d5ba92c416a472516e3",
+                "imagePullPolicy": "IfNotPresent",
+                "command": [
+                  "nginx",
+                  "-g",
+                  "daemon off;"
+                ],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 8000
+                  }
+                ],
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/index.html",
+                    "port": "http"
+                  },
+                  "periodSeconds": 5
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "25m",
+                    "memory": "32Mi"
+                  },
+                  "limits": {
+                    "cpu": "500m",
+                    "memory": "128Mi"
+                  }
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "files",
+                    "mountPath": "/srv",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "webconfig",
+                    "mountPath": "/etc/nginx/nginx.conf",
+                    "subPath": "nginx.conf",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "files",
+                "persistentVolumeClaim": {
+                  "claimName": "frontend",
+                  "readOnly": true
+                }
+              },
+              {
+                "name": "webconfig",
+                "configMap": {
+                  "name": "frontend-web"
+                }
+              },
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "frontend",
+        "namespace": "updspace-portal"
+      },
+      "spec": {
+        "selector": {
+          "app.kubernetes.io/name": "frontend",
+          "app.kubernetes.io/part-of": "updspace-portal"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 8000,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "frontend-from-edge",
+        "namespace": "updspace-portal"
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "frontend"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "edge"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "caddy"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8000
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

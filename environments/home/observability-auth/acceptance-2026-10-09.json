@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-09",
+  "status": "deployed; interactive operator ID login pending",
+  "policy": {
+    "issuer": "https://id.updspace.com",
+    "client": "observability",
+    "requires": [
+      "active",
+      "is_staff",
+      "system_admin"
+    ],
+    "perHttpRequest": true,
+    "maxStreamSeconds": 60,
+    "userPrivilegesChanged": false
+  },
+  "images": {
+    "idMutations": "docker.io/updspace/id-observability@sha256:d8f239a8641a12bfaa01ded7a1798d7b083ab1ff3edf6d02037870ca4b0a0cd3",
+    "oauth2Proxy": "quay.io/oauth2-proxy/oauth2-proxy:v7.14.0@sha256:47b1db28264a646c5c07e1fb690e3deef7edbbb487030ad7c1f0b22f942d6837"
+  },
+  "caddySha256": "3a894d3e66ee669ae898f84d4248b887b2156257acca98ddecf4e0310bc591b3",
+  "live": {
+    "fiveHostsAnonymousAndSpoofed": 302,
+    "fiveAuthorizationRequestsReachIdLogin": true,
+    "legacyApprovalPromptReplacedWithOidcConsent": true,
+    "publicStatusPageAndApis": 200,
+    "kumaMonitors": 24,
+    "kumaPaused": 4,
+    "kumaDrift": 0,
+    "newIdPortalChecksUp": 10,
+    "nodePorts30030And30031": "closed; Services ClusterIP",
+    "idWithoutBearer": 401,
+    "wrongClientSecret": "invalid_client",
+    "configuredClientWithInvalidCode": "invalid_grant",
+    "glitchtipCloudflareIngest": {
+      "test": "infra-acceptance-b01764ab0849",
+      "http": 200,
+      "error": true,
+      "transaction": true,
+      "span": true
+    }
+  },
+  "localTests": {
+    "rustPolicy": 1,
+    "isolatedYdbOidcExchange": 1,
+    "authIncludingRealCaddy": 6,
+    "infrastructure": 15,
+    "monitoring": 2,
+    "workstation": 1,
+    "cargoFmt": "passed"
+  },
+  "limits": [
+    "No privileged production test account created; interactive staff login not claimed",
+    "Application-specific logins retained after ID",
+    "Full local archive suite requires unavailable age/rsync; run in CI",
+    "ID backup script includes new credentials; full new backup/restore not yet run",
+    "GlitchTip application SDK rollout, profiling/replay, Telegram and whole-host restore not tested or configured",
+    "Workstation hosts mapping requires home LAN/VPN; other devices unchanged"
+  ]
+}

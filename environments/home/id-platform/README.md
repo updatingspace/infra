@@ -1,8 +1,12 @@
 # UpdSpace ID: перенос в домашний k3s
 
-Состояние на 2026-10-09: локальный ID работает на **пробной копии** данных.
-Публичный `id.updspace.com`, облачная база и облачные задания остаются рабочим
-источником. Переключения production и удаления облачных ресурсов не было.
+Состояние на 2026-10-09: **публичный ID перенесён на VM**.
+`id.updspace.com` — proxied CNAME на `updspacedd.tplinkdns.com`; Caddy автоматически
+выдаёт и продлевает сертификат ID. После приёмки переноса старые облачные
+контейнеры, gateway и timers выведены из эксплуатации. Облачные данные
+и конфигурация сохранены для восстановления; рабочий источник теперь VM.
+Точная ведомость удаления и новая политика backup —
+[cloud-retirement-2026-10-09.md](../../../docs/cloud-retirement-2026-10-09.md).
 VM: `updspace_m4tveevm@192.168.1.176`, node `updspace-home`.
 Portal переносится отдельной задачей и владеет PostgreSQL.
 
@@ -10,11 +14,11 @@ Portal переносится отдельной задачей и владее�
 
 | Компонент | Место | Состояние |
 | --- | --- | --- |
-| API, sessions, mutations, web, jobs, внутренний Caddy | namespace `updspace-id`, Deployment `id` | 6/6 Ready, закрытая пробная копия |
+| API, sessions, mutations, web, jobs, внутренний Caddy | namespace `updspace-id`, Deployment `id` | 6/6 Ready, публичный сервис |
 | Одна YDB для всего ID | `updspace-data/id-ydb`, database `/local`, TLS 2135 | 67 исходных таблиц восстановлены |
 | Файлы ID и Portal | общий Garage в `updspace-data`, отдельные ключи и bucket | публичный HTTPS проверен |
-| Пять фоновых расписаний ID | CronJobs в `updspace-id` | все `suspend: true` |
-| Полный backup ID | VM → шифрование → рабочий компьютер | снят, расшифрован, пробно восстановлен |
+| Пять фоновых расписаний ID | CronJobs в `updspace-id` | все `suspend: false` |
+| Полный backup ID | зашифрованные архивы на VM | daily timer включён; копирование на ПК отключено владельцем |
 | Общий HTTP/TLS edge | существующий Caddy в `edge` | принадлежит общему проекту infra |
 
 ID использует YDB по явному решению пользователя. PostgreSQL не поддерживается
@@ -28,8 +32,9 @@ ID использует YDB по явному решению пользоват�
 Текущий экземпляр использует single-node образ `local-ydb` 26.2.1.14, файл
 PDisk 80 GiB на общем диске VM, PV 85 GiB. Такая конфигурация **не поддерживается
 upstream для production**. Успешный перенос и restore не доказывают надёжность
-диска и не заменяют отказоустойчивость. Перед публичным переключением нужно
-явно принять этот риск либо подготовить поддерживаемое хранилище/другой backend.
+диска и не заменяют отказоустойчивость. После сообщения об этом ограничении
+пользователь явно разрешил переключение текущего размещения и простой.
+Для поддерживаемого production потребуется другое хранилище/размещение YDB.
 Rescue boot, существующий k3s и посторонние workloads не менялись.
 
 [YDB manifest](id/ydb.yaml) закрепляет image digest, requests 500m/1Gi и limits
@@ -42,7 +47,7 @@ Rescue boot, существующий k3s и посторонние workloads н
 
 ## Точная версия приложения
 
-Cloud production работает на commit `5bfa8dad20fcb2f34292bcd2481515df908ab2c9`.
+Сохранённая версия прежнего cloud production — commit `5bfa8dad20fcb2f34292bcd2481515df908ab2c9`.
 Текущий рабочий checkout отличается и содержит посторонние незавершённые правки;
 он не использовался как источник deployment. Исходники точного commit извлечены
 отдельно, к ним применён [минимальный patch](id/runtime-local-services.patch):
@@ -56,6 +61,9 @@ feature flags через отдельные Secrets. Локальный обра
 закреплён digest; публикации registry не было. API limits по 1 CPU/1Gi,
 web/jobs по 1 CPU/512Mi, внутренний router 500m/128Mi. YAML по умолчанию имеет
 `replicas: 0`: запуск требует подготовленных Secrets и восстановленной базы.
+В центральном infra текущий desired state задан overlay
+`environments/home/id-platform/id/overlays/production`: replicas=1, пять CronJobs
+включены. Trial overlay остаётся только исторической инструкцией для изолированной пробы.
 Шесть процессов объединены в один pod, чтобы неизменный web image обращался
 к API через допустимый `http://localhost:8089`.
 
@@ -73,7 +81,10 @@ Issuer, WebAuthn RP ID, cookie names и публичные callback URL сохр
 
 ## Данные и проверка
 
-Согласованный source snapshot `20261009T114911Z` содержит 67 таблиц и 1833 строки.
+Финальный согласованный source snapshot от `2026-10-09T14:52:43Z` содержит
+67 таблиц, 1833 строки и 19 пользователей. Он снят после 600 секунд drain и
+проверенного отказа старому runtime в доступе к YDB.
+[Финальный restore](id/final-restore-2026-10-09.json) заменил пробную базу целиком.
 После restore выполнен повторный ordered dump: CSV всех 67 таблиц совпали
 байт-в-байт. Более ранняя [статистика схем](id/source-schema-2026-10-09.json)
 показывала около 2059 строк; она была несогласованной и включала другой момент TTL.
@@ -85,18 +96,33 @@ CSRF, ошибочный пароль, успешный вход, Secure/HttpOnl
 logout/revocation, расшифровку TOTP прежним MFA-ключом и отказ при повторном коде.
 Проверки выполнялись на синтетическом отрицательном user ID в пробной базе.
 [Скрипт проверки](id/verify-trial-auth.py) требует marker `TRIAL_ONLY`.
-Перед финальным переносом вся пробная база должна быть заменена свежим снимком;
-синтетические outbox-записи нельзя запускать в production.
+Финальный restore уже удалил синтетические account/identity/outbox-записи;
+`TRIAL_ONLY` переименован в `TRIAL_REPLACED_20261009`. Пробный fixture больше
+нельзя запускать на этой базе.
 Публичные JWKS и OIDC discovery облака и новой сборки полностью совпадают.
 Настоящий изолированный Chromium с DNS override на VM также прошёл вход
 с паролем/TOTP и личный кабинет, без отключения TLS, с Secure/HttpOnly cookie
 и без page errors. Browser passkeys, реальные provider redirects и доставка настоящего письма ещё
 не проверялись; синтетические HTTP проверки не подменяют их.
 
+[Проверка Portal SSO](id/portal-sso-2026-10-09.json) прошла через настоящие
+локальные ID и Portal с проверкой TLS: пароль → MFA → согласие → callback →
+сессия Portal. Проверены совпадение identity UUID, active membership в `aef`,
+готовые права доступа и загрузка Overview без browser page errors. Это закрытая
+пробная среда с синтетической учётной записью до переключения DNS.
+После переключения [публичный Chromium smoke](id/public-browser-2026-10-09.json)
+проверил login, CSS, health/readiness, discovery/JWKS и anonymous auth через
+реальный DNS без TLS bypass. Вход настоящего пользователя после cutover не проверялся.
+[Client IP acceptance](id/public-client-ip-2026-10-09.json) подтвердил IP через
+Cloudflare и отказ доверять поддельным forwarding-заголовкам при прямом доступе.
+
 ## Garage и общий edge
 
 [Garage manifest](garage/garage.yaml): версия 2.4.1 закреплена digest, PV Retain
-`/srv/updspace/garage`, S3 3900 доступен только из Caddy. RPC/admin — loopback.
+`/srv/updspace/garage`, S3 3900 ограничен NetworkPolicy: Caddy и отдельно разрешённые сервисы Portal.
+Root backup ID на VM использует внутренний endpoint и собственный ID key,
+чтобы сохранять исходные object metadata без подмены Cache-Control общим edge.
+RPC/admin — loopback.
 Runtime keys раздельные, без owner/admin прав, каждый видит только свои bucket.
 Публичный endpoint `https://storage.updspace.com`, регион `garage`, path-style.
 ID buckets: `updspace-id-media-ab88348a`, `updspace-id-exports-e3dd0415`.
@@ -129,28 +155,36 @@ resourceVersion и сохранением PZ/status/storage/observability.
 
 ## Backup и восстановление
 
-Пользователь выбрал рабочий компьютер. Закрытый ключ шифрования находится только
-в `~/.local/share/updspace-backups/keys`; на VM передан лишь публичный recipient.
+Первоначально пользователь выбрал рабочий компьютер, но после миграции отменил
+этот вариант: существующие архивы ID/Portal с ПК удалены, offsite timers отключены.
+Закрытый ключ шифрования сохранён в `~/.local/share/updspace-backups/keys`;
+на VM передан лишь публичный recipient. Следующие описания offsite restore —
+исторические доказательства миграции, не наличие текущей внешней копии.
 Исходный cloud dump сохранён отдельно как `source-ydb.tar.gpg` и расшифрован с
-проверкой SHA256. Полная локальная копия `20261009T122848Z/id.tar.gpg` содержит
+проверкой SHA256. Первая финальная локальная копия `20261009T145502Z/id.tar.gpg` содержит
 sparse YDB disk/config, все ID runtime/DB Secrets, CA, шесть media objects,
-Garage ID key и манифесты. Размер 128776068 байт.
+Garage ID key и манифесты. Размер 271869965 байт.
+[Проверка финальной копии](id/final-backup-2026-10-09.json): COMMITTED, SHA256
+шифротекста и расшифрованного архива, все 20 вложенных файлов и metadata шести
+объектов совпали. Отдельный полный runtime restore этой финальной копии не повторялся;
+изолированное восстановление прежней offsite-копии описано ниже. Свежий исходный
+cloud snapshot отдельно зашифрован в `id-final-source/20261009T145250Z/source.tar.gpg`.
 
 [backup.py](id/backup.py) блокирует наложение, сохраняет состояние Deployment и
 CronJobs, останавливает только ID writers/YDB, снимает холодный sparse archive и
 логический ID-only S3 snapshot, возвращает исходное состояние, затем шифрует.
-Пробная остановка заняла 18.01 s. При незавершённом resume остаётся
+Последняя остановка заняла 17.68 s. При незавершённом resume остаётся
 `/srv/backups/updspace-id/resume-state.json`: его нельзя удалять без проверки.
 Завершённые ciphertext/manifest/COMMITTED лежат в
 `/srv/backups/updspace-id-encrypted/<UTC stamp>`, незашифрованный stage закрыт root.
 
 [Daily timer](id/updspace-id-backup.timer) подготовлен на 02:30 UTC (05:30 MSK),
-**установлен на VM, пока не активирован**. Он означает короткое ежедневное окно недоступности ID;
+**включён на VM**, первый плановый запуск 2026-10-10 02:30 UTC. Он означает короткое ежедневное окно недоступности ID;
 длительность будет расти вместе с объёмом данных. [Offsite sync](id/sync-backups.py)
-установлен как отдельный user timer на рабочем компьютере, работает каждый час,
-проверяет COMMITTED и SHA256, защищён от одновременного запуска и нехватки места.
-Новые копии автоматически не удаляются. При выключенном компьютере остаются
-копии на VM; перенос возобновится при работе user service manager.
+ранее работал каждый час с проверкой COMMITTED/SHA256. Теперь user timer
+`updspace-id-offsite.timer` disabled/inactive по прямому решению владельца;
+не включать его снова без изменения этой политики. VM daily backup продолжает
+работать. Копия на том же диске/VM не защищает от потери самой VM.
 
 Проверено восстановление именно **расшифрованной off-VM копии**: 20 вложенных
 файлов совпали с manifest, отдельный сетево изолированный YDB pod стал Ready,
@@ -168,21 +202,28 @@ root-only каталог `/srv/updspace/id-restore-drill-20261009` и proof со
 учётные записи автоматически. `YDB_DEFAULT_PASSWORD` должен быть буквенно-цифровым:
 bootstrap local-ydb отвергал пароль с `-`, поэтому обёртка после bootstrap исключена.
 
-## Оставшееся переключение
+## Переключение завершено
 
-1. Принять ограничение file-backed YDB или изменить целевое хранилище.
-2. Origin уже проверен по HTTPS: отдельный сертификат Let's Encrypt до 2027-01-07,
-   закрытый LAN-only stage route в общем Caddy. Публичный DNS остаётся в YC.
-   Ручной DNS-01 сертификат сам не продлевается; при cutover управление TLS
-   нужно передать Caddy ACME, до этого не считать renewals готовыми.
-3. На короткое окно остановить облачные writers и пять timers; сохранить их
-   прежние bindings/spec/status для отката. Снять свежие согласованные YDB/S3
-   копии, доставить зашифрованную копию на рабочий компьютер и сверить restore.
-4. Заменить пробную базу целиком, убрать `TRIAL_ONLY`, проверить готовность всех
-   компонентов, включить ID route и сменить только ID DNS. Сохранить источник.
-5. Проверить вход/внешние интеграции; включить локальные задания и daily backup.
-   Автообновление TLS после переключения передать общему Caddy.
+При переключении пять облачных timers поставлены на PAUSED, gateway отвечал 503, прямые local
+invocation bindings удалены. После 600 секунд drain у прежнего runtime account
+удалён только ID database grant; IAM-проверка от его имени вернула PermissionDenied.
+Наследуемые роли общих cloud accounts не менялись. Финальные YDB/S3 скопированы
+и проверены до открытия нового ID route. Caddy получил managed LE certificate
+в 14:41 UTC, публичный ID проверен после restore в 15:03 UTC. Пять локальных
+CronJobs и daily backup включены в 15:10 UTC;
+[все пять заданий](id/final-schedules-2026-10-09.json) успешно отработали к 15:17 UTC.
+[Итоговый протокол](id/final-cutover-2026-10-09.json) фиксирует границы проверки.
+[Runtime audit](id/final-runtime-audit-2026-10-09.json) подтвердил соответствие
+images/flags/router production overlay и отсутствие YC endpoints в пяти компонентах.
+Исторические доказательства и
+ограничения — в [CUTOVER.md](id/CUTOVER.md).
+
+Cloudflare доверяет сертификату origin; внешний сертификат браузер↔Cloudflare
+обслуживает сам Cloudflare. Origin CA возможен как отдельный выбор edge, но
+не меняет срок действия установленного на сервере сертификата автоматически.
+Portal TLS принадлежит отдельной задаче; его ручной сертификат этой задачей
+не заменён. Управление общим edge передано владельцу Portal после проверки ID.
 
 После первой записи на новой стороне простой DNS rollback теряет изменения:
-нужна остановка writers и обратная синхронизация/восстановление. До первого
-нового пользовательского write можно вернуть прежний cloud route/bindings.
+нужна остановка writers и обратная синхронизация/восстановление. Новая сторона
+уже принимала записи; старые cloud writers нельзя просто включить снова.

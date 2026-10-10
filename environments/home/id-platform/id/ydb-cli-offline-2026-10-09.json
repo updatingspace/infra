@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-10-09T13:57:04.142989+00:00",
+  "scope": "trial YDB CLI update checks only",
+  "public_cutover": false,
+  "upstream_reference": "https://ydb.tech/docs/en/reference/ydb-cli/version",
+  "manifest_sha256": "47f16e552e0fdc21b646eac521fd76850b66b6e72bf2a72ca7534db34a4cdfb0",
+  "startup_disables_cli_update_checks": true,
+  "pod_recreated": true,
+  "post_restart_sql_succeeded": true,
+  "post_restart_cli_no_update_warning": true,
+  "synthetic_account_preserved": true,
+  "id_ready_containers": 6,
+  "id_container_restarts": 0,
+  "api_readyz": 200,
+  "jobs_readyz": 200,
+  "ydb_image_unchanged": true,
+  "source_database_or_cloud_dns_changed": false
+}

@@ -1,0 +1,58 @@
+{
+  "recorded_at": "2026-10-09T15:03:08.521Z",
+  "public_dns": true,
+  "hosts_override": false,
+  "tls_verification": true,
+  "login_http": 200,
+  "title": "Вход — UpdSpace ID",
+  "password_form_present": true,
+  "checks": [
+    {
+      "path": "/healthz",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/readyz",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/.well-known/openid-configuration",
+      "status": 200,
+      "ok": true,
+      "issuer": "https://id.updspace.com"
+    },
+    {
+      "path": "/.well-known/jwks.json",
+      "status": 200,
+      "ok": true,
+      "keys": 1
+    },
+    {
+      "path": "/api/v1/auth/me",
+      "status": 200,
+      "ok": true,
+      "anonymous": true
+    },
+    {
+      "path": "/api/v1/auth/form_token",
+      "status": 200,
+      "ok": true
+    }
+  ],
+  "page_errors": [],
+  "failed_requests": [],
+  "aborted_duplicate_stylesheets": 0,
+  "loaded_stylesheets": [
+    {
+      "url": "https://id.updspace.com/_id/ui.css?v=ui-20261008-2",
+      "rules": 68
+    },
+    {
+      "url": "https://id.updspace.com/_id/login.css?v=ui-20261008-1",
+      "rules": 27
+    }
+  ],
+  "real_account_login_tested": false
+}

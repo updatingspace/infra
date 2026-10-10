@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-10",
+  "monitor": "Minecraft",
+  "type": "gamedig",
+  "game": "minecraft",
+  "host": "minecraft.minecraft.svc.cluster.local",
+  "port": 25565,
+  "gameVersion": "1.20.1",
+  "givenPortOnly": true,
+  "intervalSeconds": 300,
+  "queryFromKumaPod": {
+    "success": true,
+    "pingMs": 4
+  },
+  "firstKumaHeartbeat": {
+    "status": "UP",
+    "pingMs": 2,
+    "timeUtc": "2026-10-10 12:12:44.864"
+  },
+  "publicGroup": "Игровые сервисы",
+  "publicInternalAddressHidden": true,
+  "backupBeforeApply": "uptime-kuma-backup.service Result=success ExecMainStatus=0",
+  "existingMonitors": 24,
+  "totalMonitors": 25,
+  "pausedMonitors": 4,
+  "configurationDriftAfterApply": 0,
+  "edgeChanged": false,
+  "externalPlayerLoginTested": false
+}

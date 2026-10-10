@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: id
+      namespace: updspace-id
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: test
+        path: /spec/template/spec/containers/2/name
+        value: mutations
+      - op: replace
+        path: /spec/template/spec/containers/2/image
+        value: docker.io/updspace/id-observability@sha256:beb855c41fd3e1254354404660237c0a41278103fafc09e3f4b4c1e38843f014
+  - target:
+      group: batch
+      version: v1
+      kind: CronJob
+      namespace: updspace-id
+    patch: |-
+      - op: replace
+        path: /spec/suspend
+        value: false

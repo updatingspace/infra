@@ -1,0 +1,162 @@
+{
+  "checks": [
+    {
+      "path": "/csrf",
+      "method": "GET",
+      "status": 200,
+      "bytes": 147,
+      "error_code": null
+    },
+    {
+      "path": "/session/me",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2417,
+      "error_code": null
+    },
+    {
+      "path": "/entry/me",
+      "method": "GET",
+      "status": 200,
+      "bytes": 423,
+      "error_code": null
+    },
+    {
+      "path": "/session/tenants",
+      "method": "GET",
+      "status": 200,
+      "bytes": 143,
+      "error_code": null
+    },
+    {
+      "path": "/session/switch-tenant",
+      "method": "POST",
+      "status": 200,
+      "bytes": 220,
+      "error_code": null
+    },
+    {
+      "path": "/portal/profiles",
+      "method": "GET",
+      "status": 403,
+      "bytes": 369,
+      "error_code": "UPSTREAM_ERROR"
+    },
+    {
+      "path": "/portal/communities",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2,
+      "error_code": null
+    },
+    {
+      "path": "/events/events/",
+      "method": "GET",
+      "status": 200,
+      "bytes": 750,
+      "error_code": null
+    },
+    {
+      "path": "/voting/polls",
+      "method": "GET",
+      "status": 200,
+      "bytes": 672,
+      "error_code": null
+    },
+    {
+      "path": "/activity/feed",
+      "method": "GET",
+      "status": 200,
+      "bytes": 13,
+      "error_code": null
+    },
+    {
+      "path": "/gamification/categories",
+      "method": "GET",
+      "status": 200,
+      "bytes": 324,
+      "error_code": null
+    },
+    {
+      "path": "/gamification/achievements",
+      "method": "GET",
+      "status": 200,
+      "bytes": 550,
+      "error_code": null
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/feature-flags/flags",
+      "method": "GET",
+      "status": 403,
+      "bytes": 335,
+      "error_code": "UPSTREAM_ERROR"
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "PUT",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "PUT",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/personalization/preferences",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1635,
+      "error_code": null
+    },
+    {
+      "path": "/session/switch-tenant",
+      "method": "POST",
+      "status": 403,
+      "bytes": 160,
+      "error_code": "TENANT_FORBIDDEN"
+    },
+    {
+      "path": "/portal/profiles",
+      "method": "GET",
+      "status": 409,
+      "bytes": 196,
+      "error_code": "TENANT_CONTEXT_CHANGED"
+    },
+    {
+      "path": "/session/me",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2417,
+      "error_code": null
+    }
+  ],
+  "synthetic_only": true,
+  "tenant_boundary": "passed",
+  "preferences_write_read_restore": "passed",
+  "bff_restart_session_persistence": "passed"
+}

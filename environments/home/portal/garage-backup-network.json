@@ -1,0 +1,43 @@
+{
+  "apiVersion": "networking.k8s.io/v1",
+  "kind": "NetworkPolicy",
+  "metadata": {
+    "name": "garage-from-portal-activity",
+    "namespace": "updspace-data"
+  },
+  "spec": {
+    "podSelector": {
+      "matchLabels": {
+        "app.kubernetes.io/name": "garage"
+      }
+    },
+    "policyTypes": [
+      "Ingress"
+    ],
+    "ingress": [
+      {
+        "from": [
+          {
+            "namespaceSelector": {
+              "matchLabels": {
+                "kubernetes.io/metadata.name": "updspace-portal"
+              }
+            },
+            "podSelector": {
+              "matchLabels": {
+                "app.kubernetes.io/name": "activity",
+                "app.kubernetes.io/part-of": "updspace-portal"
+              }
+            }
+          }
+        ],
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 3900
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -18,7 +18,13 @@ patches:
         value: mutations
       - op: replace
         path: /spec/template/spec/containers/2/image
-        value: docker.io/updspace/id-observability@sha256:beb855c41fd3e1254354404660237c0a41278103fafc09e3f4b4c1e38843f014
+        value: docker.io/updspace/id-consent-api@sha256:b827552cf4e5bce8a7d994e76f4603538561c61d97d0479f68b232345f6b0626
+      - op: test
+        path: /spec/template/spec/containers/3/name
+        value: web
+      - op: replace
+        path: /spec/template/spec/containers/3/image
+        value: docker.io/updspace/id-consent-web@sha256:d045657b66b8c6975429e2844716ee068a2b6541fc2082c70dc123d56b385fd1
   - target:
       group: batch
       version: v1

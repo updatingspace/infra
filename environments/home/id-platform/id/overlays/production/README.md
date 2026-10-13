@@ -19,8 +19,9 @@ disabled by the operator and must remain disabled during this release.
 [ID PR #167](https://github.com/updatingspace/id/pull/167) updates account/profile,
 security, public documents, 18+ registration and transactional email presentation.
 Build source: `56a334f246a4b63f22e0bb9b3f0d9ff02a0a2233`; subsequent validation
-commit `c498552a951ab7bb4b78d71e1312f3f5157cd945` updates only the home/security
-smoke-test expectations. Application and image inputs are identical.
+commit `92ddcd928a9cc57217ffb1edd11a929d5f01e2d5` updates only the home/security
+and returning-consent test expectations. Application code, dependencies and
+Dockerfiles are unchanged.
 The YDB TLS/static authentication, S3 endpoint and monitoring access/avatar code
 is included in this source: do not apply the historical standalone patches.
 

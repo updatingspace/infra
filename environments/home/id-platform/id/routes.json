@@ -653,5 +653,25 @@
     "path": "/api/v1/auth/passkeys/login/complete",
     "method": "OPTIONS",
     "component": "api"
+  },
+  {
+    "path": "/data",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/privacy",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/terms",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/contacts",
+    "method": "GET",
+    "component": "web"
   }
 ]

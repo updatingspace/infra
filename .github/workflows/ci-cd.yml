@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
+    branches: [master, codex/observability-followup-20261009]
   workflow_dispatch:
 
 permissions:

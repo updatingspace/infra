@@ -1,36 +1,54 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../base
+- ../../base
 patches:
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: id
-      namespace: updspace-id
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: test
-        path: /spec/template/spec/containers/2/name
-        value: mutations
-      - op: replace
-        path: /spec/template/spec/containers/2/image
-        value: docker.io/updspace/id-consent-api@sha256:b827552cf4e5bce8a7d994e76f4603538561c61d97d0479f68b232345f6b0626
-      - op: test
-        path: /spec/template/spec/containers/3/name
-        value: web
-      - op: replace
-        path: /spec/template/spec/containers/3/image
-        value: docker.io/updspace/id-consent-web@sha256:d045657b66b8c6975429e2844716ee068a2b6541fc2082c70dc123d56b385fd1
-  - target:
-      group: batch
-      version: v1
-      kind: CronJob
-      namespace: updspace-id
-    patch: |-
-      - op: replace
-        path: /spec/suspend
-        value: false
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: id
+    namespace: updspace-id
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: test
+      path: /spec/template/spec/containers/0/name
+      value: api
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: docker.io/updspace/id-foundation-api@sha256:1cfe09a402007738226ed30b39722a1bedd09c3976e5b14cd0feccb61d9ac539
+    - op: test
+      path: /spec/template/spec/containers/1/name
+      value: sessions
+    - op: replace
+      path: /spec/template/spec/containers/1/image
+      value: docker.io/updspace/id-foundation-api@sha256:1cfe09a402007738226ed30b39722a1bedd09c3976e5b14cd0feccb61d9ac539
+    - op: test
+      path: /spec/template/spec/containers/2/name
+      value: mutations
+    - op: replace
+      path: /spec/template/spec/containers/2/image
+      value: docker.io/updspace/id-foundation-api@sha256:1cfe09a402007738226ed30b39722a1bedd09c3976e5b14cd0feccb61d9ac539
+    - op: test
+      path: /spec/template/spec/containers/3/name
+      value: web
+    - op: replace
+      path: /spec/template/spec/containers/3/image
+      value: docker.io/updspace/id-foundation-web@sha256:57c7d028f5436a8e91955fda2839e27f459bef1ad24c7a2d2cc4be33425eb7f4
+    - op: test
+      path: /spec/template/spec/containers/4/name
+      value: jobs
+    - op: replace
+      path: /spec/template/spec/containers/4/image
+      value: docker.io/updspace/id-foundation-jobs@sha256:766d18d75cf7ebd3dc4d05017c450b3c20340a8e08c1f666014beb9cafd3ff2e
+- target:
+    group: batch
+    version: v1
+    kind: CronJob
+    namespace: updspace-id
+  patch: |-
+    - op: replace
+      path: /spec/suspend
+      value: false

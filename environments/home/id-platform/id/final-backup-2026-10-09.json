@@ -1,0 +1,25 @@
+{
+  "recorded_utc": "2026-10-09T15:10:01.457141+00:00",
+  "stamp": "20261009T145502Z",
+  "encrypted_bytes": 271869965,
+  "ciphertext_sha256": "b498b4b77ee4859568efdd66293438100c740c5478f021811dd126185303e449",
+  "plaintext_sha256": "0348887133b5431229b468d157750852ad707b9435ad3887858eaddd098f00d7",
+  "decryption_verified": true,
+  "nested_file_hashes_verified": 20,
+  "media_objects": 6,
+  "original_media_metadata_match": true,
+  "pause_seconds": 17.68,
+  "run_state_before_public_open": {
+    "replicas": 1,
+    "ydb_replicas": 1,
+    "cron_suspend": {
+      "recover-export": true,
+      "recover-mail": true,
+      "recover-security-mail": true,
+      "recover-verify-mail": true,
+      "refresh-gravatars": true
+    }
+  },
+  "full_isolated_restore_of_this_archive": false,
+  "prior_trial_offsite_isolated_restore_passed": true
+}

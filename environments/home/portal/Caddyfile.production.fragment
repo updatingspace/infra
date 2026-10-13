@@ -1,0 +1,15 @@
+# Portal frontend and API run on the home k3s node.
+portal.updspace.com {
+  tls /etc/portal-origin-tls/tls.crt /etc/portal-origin-tls/tls.key
+  encode zstd gzip
+  handle /api/v1/* {
+    header X-Portal-Backend vm
+    reverse_proxy bff.updspace-portal.svc.cluster.local:8000 {
+      header_up X-Forwarded-Proto https
+    }
+  }
+  handle {
+    reverse_proxy frontend.updspace-portal.svc.cluster.local:8000
+  }
+  header -Server
+}

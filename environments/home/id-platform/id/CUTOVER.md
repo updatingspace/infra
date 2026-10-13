@@ -1,10 +1,40 @@
-# Final ID cutover (prepared, not applied)
+# ID cutover completed on 2026-10-09
 
-The public ID still uses YC. Local ID contains a trial copy and synthetic auth
-fixtures. All five local CronJobs remain suspended. Do not run the trial auth
-fixture against the final restored database. This procedure remains pending the
-user's decision about the unsupported file-backed YDB configuration described in
-the parent README. It does not authorize cloud data deletion.
+Public ID now runs on the home VM. The user explicitly authorized downtime and
+switching to the home CNAME after the file-backed YDB limitation was reported.
+Cloud resources/data remain retained, with old writers fenced. The procedure
+below is an audit/recovery reference; **do not replay its mutations**.
+
+- Final source snapshot: 14:52:43 UTC, 67 tables / 1833 rows / 19 users.
+- Restore: all 67 table CSV files byte-equal, schema check passed, synthetic
+  account/identity absent; 6 media objects / 238025 bytes and metadata matched.
+- Source: 5 timers PAUSED, 131 gateway operations in maintenance, invocation
+  bindings removed, 600-second drain completed, runtime YDB IAM access denied.
+- DNS: proxied `id.updspace.com CNAME updspacedd.tplinkdns.com`; Caddy acquired
+  managed ACME HTTP-01 TLS at 14:41 UTC. Public Chromium acceptance passed 15:03 UTC.
+- Target: six containers Ready, five local schedules and daily backup enabled
+  15:10 UTC. Daily backup is 02:30 UTC; workstation offsite sync is hourly.
+- First final full offsite backup: `id/20261009T145502Z/id.tar.gpg`, 271869965 bytes,
+  decrypted SHA256 `0348887133b5431229b468d157750852ad707b9435ad3887858eaddd098f00d7`.
+  All 20 nested hashes and six original media metadata sets matched.
+- Runtime config, static YDB auth, local Garage storage, images and ID signing/MFA
+  keys no longer require YC. Existing external SMTP/provider services remain.
+
+Evidence: [restore](final-restore-2026-10-09.json),
+[public browser](public-browser-2026-10-09.json),
+[client IP](public-client-ip-2026-10-09.json),
+[backup](final-backup-2026-10-09.json), [schedules](final-schedules-2026-10-09.json).
+The earlier cutover-readiness file is a historical pre-cutover checkpoint.
+Final private source/rollback artifacts are under the workstation encrypted
+`id-final-source/20261009T145250Z`; recovery keeps old cloud data available.
+
+Current deployment configuration is central infra's `id/overlays/production`.
+Never apply `trial` or the zero-replica base over the running service. For a new
+node, restore secrets/data and import pinned images before enabling that overlay.
+The trial fixture is guarded by the removed `TRIAL_ONLY` marker and must not be
+used against the current database. Public writes have occurred, so DNS-only
+rollback is already unsafe. Real-user login, hardware passkeys, external provider
+callbacks and real mail delivery were not exercised after this cutover.
 
 ## Refresh the source and prepare rollback
 

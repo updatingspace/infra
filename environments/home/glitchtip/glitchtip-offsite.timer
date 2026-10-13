@@ -1,0 +1,10 @@
+[Unit]
+Description=Fetch completed encrypted GlitchTip backups hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

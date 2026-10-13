@@ -1,0 +1,8 @@
+[Unit]
+Description=Fetch verified encrypted GlitchTip backups from the VM
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/bin/python3 %h/.local/share/updspace-backups/infra-sync/glitchtip/sync-backups.py
+TimeoutStartSec=900

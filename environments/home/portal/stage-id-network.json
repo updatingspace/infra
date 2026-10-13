@@ -1,0 +1,16 @@
+{
+  "apiVersion": "networking.k8s.io/v1",
+  "kind": "NetworkPolicy",
+  "metadata": {"name": "bff-to-id-stage", "namespace": "updspace-portal"},
+  "spec": {
+    "podSelector": {"matchLabels": {"app.kubernetes.io/name": "bff", "app.kubernetes.io/part-of": "updspace-portal"}},
+    "policyTypes": ["Egress"],
+    "egress": [{
+      "to": [{
+        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "updspace-id"}},
+        "podSelector": {"matchLabels": {"app.kubernetes.io/name": "id", "app.kubernetes.io/part-of": "updspace-id"}}
+      }],
+      "ports": [{"protocol": "TCP", "port": 8089}]
+    }]
+  }
+}

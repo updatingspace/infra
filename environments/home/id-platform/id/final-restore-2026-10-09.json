@@ -1,0 +1,15 @@
+{
+  "recorded_utc": "2026-10-09T14:54:07.924150+00:00",
+  "source_tables": 67,
+  "matching_tables": 67,
+  "schema_check": true,
+  "source_rows": 1833,
+  "users": 19,
+  "synthetic_account_absent": true,
+  "synthetic_identity_absent": true,
+  "media_objects": 6,
+  "media_bytes": 238025,
+  "media_sha256_metadata_match": true,
+  "removed_trial_media_objects": 2,
+  "source_archive_sha256": "5a3eb0180560f184fb483f32d807063699144fda624b76dbaec0758881a29e36"
+}

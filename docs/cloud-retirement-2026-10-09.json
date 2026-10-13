@@ -1,0 +1,425 @@
+{
+  "recorded_utc": "2026-10-09T16:48:07.394691+00:00",
+  "scope": "ID and Portal retired cloud runtime",
+  "deleted_resources": [
+    {
+      "kind": "trigger",
+      "id": "a1s2ok45pgnc4vmtulnm",
+      "name": "updspace-id-rust-export-recovery",
+      "requested_utc": "2026-10-09T16:37:19.990194+00:00",
+      "status": "deleted",
+      "operation_id": "a1s149eqrajfp3pn2qnn",
+      "completed_utc": "2026-10-09T16:37:26.982397+00:00"
+    },
+    {
+      "kind": "trigger",
+      "id": "a1s30tucfpcid4tsgd2q",
+      "name": "updspace-portal-prod-portal-outbox-sweep",
+      "requested_utc": "2026-10-09T16:37:29.765724+00:00",
+      "status": "deleted",
+      "operation_id": "a1s33f86b9o46sqt48d2",
+      "completed_utc": "2026-10-09T16:37:37.384588+00:00"
+    },
+    {
+      "kind": "trigger",
+      "id": "a1s6opgsogj40a445kck",
+      "name": "updspace-id-rust-verify-mail-recovery",
+      "requested_utc": "2026-10-09T16:37:40.839652+00:00",
+      "status": "deleted",
+      "operation_id": "a1s83v91sm43n5655rm4",
+      "completed_utc": "2026-10-09T16:37:52.871794+00:00"
+    },
+    {
+      "kind": "trigger",
+      "id": "a1smb0u230llgnf30kae",
+      "name": "updspace-id-rust-magic-mail-recovery",
+      "requested_utc": "2026-10-09T16:37:55.422004+00:00",
+      "status": "deleted",
+      "operation_id": "a1s1rd5tamgiqnvl1ecd",
+      "completed_utc": "2026-10-09T16:38:02.256825+00:00"
+    },
+    {
+      "kind": "trigger",
+      "id": "a1spdo2pukcpeeoogmkv",
+      "name": "updspace-id-rust-security-mail-recovery",
+      "requested_utc": "2026-10-09T16:38:04.776379+00:00",
+      "status": "deleted",
+      "operation_id": "a1sp4q2n6fpm0fn1r2h8",
+      "completed_utc": "2026-10-09T16:38:17.138260+00:00"
+    },
+    {
+      "kind": "trigger",
+      "id": "a1sqbhciude97njt20lc",
+      "name": "updspace-id-gravatar-hourly",
+      "requested_utc": "2026-10-09T16:38:20.139274+00:00",
+      "status": "deleted",
+      "operation_id": "a1sm7inn3msa8ki9ahg3",
+      "completed_utc": "2026-10-09T16:38:27.613827+00:00"
+    },
+    {
+      "kind": "api-gateway",
+      "id": "d5d6almt4c5i2ao9e4ha",
+      "name": "updspace-id-gateway",
+      "requested_utc": "2026-10-09T16:38:30.205755+00:00",
+      "status": "deleted",
+      "operation_id": "d5dnvu7d6f9tsmrd1735",
+      "completed_utc": "2026-10-09T16:39:16.288143+00:00"
+    },
+    {
+      "kind": "api-gateway",
+      "id": "d5da1fs5arjv790l1uua",
+      "name": "updspace-portal-prod-gateway",
+      "requested_utc": "2026-10-09T16:39:21.579924+00:00",
+      "status": "deleted",
+      "operation_id": "d5dgomtpevas7hej9343",
+      "completed_utc": "2026-10-09T16:40:06.914987+00:00"
+    },
+    {
+      "kind": "function",
+      "id": "d4e139a07ahc7jgfdlqu",
+      "name": "updspace-portal-prod-portal-outbox",
+      "requested_utc": "2026-10-09T16:40:09.269700+00:00",
+      "status": "deleted",
+      "operation_id": "d4eeli47mgm4or4me9ai",
+      "completed_utc": "2026-10-09T16:40:15.802775+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bba3ev9oenabp55se69m",
+      "name": "updspace-id-sessions-read-pilot-20261005",
+      "requested_utc": "2026-10-09T16:40:20.310769+00:00",
+      "status": "deleted",
+      "operation_id": "bbad29nir7najubuusi4",
+      "completed_utc": "2026-10-09T16:40:31.323730+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bba3jn2tlbb96cpjc2sg",
+      "name": "updspace-portal-prod-bff",
+      "requested_utc": "2026-10-09T16:40:35.676449+00:00",
+      "status": "deleted",
+      "operation_id": "bbap3hkt5aid3fj4k0sd",
+      "completed_utc": "2026-10-09T16:40:42.520868+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bba6qpkh7jinunl08lpa",
+      "name": "updspace-portal-prod-portal",
+      "requested_utc": "2026-10-09T16:40:52.233158+00:00",
+      "status": "deleted",
+      "operation_id": "bbaqgphv2n6o4fr755nn",
+      "completed_utc": "2026-10-09T16:40:59.420547+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bba9v82d1op2qbh2kqtt",
+      "name": "updspace-id-rust-jobs",
+      "requested_utc": "2026-10-09T16:41:04.312914+00:00",
+      "status": "deleted",
+      "operation_id": "bba46oojvke1gb30b7ku",
+      "completed_utc": "2026-10-09T16:41:15.792787+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbadc1s1lvlr3c0l5fm8",
+      "name": "updspace-portal-prod-gamification",
+      "requested_utc": "2026-10-09T16:41:41.711594+00:00",
+      "status": "deleted",
+      "operation_id": "bba3i7lvds7qf8at6fqs",
+      "completed_utc": "2026-10-09T16:41:49.089362+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbah06td6ulsev4vm1ae",
+      "name": "updspace-portal-prod-events",
+      "requested_utc": "2026-10-09T16:41:54.202030+00:00",
+      "status": "deleted",
+      "operation_id": "bbact7vvbgesu1tfn7ii",
+      "completed_utc": "2026-10-09T16:42:01.570935+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbahecgj0g70nu9b2ita",
+      "name": "updspace-portal-prod-featureflags",
+      "requested_utc": "2026-10-09T16:42:27.605077+00:00",
+      "status": "deleted",
+      "operation_id": "bbal4dok7egcjlsujekv",
+      "completed_utc": "2026-10-09T16:42:36.068511+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbai4bjc8f21qg5fvjht",
+      "name": "updspace-id-rust-web",
+      "requested_utc": "2026-10-09T16:42:40.512371+00:00",
+      "status": "deleted",
+      "operation_id": "bbaftae8n65534mhbicu",
+      "completed_utc": "2026-10-09T16:43:07.623784+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbak8734de8cabdaorc7",
+      "name": "updspace-id-backend-green",
+      "requested_utc": "2026-10-09T16:43:12.343243+00:00",
+      "status": "deleted",
+      "operation_id": "bba5lbl55ilc4infd7o2",
+      "completed_utc": "2026-10-09T16:43:27.587244+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbakl6o51bn3p09fh7qr",
+      "name": "updspace-portal-prod-activity",
+      "requested_utc": "2026-10-09T16:43:53.244112+00:00",
+      "status": "deleted",
+      "operation_id": "bba5jina0ij5bq8b1h5j",
+      "completed_utc": "2026-10-09T16:44:22.374261+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbalobmakf49e5rf1l4q",
+      "name": "updspace-portal-prod-voting",
+      "requested_utc": "2026-10-09T16:44:49.279443+00:00",
+      "status": "deleted",
+      "operation_id": "bbaqh560f98kled5riu0",
+      "completed_utc": "2026-10-09T16:44:56.395251+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbamj363kmhlj2nof0mo",
+      "name": "updspace-id-session-mutations-pilot-20261005",
+      "requested_utc": "2026-10-09T16:45:20.903612+00:00",
+      "status": "deleted",
+      "operation_id": "bbaqbr43bh4vl8i4hj60",
+      "completed_utc": "2026-10-09T16:45:32.480038+00:00"
+    },
+    {
+      "kind": "container",
+      "id": "bbanklnq9mebvvu2s0fn",
+      "name": "updspace-portal-prod-access",
+      "requested_utc": "2026-10-09T16:45:58.211543+00:00",
+      "status": "deleted",
+      "operation_id": "bbai5l2raqrl81so081f",
+      "completed_utc": "2026-10-09T16:46:05.230485+00:00"
+    }
+  ],
+  "delete_verified_by_fresh_list": true,
+  "retained_resources": [
+    "2 frozen YDB databases",
+    "all S3 buckets and objects",
+    "shared registry crp0hcf5a7de4tunssc4 and image layers",
+    "7 Lockbox secrets",
+    "IAM principals and grants",
+    "VPC and logging",
+    "other projects and compute VMs"
+  ],
+  "github_fencing": [
+    {
+      "repo": "id",
+      "workflow": "deploy-yandex-cloud.yml",
+      "branch": "main",
+      "blob_sha": "5817b564133f7611a08b93af23571a95de1b2d8f",
+      "all_jobs_guarded_false": true,
+      "active_runs": 0
+    },
+    {
+      "repo": "portal",
+      "workflow": "deploy-yandex-cloud.yml",
+      "branch": "master",
+      "blob_sha": "60c905a4bd4a0fd8e36447e8786c3e00ae13f011",
+      "all_jobs_guarded_false": true,
+      "active_runs": 0
+    },
+    {
+      "repo": "portal",
+      "workflow": "ydb-migrations.yml",
+      "branch": "master",
+      "blob_sha": "2ee84501f0b7a53006e0a22fe95f852ddfc14890",
+      "all_jobs_guarded_false": true,
+      "active_runs": 0
+    }
+  ],
+  "github_commits": {
+    "id": "2b534afdf5c2752278c1c159d970a0ff3f2185f0",
+    "portal_deploy": "1ddb007427bba02d755bd01ed8937145cc0bb539",
+    "portal_migrations": "c4be18968d42e835e3473a3ce5dc5514f9269069"
+  },
+  "public_checks": [
+    {
+      "url": "https://id.updspace.com/readyz",
+      "http": 200,
+      "tls_verified": true,
+      "utc": "2026-10-09T16:46:10.857714+00:00"
+    },
+    {
+      "url": "https://id.updspace.com/login",
+      "http": 200,
+      "tls_verified": true,
+      "utc": "2026-10-09T16:46:09.873433+00:00"
+    },
+    {
+      "url": "https://portal.updspace.com/",
+      "http": 200,
+      "tls_verified": true,
+      "utc": "2026-10-09T16:46:09.818405+00:00"
+    },
+    {
+      "url": "https://portal.updspace.com/api/v1/csrf",
+      "http": 200,
+      "tls_verified": true,
+      "utc": "2026-10-09T16:46:09.883050+00:00"
+    }
+  ],
+  "workstation_backups_removed": {
+    "scope": "existing ID and Portal workstation backups only",
+    "directories": [
+      "id",
+      "id-cutover",
+      "id-final-source",
+      "id-images",
+      "portal-postgres"
+    ],
+    "bytes": 1028148331,
+    "files": 60,
+    "private_decryption_key_retained": true,
+    "vm_backups_unchanged": true
+  },
+  "workstation_timers_disabled": [
+    "updspace-id-offsite.timer",
+    "updspace-postgres-offsite.timer"
+  ],
+  "daily_vm_backup_timers_active": true,
+  "portal_recovery_bundle": {
+    "path": "/srv/updspace/backups/portal-recovery/20261009T162957Z/recovery.tar.gpg",
+    "encrypted_bytes": 1382747218,
+    "sha256": "19f08eafe8e4a5700df37da0858b263f13e1268f57975aa582f0996d63feb175",
+    "vm_ciphertext_hash_verified": true,
+    "workstation_copy_performed": false,
+    "decryption_or_restore_of_this_bundle_performed": false
+  },
+  "cloud_configuration_archive": "/opt/updspace-cloud-retirement/20261009/config.tar.gpg",
+  "fresh_off_host_backup_available": false,
+  "retained_resource_checks": [
+    {
+      "kind": "databases",
+      "count": 2,
+      "same_resource_set": true
+    },
+    {
+      "kind": "registries",
+      "count": 1,
+      "same_resource_set": true
+    },
+    {
+      "kind": "secrets",
+      "count": 7,
+      "same_resource_set": true
+    },
+    {
+      "kind": "buckets",
+      "count": 11,
+      "same_resource_set": true
+    },
+    {
+      "kind": "instances",
+      "count": 2,
+      "same_resource_set": true
+    }
+  ],
+  "vm_after_delete": {
+    "updspace-id": [
+      {
+        "name": "id",
+        "ready": 1,
+        "desired": 1
+      }
+    ],
+    "updspace-id_jobs": [
+      {
+        "name": "recover-export-29859405",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      },
+      {
+        "name": "recover-mail-29859407",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      },
+      {
+        "name": "recover-security-mail-29859405",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      },
+      {
+        "name": "recover-verify-mail-29859405",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      },
+      {
+        "name": "refresh-gravatars-29859377",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      }
+    ],
+    "updspace-portal": [
+      {
+        "name": "access",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "activity",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "bff",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "events",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "featureflags",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "frontend",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "gamification",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "portal",
+        "ready": 1,
+        "desired": 1
+      },
+      {
+        "name": "voting",
+        "ready": 1,
+        "desired": 1
+      }
+    ],
+    "updspace-portal_jobs": [
+      {
+        "name": "portal-outbox-29859405",
+        "succeeded": 1,
+        "failed": 0,
+        "active": 0
+      }
+    ],
+    "daily_backup_timers_active": true,
+    "utc": "2026-10-09T16:47:22.305451+00:00"
+  }
+}

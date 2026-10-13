@@ -9,11 +9,11 @@ symlinks на общие canonical файлы. Общий edge меняет то
 
 | Область | Источник после передачи | Проверенное состояние |
 | --- | --- | --- |
-| Edge, monitoring, Kuma, host | `environments/home` | Применено только изменение доступа; host принят без рестарта |
+| Edge, monitoring, Kuma, GlitchTip, host | `environments/home` | Приложения live; GlitchTip errors/spans и offsite restore проверены; host принят без рестарта |
 | PZ, collector, backup/updater | `environments/pz/kubernetes` | 157 исходников существующего working tree, затем явные центральные изменения |
 | Параметры PZ и game config | `home/pz-values`, `pz/kubernetes/game-config` | Сняты с VM; game config check без изменения live |
-| PostgreSQL, roles и Portal | `environments/home/portal` | Два SHA-verified пакета; PostgreSQL live, Portal подготовлен |
-| ID, YDB, Garage | `environments/home/id-platform` | SHA-verified handoff; публичный ID остаётся в облаке, local ID — проба |
+| PostgreSQL, roles и Portal | `environments/home/portal` | Публичные frontend/API на VM; 78 таблиц / 371 строка и 2 media objects восстановлены и проверены |
+| ID, YDB, Garage | `environments/home/id-platform` | Публичный ID на k3s с 2026-10-09; final snapshot, media, jobs, backup и public acceptance проверены |
 | Legacy TeamSpeak DB | `environments/home/teamspeak` | Состояние переноса в README компонента |
 
 ## Terraform и snapshot
@@ -44,11 +44,28 @@ state передавать bindings без удаления ресурсов.
 
 ## Передача ID
 
-Пакет ID/HANDOFF.sha256 принят в `home/id-platform`, 28 файлов. Общий Caddy
-содержит закрытый LAN stage ID и его TLS Secret mount; policy `caddy-to-id`
-добавлена в edge snapshot. В полном приложении ID присутствует тот же policy
-object: при объединённом рендере включать его один раз, не создавать второе владение.
-Cloud ID не переключён, ID CronJobs приостановлены. Риск неподдерживаемой YDB
-file-backed конфигурации и принятие production cutover относятся к задаче ID.
-Stage certificate выдан до 2027-01-07 вручную; до этой даты или при cutover нужно
-передать его обновление ACME. Monitoring host certificates обновляет общий Caddy.
+Исходный SHA-пакет и дополнения сохранены в `home/id-platform`. Публичный ID
+переключён на k3s 2026-10-09; production overlay включает приложения и пять
+CronJobs. Финальный снимок содержит 67 таблиц, 1833 строки, 19 пользователей и
+6 media objects; acceptance и проверки восстановления записаны в JSON компонента.
+Облачные данные сохранены, запись из прежних процессов ограждена IAM.
+
+ID использует автоматический ACME общего Caddy и передаёт реальный IP только
+из доверенных диапазонов Cloudflare. `caddy-to-id` присутствует также в manifests
+ID: при объединённом рендере включать объект один раз. Риск file-backed YDB принят
+оператором в задаче ID и не отменяется успешным переносом. Интеграция доступа к
+мониторингу через ID staff AND network administrator ещё не включена.
+
+Итоговый Caddyfile принят после публичной проверки Portal: SHA256
+`a42c0259a66fc35e3f10c43b4b0fff4e4e9d16e73bee8a79a53873da22c097dc`.
+ID и Portal используют локальные API. Сертификат Portal пока ручной LE,
+его срок и процедуру продления отслеживать по README компонента.
+
+## Сокращение облака и workstation backups, 2026-10-09
+
+После принятого переноса ID/Portal их старый cloud runtime удалён отдельным
+allowlist-планом. YDB/S3/registry/Lockbox и ресурсы других проектов сохранены.
+Пользователь отменил хранение ID/Portal backup на рабочем компьютере: два
+offsite timers остановлены, архивы удалены, закрытый GPG key сохранён.
+VM backup timers продолжают работать. Детали и границы восстановления —
+[cloud-retirement-2026-10-09.md](cloud-retirement-2026-10-09.md).

@@ -39,6 +39,29 @@ def build():
                 {'name':'GF_USERS_ALLOW_SIGN_UP','value':'false'},
                 {'name':'GF_SERVER_ROOT_URL','value':'https://grafana.updspace.com'},
                 {'name':'GF_AUTH_ANONYMOUS_ENABLED','value':'false'},
+                {'name': 'GF_AUTH_DISABLE_LOGIN_FORM', 'value': 'true'},
+                {'name': 'GF_AUTH_BASIC_ENABLED', 'value': 'false'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_ENABLED', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_NAME', 'value': 'UpdSpace ID'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_CLIENT_ID', 'value': 'observability'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_SCOPES', 'value': 'openid email profile offline_access'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_AUTH_URL', 'value': 'https://id.updspace.com/oauth/authorize'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_TOKEN_URL', 'value': 'http://id.updspace-id.svc.cluster.local:8089/oauth/token'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_API_URL', 'value': 'http://id.updspace-id.svc.cluster.local:8089/oauth/userinfo'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_AUTH_STYLE', 'value': 'InParams'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_USE_PKCE', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_USE_REFRESH_TOKEN', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH', 'value': 'preferred_username'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH', 'value': 'email'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH', 'value': 'name'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH', 'value': "master_flags.is_staff == `true` && master_flags.system_admin == `true` && master_flags.status == 'active' && master_flags.banned == `false` && master_flags.suspended == `false` && 'Admin'"},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT', 'value': 'true'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN', 'value': 'false'},
+                {'name': 'GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC', 'value': 'false'},
+                {'name': 'GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP', 'value': 'false'},
+                {'name':'GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET','valueFrom':{'secretKeyRef':{'name':'grafana-oidc','key':'client-secret'}}},
                 {'name':'GF_SECURITY_COOKIE_SECURE','value':'true'},
                 {'name':'GF_SECURITY_ADMIN_USER','value':'admin'},
                 {'name':'GF_SECURITY_ADMIN_PASSWORD','valueFrom':{'secretKeyRef':{'name':'grafana-admin','key':'password'}}}]
@@ -48,9 +71,6 @@ def build():
                     'automountServiceAccountToken':False,'securityContext':{'runAsNonRoot':True,'runAsUser':uid,'runAsGroup':uid,'seccompProfile':{'type':'RuntimeDefault'}},
                     'containers':[container],'volumes':volumes,'terminationGracePeriodSeconds':60}}}})
         service = {'type':'ClusterIP','selector':labels,'ports':[{'name':'http','port':port,'targetPort':'http'}]}
-        if name == 'grafana':
-            service['type']='NodePort'; service['ports'][0]['nodePort']=30030
-            service['externalTrafficPolicy']='Local'
         resources.append({'apiVersion':'v1','kind':'Service','metadata':{'name':name,'namespace':NS},'spec':service})
 
     rules = {'groups':[{'name':'pz-local','rules':[
@@ -121,7 +141,7 @@ def build():
     resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'local-prometheus-scrape','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'prometheus'}},'policyTypes':['Egress'],'egress':[
         {'to':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'zomboid'}},'podSelector':{'matchLabels':{'app.kubernetes.io/name':'zomboid'}}}], 'ports':[{'protocol':'TCP','port':9090}]},
         {'to':[{'ipBlock':{'cidr':'192.168.1.176/32'}}],'ports':[{'protocol':'TCP','port':9109}]}]}})
-    resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'grafana-lan','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'grafana'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'ipBlock':{'cidr':'192.168.1.0/24'}}],'ports':[{'protocol':'TCP','port':3000}]}]}})
+    resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'grafana-lan','namespace':NS},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'grafana'}},'policyTypes':['Ingress'],'ingress':[]}})
     resources.append({'apiVersion':'networking.k8s.io/v1','kind':'NetworkPolicy','metadata':{'name':'game-from-local-prometheus','namespace':'zomboid'},'spec':{'podSelector':{'matchLabels':{'app.kubernetes.io/name':'zomboid'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':NS}},'podSelector':{'matchLabels':{'app.kubernetes.io/name':'prometheus'}}}],'ports':[{'protocol':'TCP','port':9090}]}]}})
     collector=yaml.safe_load((ROOT/'collector-source.yaml').read_text())
     collector['exporters']={'prometheus_remote_write/local':{'endpoint':'http://prometheus:9090/api/v1/write','resource_to_telemetry_conversion':{'enabled':True}},

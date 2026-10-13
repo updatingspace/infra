@@ -19,14 +19,14 @@ OUTBOX_COMMANDS = {
 
 
 def render() -> dict:
-    images = json.loads(Path(__file__).with_name("portal-images.json").read_text())
+    images = json.loads(Path(__file__).with_name("portal-local-images.json").read_text())
     items = [{"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": NAMESPACE}}]
     for name, image in images.items():
         labels = {**PART_OF, "app.kubernetes.io/name": name}
         container = {
             "name": "app",
             "image": image,
-            "imagePullPolicy": "IfNotPresent",
+            "imagePullPolicy": "Never",
             "envFrom": [{"secretRef": {"name": name + "-runtime"}}],
             "resources": {
                 "requests": {"cpu": "50m", "memory": "128Mi"},
@@ -41,7 +41,6 @@ def render() -> dict:
         }
         pod = {
             "automountServiceAccountToken": False,
-            "imagePullSecrets": [{"name": "source-registry"}],
             "securityContext": {"seccompProfile": {"type": "RuntimeDefault"}},
             "terminationGracePeriodSeconds": 60,
             "containers": [container],

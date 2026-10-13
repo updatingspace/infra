@@ -65,7 +65,11 @@ try:
     run(['tar', '--sparse', '--exclude=id-ydb/import-source', '--exclude=id-ydb/verify-restored',
          '-C', '/srv/updspace', '-cf', str(stage/'ydb.tar'), 'id-ydb'])
     credentials = json.loads(Path('/opt/updspace-data/garage/id-credentials.json').read_text())
-    s3 = boto3.client('s3', endpoint_url=credentials['endpoint'], region_name=credentials['region'],
+    service = json.loads(kube('-n', 'updspace-data', 'get', 'service/garage', '-o', 'json'))
+    assert service['spec']['selector']['app.kubernetes.io/name'] == 'garage'
+    # The public edge replaces Cache-Control; backup must retain object metadata.
+    endpoint = 'http://' + service['spec']['clusterIP'] + ':3900'
+    s3 = boto3.client('s3', endpoint_url=endpoint, region_name=credentials['region'],
         aws_access_key_id=credentials['access_key_id'], aws_secret_access_key=credentials['secret_access_key'],
         config=Config(signature_version='s3v4', s3={'addressing_style': 'path'}, connect_timeout=5,
                       read_timeout=30, retries={'max_attempts': 1}, response_checksum_validation='when_required'))
@@ -90,12 +94,14 @@ try:
     (stage/'garage-id-credentials.json').write_text(json.dumps(credentials))
     secrets = []
     for namespace, names in [('updspace-id', ['id-api', 'id-sessions', 'id-mutations', 'id-web', 'id-jobs']),
-                             ('updspace-data', ['id-ydb-admin', 'id-ydb-runtime', 'id-ydb-tls'])]:
+                             ('updspace-data', ['id-ydb-admin', 'id-ydb-runtime', 'id-ydb-tls']),
+                             ('observability-auth', ['oauth2-proxy'])]:
         for name in names:
             obj = json.loads(kube('-n', namespace, 'get', 'secret', name, '-o', 'json'))
             secrets.append({'apiVersion': 'v1', 'kind': 'Secret', 'type': obj['type'],
                             'metadata': {'name': name, 'namespace': namespace}, 'data': obj['data']})
     (stage/'kubernetes-secrets.json').write_text(json.dumps({'apiVersion': 'v1', 'kind': 'List', 'items': secrets}))
+    shutil.copy2('/opt/updspace-infra/private/observability-oidc.json', stage/'observability-oidc.json')
     shutil.copytree('/opt/updspace-data/id-ydb/certs', stage/'ydb-certs')
     for path in [CONFIG/'applications.yaml', Path('/opt/updspace-data/id-ydb/ydb.yaml')]:
         shutil.copy2(path, stage/path.name)

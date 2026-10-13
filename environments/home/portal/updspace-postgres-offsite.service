@@ -1,9 +1,10 @@
 [Unit]
-Description=Copy encrypted Portal PostgreSQL backups from the VM
+Description=Copy encrypted Portal PostgreSQL and media backups from the VM
 
 [Service]
 Type=oneshot
 UMask=0077
 ExecStart=%h/.local/share/updspace-backups/portal-postgres/sync-postgres-backups.py
-TimeoutStartSec=900
+ExecStartPost=/usr/bin/python3 %h/.local/share/updspace-backups/portal-postgres/sync-media-backups.py
+TimeoutStartSec=1200
 

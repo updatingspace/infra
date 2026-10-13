@@ -83,6 +83,7 @@ spec:
           args:
             - |
               test -f /ydb_data/.authentication-enforced
+              /ydb version --disable-checks >/dev/null
               exec /ydbd server \
                 --yaml-config=/ydb_data/cluster/kikimr_configs/config.yaml \
                 --node=1 --ca=/ydb_certs/ca.pem --grpcs-port=2135 \

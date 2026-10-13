@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Read-only HTTPS, authentication and complete Grafana asset acceptance."""
 import argparse
-import base64
 from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 import json
 from pathlib import Path
 import subprocess
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 GRAFANA = 'https://grafana.updspace.com'
 
@@ -25,7 +24,7 @@ def grafana_assets(html):
             if not path:
                 return
             url = urljoin(GRAFANA + '/', path)
-            # Never forward the operator's Basic credential to a third-party asset.
+            # Cookies must never be forwarded to a third-party asset.
             if urlsplit(url).scheme != 'https' or urlsplit(url).netloc != urlsplit(GRAFANA).netloc:
                 return
             self.assets[url] = 'script' if tag == 'script' else 'style'
@@ -37,59 +36,74 @@ def grafana_assets(html):
     return parser.assets
 
 
-def get(url, authorization=None, origin_ip=None):
-    config = '' if authorization is None else 'header = "Authorization: ' + authorization + '"\n'
+def get(url, cookie_file=None, origin_ip=None, headers=()):
+    config = ''.join('header = ' + json.dumps(value) + '\n' for value in headers)
     extra = [] if not origin_ip else ['--resolve', urlsplit(url).hostname + ':443:' + origin_ip]
+    if cookie_file:
+        extra += ['--cookie', str(cookie_file)]
     result = subprocess.run(
         ['curl', '--compressed', '--silent', '--show-error', '--max-time', '30',
-         '--config', '-', '--write-out', '\n%{http_code} %{content_type}', url] + extra,
+         '--config', '-', '--write-out', '\n%{http_code}\n%{content_type}\n%{redirect_url}', url] + extra,
         input=config.encode(), capture_output=True)
-    assert result.returncode == 0, (url, 'incomplete download', result.returncode)
-    body, metadata = result.stdout.rsplit(b'\n', 1)
-    status, _, content_type = metadata.decode().partition(' ')
-    return int(status), body, content_type.split(';', 1)[0].lower()
+    assert result.returncode == 0, (urlsplit(url).hostname, 'incomplete download', result.returncode)
+    body, status, content_type, redirect = result.stdout.rsplit(b'\n', 3)
+    return int(status), body, content_type.decode().split(';', 1)[0].lower(), redirect.decode()
 
 
-def verify_asset(url, kind, authorization, origin_ip):
-    status, body, content_type = get(url, authorization, origin_ip)
+def verify_asset(url, kind, cookie_file, origin_ip):
+    status, body, content_type, _ = get(url, cookie_file, origin_ip)
     expected = {'text/javascript', 'application/javascript', 'application/x-javascript'} if kind == 'script' else {'text/css'}
     assert status == 200 and body and content_type in expected, (url, status, content_type)
     assert not body.lstrip().lower().startswith((b'<!doctype', b'<html')), (url, 'HTML instead of asset')
     return {'asset': urlsplit(url).path, 'bytes': len(body), 'contentType': content_type}
 
 
+def verify_login_start(host, origin_ip=None):
+    status, _, _, redirect = get('https://' + host + '/oauth2/start?rd=/', origin_ip=origin_ip)
+    target = urlsplit(redirect)
+    query = parse_qs(target.query)
+    assert status == 302 and target.scheme == 'https' and target.netloc == 'id.updspace.com' and target.path == '/oauth/authorize', (host, 'unexpected identity redirect')
+    assert query.get('client_id') == ['observability']
+    assert query.get('redirect_uri') == ['https://' + host + '/oauth2/callback']
+    assert query.get('code_challenge_method') == ['S256'] and query.get('nonce')
+    assert 'approval_prompt' not in query, 'ID rejects the legacy approval_prompt parameter'
+    # Exercise the next hop too: a syntactically valid redirect can still fail in ID.
+    status, _, _, login = get(redirect, origin_ip=origin_ip)
+    assert status == 302 and urlsplit(login).path == '/login', (host, 'ID did not reach login', status)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--origin-ip')
+    parser.add_argument('--cookie-file', type=Path, help='Private Netscape cookie file with edge and native Grafana sessions from an authorized operator')
     args = parser.parse_args()
-    credentials = json.loads(Path('/opt/updspace-infra/private/monitoring-credentials.json').read_text())
-    auth = 'Basic ' + base64.b64encode((credentials['username'] + ':' + credentials['password']).encode()).decode()
-    for domain, path in [('grafana', '/login'), ('prometheus', '/api/v1/query?query=up'), ('alerts', '/api/v2/status')]:
-        url = 'https://' + domain + '.updspace.com' + path
-        status, _, _ = get(url, origin_ip=args.origin_ip)
-        assert status == 401, (domain, 'anonymous', status)
-        wrong, _, _ = get(url, 'Basic bW9uaXRvcmluZzppbnZhbGlk', args.origin_ip)
-        assert wrong == 401, (domain, 'wrong password', wrong)
-        status, body, _ = get(url, auth, args.origin_ip)
-        assert status == 200, (domain, 'authenticated', status)
-        if domain == 'grafana':
-            assets = grafana_assets(body)
-            with ThreadPoolExecutor(max_workers=3) as pool:
-                for result in pool.map(lambda item: verify_asset(*item, auth, args.origin_ip), assets.items()):
-                    print(json.dumps(result), flush=True)
-        if domain == 'prometheus':
-            assert json.loads(body)['status'] == 'success'
-        if domain == 'alerts':
-            assert 'versionInfo' in json.loads(body)
-        print(json.dumps({'host': domain + '.updspace.com', 'anonymous': 401, 'wrongPassword': 401,
-                          'authenticated': 200, 'tlsVerified': True, 'originOverride': args.origin_ip}), flush=True)
-    status, _, _ = get(GRAFANA + '/api/user', auth, args.origin_ip)
-    assert status == 401, ('Grafana own login unexpectedly bypassed', status)
-    for domain, path in [('status', '/api/status-page/updspace'), ('pz-admin', '/api/health')]:
-        status, _, _ = get('https://' + domain + '.updspace.com' + path, origin_ip=args.origin_ip)
-        assert status == 200, (domain, status)
-        print(json.dumps({'existingHost': domain + '.updspace.com', 'http': status,
-                          'tlsVerified': True, 'originOverride': args.origin_ip}))
+    if args.cookie_file:
+        assert args.cookie_file.is_file() and args.cookie_file.stat().st_mode & 0o077 == 0, 'Cookie file must be private'
+    for domain, path in [('grafana', '/'), ('prometheus', '/api/v1/query?query=up'),
+                         ('alerts', '/api/v2/status'), ('errors', '/'), ('status', '/dashboard')]:
+        host = domain + '.updspace.com'
+        url = 'https://' + host + path
+        for headers in [(), ('X-Observability-Token: forged', 'X-Auth-Request-Access-Token: forged', 'Authorization: Bearer forged')]:
+            status, _, _, redirect = get(url, origin_ip=args.origin_ip, headers=headers)
+            assert status == 302 and redirect == 'https://' + host + '/oauth2/start?rd=/', (domain, 'anonymous/spoofed', status)
+        verify_login_start(host, args.origin_ip)
+        print(json.dumps({'host':host, 'anonymousAndSpoofed':302, 'idLoginReached':True, 'tlsVerified':True, 'originOverride':args.origin_ip}), flush=True)
+        if args.cookie_file and domain in ('grafana', 'prometheus', 'alerts'):
+            status, body, _, _ = get(url, args.cookie_file, args.origin_ip)
+            assert status == 200, (domain, 'operator session', status)
+            if domain == 'grafana':
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    for result in pool.map(lambda item: verify_asset(*item, args.cookie_file, args.origin_ip), grafana_assets(body).items()):
+                        print(json.dumps(result), flush=True)
+            elif domain == 'prometheus':
+                assert json.loads(body)['status'] == 'success'
+            else:
+                assert 'versionInfo' in json.loads(body)
+    for domain, path in [('status', '/status/updspace'), ('status', '/api/status-page/updspace'),
+                         ('status', '/api/status-page/heartbeat/updspace'), ('pz-admin', '/api/health')]:
+        status, _, _, _ = get('https://' + domain + '.updspace.com' + path, origin_ip=args.origin_ip)
+        assert status == 200, (domain, path, status)
+        print(json.dumps({'publicHost':domain + '.updspace.com', 'path':path, 'http':status}), flush=True)
 
 
 if __name__ == '__main__':

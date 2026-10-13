@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: caddy-to-portal-stage
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: updspace-portal
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [bff, frontend]
+      ports:
+        - protocol: TCP
+          port: 8000

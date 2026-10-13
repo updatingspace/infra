@@ -1,3 +1,6 @@
+> Historical trial handoff. Superseded by the completed 2026-10-09 cutover
+> in [README.md](README.md) and [id/CUTOVER.md](id/CUTOVER.md).
+
 # ID / YDB / Garage handoff to updspace/infra
 
 Frozen source root: `/home/m4tveevm/PycharmProjects/id/infra/k3s`.

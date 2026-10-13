@@ -1,0 +1,10 @@
+{
+  "bff": "localhost/updspace/portal-bff@sha256:205f61e99b46f428d682e97540becb48c71fb908c95a69defa35fe10b61e76d8",
+  "portal": "localhost/updspace/portal-portal@sha256:b6cab29d1ab485cf4159cf05c98244bc88b9a58153a22c294948b678ec48fdab",
+  "gamification": "localhost/updspace/portal-gamification@sha256:75521a38a5027bdd246740af4e9656dc2c885c4a731409577572080288da7d2d",
+  "events": "localhost/updspace/portal-events@sha256:a83b74efeb8e687719d79831ed464452b161eaf91402526e931965dbbda43a14",
+  "featureflags": "localhost/updspace/portal-featureflags@sha256:078096ae61180db6b7146aff248a6ce45a60f0e0da8ec7726da2d2761b792699",
+  "activity": "localhost/updspace/portal-activity@sha256:3bef8cc705e086b01b9f0904b2776a598ced5ff2f44666608e460eb073dd59a9",
+  "voting": "localhost/updspace/portal-voting@sha256:8f20545c00ef8c02329c7d60cf2957ce1a5dfa8af227b9e68b1b8eb8cd23adfd",
+  "access": "localhost/updspace/portal-access@sha256:c31719240f0c0b653c2fe5cc6fb9911dd47a6e72a4e35e64a016bde904794bd1"
+}

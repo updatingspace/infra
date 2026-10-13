@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kuma-to-minecraft
+  namespace: uptime-kuma
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: uptime-kuma
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: minecraft
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minecraft
+      ports:
+        - {protocol: TCP, port: 25565}

@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kuma-to-portal
+  namespace: uptime-kuma
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: uptime-kuma
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: updspace-portal
+      podSelector:
+        matchExpressions:
+        - key: app.kubernetes.io/name
+          operator: In
+          values:
+          - bff
+          - access
+          - activity
+          - events
+          - featureflags
+          - gamification
+          - portal
+          - voting
+    ports:
+    - protocol: TCP
+      port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portal-from-kuma
+  namespace: updspace-portal
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app.kubernetes.io/name
+      operator: In
+      values:
+      - bff
+      - access
+      - activity
+      - events
+      - featureflags
+      - gamification
+      - portal
+      - voting
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: uptime-kuma
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: uptime-kuma
+    ports:
+    - protocol: TCP
+      port: 8000

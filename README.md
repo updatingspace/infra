@@ -12,6 +12,7 @@ Remote — `github.com/updatingspace/infra`, основная ветка `master
 | `environments/home/edge` | общий HTTP/TLS Caddy, маршруты, сеть, сохранённые volumes |
 | `environments/home/dns` | четыре Cloudflare CNAME: status, grafana, prometheus, alerts; proxy включён |
 | `environments/home/monitoring` | Grafana, Prometheus, Loki, Alertmanager, dashboard, datasource, 22 правила |
+| [`environments/home/notify-bridge`](environments/home/notify-bridge/README.md) | Telegram, постоянная очередь, VPN-egress, обновление подписки и webhook AM/Kuma |
 | `environments/home/uptime-kuma` | приложение, PV, сеть, backup, проверки и публичная страница |
 | `environments/pz/kubernetes` | перенесённый существующий Terraform PZ, collector, backup/updater и конфиги игры |
 | `environments/home/pz-values` | несекретные параметры существующего домашнего размещения PZ |
@@ -81,7 +82,8 @@ writer. Проверить Caddyfile в закреплённом образе, �
 
 `uptime-kuma/config.cjs` по умолчанию проверяет drift, `--apply` синхронизирует
 существующие проверки/настройки/статусную страницу. Сохраняются текущие паузы,
-включая операторскую паузу spbetu.ru; Telegram пока не настроен.
+включая операторскую паузу spbetu.ru. Доставкой Telegram управляет отдельный
+[notify-bridge](environments/home/notify-bridge/README.md).
 PZ game-config требует остановленных game/panel и maintenance lock; сам ничего
 не останавливает. PostgreSQL roles по умолчанию проверяются read-only, apply
 транзакционный и сохраняет пароли. Детали находятся рядом с каждым инструментом.

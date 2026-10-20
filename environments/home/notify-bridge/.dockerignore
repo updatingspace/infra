@@ -1,0 +1,6 @@
+*
+!build/
+!build/notify-bridge
+!build/xray
+!build/LICENSE
+!build/ca-certificates.crt

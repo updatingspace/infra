@@ -38,6 +38,24 @@ jobs:
       - name: Check whitespace
         run: git diff --check
 
+  notify-bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: environments/home/notify-bridge/app
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: environments/home/notify-bridge/app/go.mod
+          cache-dependency-path: environments/home/notify-bridge/app/go.sum
+      - name: Test and build notification bridge
+        run: |
+          go test -race ./...
+          go vet ./...
+          go build -o /tmp/notify-bridge .
+
   terraform:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

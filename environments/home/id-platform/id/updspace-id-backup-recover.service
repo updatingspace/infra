@@ -1,0 +1,10 @@
+[Unit]
+Description=Finish interrupted ID backup recovery
+After=k3s.service network-online.target
+ConditionPathExists=/srv/backups/updspace-id/resume-state.json
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/opt/updspace-id/backup.py --resume
+TimeoutStartSec=600

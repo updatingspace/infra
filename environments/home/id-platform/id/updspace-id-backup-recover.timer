@@ -1,0 +1,11 @@
+[Unit]
+Description=Retry unfinished ID backup recovery
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=updspace-id-backup-recover.service
+
+[Install]
+WantedBy=timers.target

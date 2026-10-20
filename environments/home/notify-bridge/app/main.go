@@ -31,12 +31,14 @@ import (
 
 type Event struct {
 	Key, Group, Title, Detail, Severity string
+	Links                               []Link
 	State                               int // 0 resolved, 1 firing, 2 unknown/maintenance: does not resolve an incident
 	Stamp                               int64
 }
 type Incident struct {
 	ID                                                                                   int64
 	Group, Title, Severity, Detail                                                       string
+	Links                                                                                []Link
 	Opened, Closed, Version, SentVersion, MessageID, Ack, Snooze, Reminder, RecoverySent int64
 }
 type Store struct {
@@ -56,12 +58,19 @@ func openStore(path string) (*Store, error) {
  CREATE TABLE IF NOT EXISTS incidents (id INTEGER PRIMARY KEY, grp TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, severity TEXT NOT NULL, opened INTEGER NOT NULL, closed INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, sent_version INTEGER NOT NULL DEFAULT 0, message_id INTEGER NOT NULL DEFAULT 0, ack INTEGER NOT NULL DEFAULT 0, snooze INTEGER NOT NULL DEFAULT 0, reminder INTEGER NOT NULL, recovery_sent INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0);
  CREATE UNIQUE INDEX IF NOT EXISTS incident_open ON incidents(grp) WHERE closed=0;
  CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS signal_links (key TEXT PRIMARY KEY REFERENCES signals(key) ON DELETE CASCADE, links TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS incident_links (id INTEGER PRIMARY KEY REFERENCES incidents(id) ON DELETE CASCADE, links TEXT NOT NULL);
  INSERT OR IGNORE INTO meta VALUES ('offset',0);`)
 	if e != nil {
 		db.Close()
 		return nil, e
 	}
-	return &Store{db: db, limit: 10000}, nil
+	s := &Store{db: db, limit: 10000}
+	if e = s.backfillLinks(); e != nil {
+		db.Close()
+		return nil, e
+	}
+	return s, nil
 }
 
 var errFull = errors.New("queue capacity reached")
@@ -88,7 +97,7 @@ func (s *Store) accept(events []Event) error {
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return e
 		}
-		if e == nil && v.Stamp <= stamp {
+		if e == nil && (v.Stamp < stamp || (v.Stamp == stamp && v.State != state)) {
 			continue
 		}
 		if e == nil && oldgroup != v.Group {
@@ -101,6 +110,10 @@ func (s *Store) accept(events []Event) error {
 		if _, e = tx.Exec(`INSERT INTO signals VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET title=excluded.title,detail=excluded.detail,severity=excluded.severity,state=excluded.state,stamp=excluded.stamp,updated=excluded.updated`, v.Key, v.Group, v.Title, v.Detail, v.Severity, v.State, v.Stamp, now); e != nil {
 			return e
 		}
+		links, _ := json.Marshal(v.Links)
+		if _, e = tx.Exec(`INSERT INTO signal_links VALUES (?,?) ON CONFLICT(key) DO UPDATE SET links=excluded.links`, v.Key, string(links)); e != nil {
+			return e
+		}
 		groups[v.Group] = true
 	}
 	keys := make([]string, 0, len(groups))
@@ -109,16 +122,17 @@ func (s *Store) accept(events []Event) error {
 	}
 	sort.Strings(keys)
 	for _, g := range keys {
-		rows, e := tx.Query(`SELECT title,detail,severity FROM signals WHERE grp=? AND state=1 ORDER BY key`, g)
+		rows, e := tx.Query(`SELECT title,detail,severity,COALESCE(links,'null') FROM signals LEFT JOIN signal_links USING(key) WHERE grp=? AND state=1 ORDER BY key`, g)
 		if e != nil {
 			return e
 		}
 		var title string
 		severity := "warning"
 		var parts []string
+		var links []Link
 		for rows.Next() {
-			var t, d, sev string
-			if e = rows.Scan(&t, &d, &sev); e != nil {
+			var t, d, sev, rawLinks string
+			if e = rows.Scan(&t, &d, &sev, &rawLinks); e != nil {
 				rows.Close()
 				return e
 			}
@@ -129,6 +143,12 @@ func (s *Store) accept(events []Event) error {
 				severity = sev
 			}
 			parts = append(parts, t+": "+d)
+			var sourceLinks []Link
+			if e = json.Unmarshal([]byte(rawLinks), &sourceLinks); e != nil {
+				rows.Close()
+				return e
+			}
+			links = append(links, sourceLinks...)
 		}
 		e = rows.Err()
 		rows.Close()
@@ -137,8 +157,10 @@ func (s *Store) accept(events []Event) error {
 		}
 		detail := clip(strings.Join(parts, "\n"), 1800)
 		var id int64
-		var olddetail, oldtitle, oldsev string
-		e = tx.QueryRow(`SELECT id,detail,title,severity FROM incidents WHERE grp=? AND closed=0`, g).Scan(&id, &olddetail, &oldtitle, &oldsev)
+		var olddetail, oldtitle, oldsev, oldlinks string
+		encoded, _ := json.Marshal(uniqueLinks(links))
+		linkJSON := string(encoded)
+		e = tx.QueryRow(`SELECT incidents.id,detail,title,severity,COALESCE(links,'null') FROM incidents LEFT JOIN incident_links USING(id) WHERE grp=? AND closed=0`, g).Scan(&id, &olddetail, &oldtitle, &oldsev, &oldlinks)
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return e
 		}
@@ -148,13 +170,21 @@ func (s *Store) accept(events []Event) error {
 					return errFull
 				}
 				pending++
-				if _, e = tx.Exec(`INSERT INTO incidents(grp,title,detail,severity,opened,reminder) VALUES(?,?,?,?,?,?)`, g, title, detail, severity, now, now+repeatFor(severity)); e != nil {
+				result, err := tx.Exec(`INSERT INTO incidents(grp,title,detail,severity,opened,reminder) VALUES(?,?,?,?,?,?)`, g, title, detail, severity, now, now+repeatFor(severity))
+				if err != nil {
+					return err
+				}
+				id, e = result.LastInsertId()
+				if e != nil {
 					return e
 				}
-			} else if olddetail != detail || oldtitle != title || oldsev != severity {
+			} else if olddetail != detail || oldtitle != title || oldsev != severity || oldlinks != linkJSON {
 				if _, e = tx.Exec(`UPDATE incidents SET title=?,detail=?,severity=?,version=version+1 WHERE id=?`, title, detail, severity, id); e != nil {
 					return e
 				}
+			}
+			if _, e = tx.Exec(`INSERT INTO incident_links VALUES (?,?) ON CONFLICT(id) DO UPDATE SET links=excluded.links`, id, linkJSON); e != nil {
+				return e
 			}
 		} else if e == nil {
 			if _, e = tx.Exec(`UPDATE incidents SET closed=?,version=version+1,snooze=0 WHERE id=?`, now, id); e != nil {
@@ -178,10 +208,14 @@ func repeatFor(severity string) int64 {
 	return 12 * 3600
 }
 
-const selectIncident = `SELECT id,grp,title,detail,severity,opened,closed,version,sent_version,message_id,ack,snooze,reminder,recovery_sent FROM incidents`
+const selectIncident = `SELECT id,grp,title,detail,severity,opened,closed,version,sent_version,message_id,ack,snooze,reminder,recovery_sent,COALESCE((SELECT links FROM incident_links WHERE id=incidents.id),'null') FROM incidents`
 
 func scanIncident(row interface{ Scan(...any) error }) (v Incident, e error) {
-	e = row.Scan(&v.ID, &v.Group, &v.Title, &v.Detail, &v.Severity, &v.Opened, &v.Closed, &v.Version, &v.SentVersion, &v.MessageID, &v.Ack, &v.Snooze, &v.Reminder, &v.RecoverySent)
+	var links string
+	e = row.Scan(&v.ID, &v.Group, &v.Title, &v.Detail, &v.Severity, &v.Opened, &v.Closed, &v.Version, &v.SentVersion, &v.MessageID, &v.Ack, &v.Snooze, &v.Reminder, &v.RecoverySent, &links)
+	if e == nil {
+		e = json.Unmarshal([]byte(links), &v.Links)
+	}
 	return
 }
 func (s *Store) next(now int64) (Incident, error) {
@@ -267,7 +301,14 @@ func parseAM(r io.Reader) ([]Event, error) {
 		if detail == "" {
 			detail = name
 		}
-		out = append(out, Event{Key: key, Group: clip(group, 100), Title: clean(name, 120), Detail: clean(detail, 450), Severity: sev, State: state, Stamp: stamp})
+		description := a.Annotations["description"]
+		if description == "" && name == "IDBackupRecoveryPending" {
+			description = idBackupExplanation
+		}
+		if description != "" {
+			detail += "\n" + description
+		}
+		out = append(out, Event{Key: key, Group: clip(group, 100), Title: clean(name, 120), Detail: clean(detail, 900), Severity: sev, State: state, Stamp: stamp, Links: alertLinks(a.Labels)})
 	}
 	return out, nil
 }
@@ -327,7 +368,7 @@ func parseKuma(r io.Reader) ([]Event, error) {
 	if p.Monitor.ID == 16 {
 		group = "updspace-id"
 	}
-	return []Event{{Key: key, Group: group, Title: clean(p.Monitor.Name, 120), Detail: detail, Severity: "critical", State: state, Stamp: stamp}}, nil
+	return []Event{{Key: key, Group: group, Title: clean(p.Monitor.Name, 120), Detail: detail, Severity: "critical", State: state, Stamp: stamp, Links: kumaLinks(p.Monitor.ID, p.Monitor.Name)}}, nil
 }
 
 type Telegram struct {
@@ -396,6 +437,9 @@ func telegramClient(socks string) (*http.Client, error) {
 }
 func (t *Telegram) card(v Incident) map[string]any {
 	status := "🔴 СБОЙ"
+	if v.Severity != "critical" {
+		status = "🟡 ПРЕДУПРЕЖДЕНИЕ"
+	}
 	if v.Closed > 0 {
 		status = "🟢 ВОССТАНОВЛЕНО"
 	}
@@ -413,7 +457,11 @@ func (t *Telegram) card(v Incident) map[string]any {
 	if v.MessageID == 0 && time.Now().Unix()-v.Opened > 120 {
 		text += "\nДоставка задержалась; состояние актуально на момент отправки."
 	}
-	buttons := [][]map[string]string{{{"text": "Статус", "url": "https://status.updspace.com"}, {"text": "Grafana", "url": "https://grafana.updspace.com"}}}
+	var buttons [][]map[string]string
+	for _, link := range uniqueLinks(v.Links) {
+		buttons = append(buttons, []map[string]string{{"text": link.Text, "url": link.URL}})
+	}
+	buttons = append(buttons, []map[string]string{{"text": "Общий статус", "url": "https://status.updspace.com"}, {"text": "Grafana", "url": "https://grafana.updspace.com"}})
 	if v.Closed == 0 {
 		buttons = append(buttons, []map[string]string{{"text": "Принял", "callback_data": fmt.Sprintf("ack:%d", v.ID)}, {"text": "Тише 15 мин", "callback_data": fmt.Sprintf("snooze:%d", v.ID)}})
 	}
@@ -470,6 +518,7 @@ func (a *App) deliver(ctx context.Context, v Incident) error {
 	}
 	if v.Closed > 0 && v.RecoverySent == 0 {
 		p = map[string]any{"chat_id": a.tg.chat, "text": fmt.Sprintf("🟢 Восстановлено: %s\nИнцидент #%d · %s", v.Title, v.ID, time.Duration(v.Closed-v.Opened)*time.Second), "reply_parameters": map[string]any{"message_id": v.MessageID, "allow_sending_without_reply": true}}
+		p["reply_markup"] = a.tg.card(v)["reply_markup"]
 		if e := a.tg.call(ctx, "sendMessage", p, nil); e != nil {
 			return e
 		}
@@ -484,7 +533,9 @@ func (a *App) deliver(ctx context.Context, v Incident) error {
 			return e
 		}
 		if fresh.Closed == 0 && fresh.Ack == 0 && fresh.Snooze <= time.Now().Unix() && fresh.Reminder <= time.Now().Unix() {
-			p = map[string]any{"chat_id": a.tg.chat, "text": fmt.Sprintf("🔴 Всё ещё актуально: %s\nИнцидент #%d\n%s", fresh.Title, fresh.ID, fresh.Detail), "reply_parameters": map[string]any{"message_id": v.MessageID, "allow_sending_without_reply": true}}
+			p = a.tg.card(fresh)
+			p["text"] = "Напоминание\n" + p["text"].(string)
+			p["reply_parameters"] = map[string]any{"message_id": v.MessageID, "allow_sending_without_reply": true}
 			if e := a.tg.call(ctx, "sendMessage", p, nil); e != nil {
 				return e
 			}

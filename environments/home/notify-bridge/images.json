@@ -1,0 +1,4 @@
+{
+  "bridge": "docker.io/updspace-local/bridge:7427450ea65c17a2",
+  "xray": "docker.io/updspace-local/xray:8255dd939c34cf96"
+}

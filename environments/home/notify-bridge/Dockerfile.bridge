@@ -1,0 +1,5 @@
+FROM scratch
+COPY build/notify-bridge /notify-bridge
+COPY build/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+USER 10001:10001
+ENTRYPOINT ["/notify-bridge"]

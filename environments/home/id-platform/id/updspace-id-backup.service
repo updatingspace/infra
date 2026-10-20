@@ -6,4 +6,6 @@ After=k3s.service network-online.target
 Type=oneshot
 UMask=0077
 ExecStart=/opt/updspace-id/backup.py
+ExecStopPost=/opt/updspace-id/backup.py --resume
 TimeoutStartSec=1800
+TimeoutStopSec=600

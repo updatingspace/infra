@@ -38,15 +38,16 @@ data:
     \ /api/v1/auth/preferences /api/v1/auth/security /api/v1/auth/timezones /oauth/authorize\
     \ /oauth/authorize/prepare /oauth/userinfo\n    }\n    handle @r4 {\n      reverse_proxy\
     \ 127.0.0.1:8083 {\n      }\n    }\n    @r5 {\n      method OPTIONS\n      path\
-    \ /api/v1/auth/avatar /api/v1/auth/change_password /api/v1/auth/consents /api/v1/auth/consents/revoke\
-    \ /api/v1/auth/data/exports /api/v1/auth/email /api/v1/auth/email/change /api/v1/auth/jwt/from_session\
-    \ /api/v1/auth/login-history /api/v1/auth/logout /api/v1/auth/mfa/status /api/v1/auth/oauth/apps\
-    \ /api/v1/auth/oauth/apps/revoke /api/v1/auth/passkeys /api/v1/auth/preferences\
-    \ /api/v1/auth/profile /api/v1/auth/refresh /api/v1/auth/security /api/v1/auth/sessions/_bulk\
-    \ /api/v1/auth/sessions/bulk\n    }\n    handle @r5 {\n      reverse_proxy 127.0.0.1:8083\
-    \ {\n      }\n    }\n    @r6 {\n      method PATCH\n      path /api/v1/auth/preferences\
-    \ /api/v1/auth/profile\n    }\n    handle @r6 {\n      reverse_proxy 127.0.0.1:8083\
-    \ {\n      }\n    }\n    @r7 {\n      method POST\n      path /api/v1/auth/avatar\
+    \ /api/v1/auth/account/deletions /api/v1/auth/avatar /api/v1/auth/change_password\
+    \ /api/v1/auth/consents /api/v1/auth/consents/revoke /api/v1/auth/data/exports\
+    \ /api/v1/auth/email /api/v1/auth/email/change /api/v1/auth/jwt/from_session /api/v1/auth/login-history\
+    \ /api/v1/auth/logout /api/v1/auth/mfa/status /api/v1/auth/oauth/apps /api/v1/auth/oauth/apps/revoke\
+    \ /api/v1/auth/passkeys /api/v1/auth/preferences /api/v1/auth/profile /api/v1/auth/refresh\
+    \ /api/v1/auth/security /api/v1/auth/sessions/_bulk /api/v1/auth/sessions/bulk\n\
+    \    }\n    handle @r5 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n    }\n\
+    \    @r6 {\n      method PATCH\n      path /api/v1/auth/preferences /api/v1/auth/profile\n\
+    \    }\n    handle @r6 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n    }\n\
+    \    @r7 {\n      method POST\n      path /api/v1/auth/account/deletions /api/v1/auth/avatar\
     \ /api/v1/auth/change_password /api/v1/auth/consents/revoke /api/v1/auth/data/exports\
     \ /api/v1/auth/email/change /api/v1/auth/jwt/from_session /api/v1/auth/logout\
     \ /api/v1/auth/oauth/apps/revoke /api/v1/auth/refresh /api/v1/auth/sessions/_bulk\
@@ -773,6 +774,64 @@ spec:
             - '--header=Content-Type: application/json'
             - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
             - http://id-jobs:8084/internal/jobs/recover-export
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 32Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: recover-deletion
+  namespace: updspace-id
+spec:
+  suspend: true
+  schedule: '*/5 * * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: id-timer
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: invoke
+            image: docker.io/local/caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+            imagePullPolicy: Never
+            command:
+            - wget
+            - -q
+            - -O
+            - '-'
+            - -T
+            - '550'
+            - '--header=Content-Type: application/json'
+            - --post-data={"messages":[{"event_metadata":{"event_type":"yandex.cloud.events.serverless.triggers.TimerMessage"},"details":{}}]}
+            - http://id-jobs:8084/internal/jobs/recover-deletion
             securityContext:
               runAsNonRoot: true
               allowPrivilegeEscalation: false

@@ -49,6 +49,8 @@ def render(routes):
         for method in methods:
             assert destination(grouped, method, sample) == route["component"], (method, sample)
     assert destination(grouped, "GET", "/api/v1/auth/data/exports/example/download") == "mutations"
+    assert destination(grouped, "POST", "/api/v1/auth/account/deletions") == "mutations"
+    assert destination(grouped, "OPTIONS", "/api/v1/auth/account/deletions") == "mutations"
     assert destination(grouped, "GET", "/api/v1/auth/sessions") == "sessions"
     assert destination(grouped, "GET", "/unknown-page") == "web"
     assert not re.fullmatch(path_pattern("/api/v1/auth/sessions/{sid}"), "/api/v1/auth/sessions/a/b")

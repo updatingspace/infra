@@ -410,6 +410,26 @@
     "component": "web"
   },
   {
+    "path": "/contacts",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/data",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/privacy",
+    "method": "GET",
+    "component": "web"
+  },
+  {
+    "path": "/terms",
+    "method": "GET",
+    "component": "web"
+  },
+  {
     "path": "/forgot-password",
     "method": "GET",
     "component": "web"

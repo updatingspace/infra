@@ -185,6 +185,16 @@
     "component": "mutations"
   },
   {
+    "path": "/api/v1/auth/account/deletions",
+    "method": "POST",
+    "component": "mutations"
+  },
+  {
+    "path": "/api/v1/auth/account/deletions",
+    "method": "OPTIONS",
+    "component": "mutations"
+  },
+  {
     "path": "/api/v1/auth/sessions",
     "method": "GET",
     "component": "sessions"

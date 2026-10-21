@@ -105,6 +105,7 @@ for name, schedule, path in [
     ('recover-security-mail', '*/5 * * * *', '/internal/jobs/recover-security-mail'),
     ('recover-verify-mail', '*/5 * * * *', '/internal/jobs/recover-verify-mail'),
     ('recover-export', '*/5 * * * *', '/internal/jobs/recover-export'),
+    ('recover-deletion', '*/5 * * * *', '/internal/jobs/recover-deletion'),
     ('refresh-gravatars', '17 * * * *', '/refresh-gravatars'),
 ]:
     pod = {
@@ -123,7 +124,7 @@ for name, schedule, path in [
         'jobTemplate': {'spec': {'activeDeadlineSeconds': 600, 'backoffLimit': 2,
                                  'template': {'metadata': {'labels': timer_labels}, 'spec': pod}}},
     }))
-assert len(containers) == 6 and sum(d['kind'] == 'CronJob' for d in docs) == 5
+assert len(containers) == 6 and sum(d['kind'] == 'CronJob' for d in docs) == 6
 assert all(d['spec']['suspend'] for d in docs if d['kind'] == 'CronJob')
 output = yaml.safe_dump_all(docs, sort_keys=False)
 assert list(yaml.safe_load_all(output)) == docs

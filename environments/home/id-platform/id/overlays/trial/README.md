@@ -2,7 +2,7 @@
 
 Base applications.yaml намеренно оставляет replicas=0 для восстановления Secrets
 и пробной базы. Этот overlay фиксирует фактически запущенную пробу: replicas=1,
-все пять CronJobs по-прежнему suspend=true. Он не меняет DNS, TLS, Caddy gate,
+все шесть CronJobs по-прежнему suspend=true. Он не меняет DNS, TLS, Caddy gate,
 содержимое базы или production-состояние облака.
 
 ```sh

@@ -57,11 +57,12 @@ data:
     \ /api/v1/auth/sessions\n    }\n    handle @r8 {\n      reverse_proxy 127.0.0.1:8082\
     \ {\n      }\n    }\n    @r9 {\n      method OPTIONS\n      path /api/v1/auth/sessions\n\
     \    }\n    handle @r9 {\n      reverse_proxy 127.0.0.1:8082 {\n      }\n    }\n\
-    \    @r10 {\n      method GET\n      path / /account /authorize /data/export /data/export/cancel\
-    \ /forgot-password /login /oauth/consent /reset-password /signup /verify-email\n\
-    \    }\n    handle @r10 {\n      reverse_proxy 127.0.0.1:3000 {\n        header_down\
-    \ Content-Security-Policy \"https://storage[.]yandexcloud[.]net\" \"https://storage.updspace.com\"\
-    \n      }\n    }\n    @r11 {\n      method DELETE\n      path_regexp r11 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/sessions/[^/]+)$\"\
+    \    @r10 {\n      method GET\n      path / /account /authorize /contacts /data\
+    \ /data/export /data/export/cancel /forgot-password /login /oauth/consent /privacy\
+    \ /reset-password /signup /terms /verify-email\n    }\n    handle @r10 {\n   \
+    \   reverse_proxy 127.0.0.1:3000 {\n        header_down Content-Security-Policy\
+    \ \"https://storage[.]yandexcloud[.]net\" \"https://storage.updspace.com\"\n \
+    \     }\n    }\n    @r11 {\n      method DELETE\n      path_regexp r11 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/sessions/[^/]+)$\"\
     \n    }\n    handle @r11 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \
     \  }\n    @r12 {\n      method GET\n      path_regexp r12 \"^(?:/api/v1/auth/data/exports/[^/]+|/api/v1/auth/data/exports/[^/]+/download)$\"\
     \n    }\n    handle @r12 {\n      reverse_proxy 127.0.0.1:8083 {\n      }\n  \

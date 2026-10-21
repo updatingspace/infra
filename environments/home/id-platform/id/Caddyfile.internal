@@ -90,7 +90,7 @@
     }
     @r10 {
       method GET
-      path / /account /authorize /data/export /data/export/cancel /forgot-password /login /oauth/consent /reset-password /signup /verify-email
+      path / /account /authorize /contacts /data /data/export /data/export/cancel /forgot-password /login /oauth/consent /privacy /reset-password /signup /terms /verify-email
     }
     handle @r10 {
       reverse_proxy 127.0.0.1:3000 {
